@@ -1,0 +1,20 @@
+{
+  "name": "M&M Artsy",
+  "short_name": "M&M Artsy",
+  "description": "Handcrafted Custom Bouquets, Crochet & Artisan Gifts",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#FFFDF9",
+  "theme_color": "#F97316",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/images/m&m_favicon.png",
+      "sizes": "192x192 512x512",
+      "type": "image/png",
+      "purpose": "maskable any"
+    }
+  ],
+  "categories": ["shopping", "business"],
+  "screenshots": []
+}

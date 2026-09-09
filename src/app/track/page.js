@@ -211,6 +211,23 @@ function TrackContent() {
     }
 
     if (!foundOrder) {
+      try {
+        const localAdminOrders = JSON.parse(localStorage.getItem('likha_admin_orders') || '[]');
+        const match = localAdminOrders.find((o) => {
+          const oRef = o.reference_code?.toUpperCase() || '';
+          return (
+            oRef === lookupRef ||
+            oRef.replace(/^LK-/, 'M&M-') === lookupRef ||
+            oRef.replace(/^M&M-/, 'LK-') === lookupRef
+          );
+        });
+        if (match) {
+          foundOrder = match;
+        }
+      } catch {}
+    }
+
+    if (!foundOrder) {
       foundOrder = getMockOrderByReference(lookupRef);
     }
 

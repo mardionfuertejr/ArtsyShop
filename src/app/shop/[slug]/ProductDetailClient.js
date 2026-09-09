@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { CUSTOM_ORDER_MESSENGER_URL } from '@/lib/constants/customPrompts';
 import { useRouter } from 'next/navigation';
@@ -17,6 +17,21 @@ import { MESSENGER_URL } from '@/lib/constants/customPrompts';
 
 export default function ProductDetailClient({ product, photos }) {
   const router = useRouter();
+  const [currentProduct, setCurrentProduct] = useState(product);
+
+  useEffect(() => {
+    try {
+      const local = localStorage.getItem('likha_custom_products');
+      if (local) {
+        const parsed = JSON.parse(local);
+        const match = parsed.find((p) => p.id === product.id || p.slug === product.slug);
+        if (match) {
+          setCurrentProduct((prev) => ({ ...prev, ...match }));
+        }
+      }
+    } catch {}
+  }, [product]);
+
   // Initialize default selections for required options
   const [selectedOptions, setSelectedOptions] = useState(() => {
     const initial = {};
@@ -37,17 +52,17 @@ export default function ProductDetailClient({ product, photos }) {
   const [flyingItems, setFlyingItems] = useState([]);
   const addBtnRef = useRef(null);
 
-  const isSoldOut = Boolean(product.is_sold_out || (product.is_ready_made && product.ready_made_stock === 0));
-  const isOnSale = Boolean(product.is_on_sale && product.sale_price && Number(product.base_price) > Number(product.sale_price));
-  const originalBasePrice = parseFloat(product.base_price || 0);
-  const effectiveBasePrice = isOnSale ? parseFloat(product.sale_price) : originalBasePrice;
+  const isSoldOut = Boolean(currentProduct.is_sold_out || (currentProduct.is_ready_made && currentProduct.ready_made_stock === 0));
+  const isOnSale = Boolean(currentProduct.is_on_sale && currentProduct.sale_price && Number(currentProduct.base_price) > Number(currentProduct.sale_price));
+  const originalBasePrice = parseFloat(currentProduct.base_price || 0);
+  const effectiveBasePrice = isOnSale ? parseFloat(currentProduct.sale_price) : originalBasePrice;
 
   const discountPercent = (isOnSale && originalBasePrice > 0)
-    ? Math.round(((originalBasePrice - parseFloat(product.sale_price)) / originalBasePrice) * 100)
+    ? Math.round(((originalBasePrice - parseFloat(currentProduct.sale_price)) / originalBasePrice) * 100)
     : null;
 
   // Parse product options
-  const options = product.product_options || [];
+  const options = currentProduct.product_options || [];
 
   // Calculate live price (including options)
   const extraCost = Object.values(selectedOptions).reduce(

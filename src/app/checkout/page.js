@@ -65,6 +65,38 @@ export default function CheckoutPage() {
 
     const loadSettings = async () => {
       try {
+        const res = await fetch('/api/settings');
+        const data = await res.json();
+        if (data?.settings) {
+          setSettings({
+            pickup_address: data.settings.studioAddress,
+            pickup_notes: data.settings.studioAddress,
+            delivery_fee: parseFloat(data.settings.deliveryFee) || DELIVERY_FEE,
+            gcash_name: data.settings.gcashName,
+            gcash_number: data.settings.gcashNumber,
+            studio_name: data.settings.studioName,
+          });
+          return;
+        }
+      } catch {}
+
+      try {
+        const local = localStorage.getItem('mm_studio_settings');
+        if (local) {
+          const parsed = JSON.parse(local);
+          setSettings({
+            pickup_address: parsed.studioAddress,
+            pickup_notes: parsed.studioAddress,
+            delivery_fee: parseFloat(parsed.deliveryFee) || DELIVERY_FEE,
+            gcash_name: parsed.gcashName,
+            gcash_number: parsed.gcashNumber,
+            studio_name: parsed.studioName,
+          });
+          return;
+        }
+      } catch {}
+
+      try {
         const supabase = createClient();
         if (supabase) {
           const { data } = await supabase.from('business_settings').select('*').single();

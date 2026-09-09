@@ -32,10 +32,40 @@ export default function ProductDetailClient({ product, photos }) {
     } catch {}
   }, [product]);
 
+  const defaultHandmadeOptions = [
+    {
+      id: 'default-opt-color',
+      option_name: 'Color Theme',
+      is_required: true,
+      choices: [
+        { label: 'Pastel Blush Pink', extra_cost: 0 },
+        { label: 'Crimson Velvet Red', extra_cost: 0 },
+        { label: 'Lilac Lavender', extra_cost: 0 },
+        { label: 'Sky Blue & White', extra_cost: 0 },
+        { label: 'Sunflower Sunshine Yellow', extra_cost: 0 },
+      ],
+    },
+    {
+      id: 'default-opt-addons',
+      option_name: 'Add-ons & Packaging',
+      is_required: false,
+      choices: [
+        { label: 'Standard Ribbon & Kraft Wrap', extra_cost: 0 },
+        { label: 'Fairy LED Lights (+₱35)', extra_cost: 35 },
+        { label: 'Handwritten Greeting Card (+₱20)', extra_cost: 20 },
+        { label: 'Fairy Lights + Dedication Card (+₱50)', extra_cost: 50 },
+      ],
+    },
+  ];
+
+  const options = (currentProduct.product_options && currentProduct.product_options.length > 0)
+    ? currentProduct.product_options
+    : defaultHandmadeOptions;
+
   // Initialize default selections for required options
   const [selectedOptions, setSelectedOptions] = useState(() => {
     const initial = {};
-    (product.product_options || []).forEach((opt) => {
+    options.forEach((opt) => {
       if (opt.is_required && opt.choices?.length > 0) {
         const first = opt.choices[0];
         const label = typeof first === 'string' ? first : first.label;
@@ -60,9 +90,6 @@ export default function ProductDetailClient({ product, photos }) {
   const discountPercent = (isOnSale && originalBasePrice > 0)
     ? Math.round(((originalBasePrice - parseFloat(currentProduct.sale_price)) / originalBasePrice) * 100)
     : null;
-
-  // Parse product options
-  const options = currentProduct.product_options || [];
 
   // Calculate live price (including options)
   const extraCost = Object.values(selectedOptions).reduce(

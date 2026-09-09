@@ -128,8 +128,15 @@ export default function AdminLoginPage() {
                 value={form.email}
                 onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))}
                 required
+                disabled={loading}
                 autoComplete="email"
-                style={{ paddingLeft: '40px', height: '44px', fontSize: '13.5px' }}
+                style={{
+                  paddingLeft: '40px',
+                  height: '44px',
+                  fontSize: '13.5px',
+                  opacity: loading ? 0.65 : 1,
+                  cursor: loading ? 'not-allowed' : 'text',
+                }}
               />
             </div>
           </div>
@@ -153,16 +160,25 @@ export default function AdminLoginPage() {
                 id="password"
                 className="input"
                 type={showPassword ? 'text' : 'password'}
-                placeholder="Enter your studio password"
+                placeholder="Enter your password"
                 value={form.password}
                 onChange={(e) => setForm((p) => ({ ...p, password: e.target.value }))}
                 required
+                disabled={loading}
                 autoComplete="current-password"
-                style={{ paddingLeft: '40px', paddingRight: '40px', height: '44px', fontSize: '13.5px' }}
+                style={{
+                  paddingLeft: '40px',
+                  paddingRight: '40px',
+                  height: '44px',
+                  fontSize: '13.5px',
+                  opacity: loading ? 0.65 : 1,
+                  cursor: loading ? 'not-allowed' : 'text',
+                }}
               />
               <button
                 type="button"
                 onClick={() => setShowPassword((prev) => !prev)}
+                disabled={loading}
                 aria-label={showPassword ? 'Hide password' : 'Show password'}
                 style={{
                   position: 'absolute',
@@ -170,7 +186,8 @@ export default function AdminLoginPage() {
                   background: 'none',
                   border: 'none',
                   color: 'var(--color-text-muted)',
-                  cursor: 'pointer',
+                  cursor: loading ? 'not-allowed' : 'pointer',
+                  opacity: loading ? 0.5 : 1,
                   padding: '4px 6px',
                   fontSize: '14px',
                 }}
@@ -182,18 +199,33 @@ export default function AdminLoginPage() {
 
           {/* Remember Me & Forgot Password Row */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '12.5px', marginTop: '2px' }}>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', color: 'var(--color-text-secondary)', userSelect: 'none' }}>
+            <label style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              cursor: loading ? 'not-allowed' : 'pointer',
+              opacity: loading ? 0.6 : 1,
+              color: 'var(--color-text-secondary)',
+              userSelect: 'none',
+            }}>
               <input
                 type="checkbox"
                 checked={rememberMe}
+                disabled={loading}
                 onChange={(e) => setRememberMe(e.target.checked)}
-                style={{ accentColor: 'var(--color-primary)', width: '15px', height: '15px', cursor: 'pointer' }}
+                style={{
+                  accentColor: 'var(--color-primary)',
+                  width: '15px',
+                  height: '15px',
+                  cursor: loading ? 'not-allowed' : 'pointer',
+                }}
               />
               <span>Remember me</span>
             </label>
 
             <button
               type="button"
+              disabled={loading}
               onClick={() => {
                 setForgotEmail(form.email);
                 setForgotSubmitted(false);
@@ -205,7 +237,8 @@ export default function AdminLoginPage() {
                 padding: 0,
                 color: 'var(--color-primary)',
                 fontWeight: '600',
-                cursor: 'pointer',
+                cursor: loading ? 'not-allowed' : 'pointer',
+                opacity: loading ? 0.5 : 1,
                 fontSize: '12.5px',
               }}
             >

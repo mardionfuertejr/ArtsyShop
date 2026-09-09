@@ -743,6 +743,47 @@ export default function CheckoutPage() {
               <h2 className="section-title" style={{ fontSize: 'var(--text-base)', marginBottom: 'var(--space-3)' }}>
                 Order Summary
               </h2>
+
+              {/* Itemized Products Preview */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: 'var(--space-4)', paddingBottom: 'var(--space-3)', borderBottom: '1px dashed var(--color-border)' }}>
+                {checkoutCart.map((item) => (
+                  <div key={item.cartItemId} style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                    {item.photo ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={item.photo}
+                        alt={item.productName}
+                        style={{ width: '48px', height: '48px', objectFit: 'cover', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border-light)' }}
+                      />
+                    ) : (
+                      <div style={{ width: '48px', height: '48px', borderRadius: 'var(--radius-md)', background: 'var(--color-surface-warm)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-primary)' }}>
+                        <i className="fa-solid fa-gift" />
+                      </div>
+                    )}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: '13.5px', fontWeight: '600', color: 'var(--color-text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {item.productName}
+                      </div>
+                      {item.options && item.options.length > 0 && (
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '2px' }}>
+                          {item.options.map((opt, idx) => (
+                            <span key={idx} style={{ fontSize: '11px', background: 'var(--color-surface-warm)', color: 'var(--color-text-secondary)', padding: '1px 6px', borderRadius: '4px', border: '1px solid var(--color-border-light)' }}>
+                              {opt.optionName}: <strong>{opt.optionValue}</strong>
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                      <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', marginTop: '2px' }}>
+                        Qty: {item.quantity} &times; {formatCurrency(item.unitPrice)}
+                      </div>
+                    </div>
+                    <div style={{ fontSize: '13.5px', fontWeight: '700', color: 'var(--color-text)' }}>
+                      {formatCurrency((parseFloat(item.unitPrice) || 0) * (item.quantity || 1))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
               <div className="order-summary-row">
                 <span>Products ({checkoutCart.length} {checkoutCart.length === 1 ? 'item' : 'items'})</span>
                 <span>{formatCurrency(subtotal)}</span>

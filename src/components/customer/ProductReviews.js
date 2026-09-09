@@ -20,6 +20,14 @@ const REVIEW_THANK_YOU_MESSAGES = [
   },
 ];
 
+function generateAnonymousReviewerName() {
+  const prefixes = ['a', 'b', 'c', 'd', 'e', 'g', 'j', 'k', 'l', 'm', 'n', 'p', 'r', 's', 't', 'v', 'z'];
+  const suffixes = ['a', 'e', 'i', 'o', 'u', 'y', 'n', 'r', 's', 'z', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+  const p = prefixes[Math.floor(Math.random() * prefixes.length)];
+  const s = suffixes[Math.floor(Math.random() * suffixes.length)];
+  return `${p}*****${s}`;
+}
+
 export default function ProductReviews({ product }) {
   const [reviews, setReviews] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -108,8 +116,7 @@ export default function ProductReviews({ product }) {
     setSubmitting(true);
     setErrorMsg('');
 
-    const randomSuffix = Math.floor(1000 + Math.random() * 9000);
-    const finalCustomerName = customerName.trim() || `Customer #${randomSuffix}`;
+    const finalCustomerName = customerName.trim() || generateAnonymousReviewerName();
     const randomMsg = REVIEW_THANK_YOU_MESSAGES[Math.floor(Math.random() * REVIEW_THANK_YOU_MESSAGES.length)];
     setActiveThankYou(randomMsg);
 
@@ -392,34 +399,49 @@ export default function ProductReviews({ product }) {
                     </p>
                   </div>
 
-                  {/* Rating Stars Selection */}
+                  {/* Rating Reaction Cards Selection (Touch-friendly & prominent) */}
                   <div className="form-group" style={{ margin: 0 }}>
                     <label className="form-label" style={{ fontSize: '12.5px', fontWeight: '700', color: 'var(--color-text)', marginBottom: '8px', display: 'block' }}>
-                      Your Rating <span style={{ color: 'var(--color-primary)' }}>*</span>
+                      How is your experience with this craft? <span style={{ color: 'var(--color-primary)' }}>*</span>
                     </label>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      {[1, 2, 3, 4, 5].map((star) => (
-                        <button
-                          type="button"
-                          key={star}
-                          onClick={() => setRating(star)}
-                          style={{
-                            background: 'none',
-                            border: 'none',
-                            cursor: 'pointer',
-                            fontSize: '24px',
-                            padding: '2px 4px',
-                            color: star <= rating ? '#F59E0B' : 'var(--color-border)',
-                            transition: 'transform 0.15s ease',
-                          }}
-                          aria-label={`${star} star`}
-                        >
-                          ★
-                        </button>
-                      ))}
-                      <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--color-text-secondary)', marginLeft: '6px' }}>
-                        {rating === 5 ? '5.0 - Excellent' : rating === 4 ? '4.0 - Good' : rating === 3 ? '3.0 - Okay' : `${rating}.0`}
-                      </span>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
+                      {[
+                        { val: 5, emoji: '😍', label: 'Love it!' },
+                        { val: 4, emoji: '😊', label: 'Good' },
+                        { val: 3, emoji: '😐', label: 'Okay' },
+                        { val: 2, emoji: '🙁', label: 'Needs Work' },
+                      ].map((item) => {
+                        const isSelected = rating === item.val;
+                        return (
+                          <button
+                            type="button"
+                            key={item.val}
+                            onClick={() => setRating(item.val)}
+                            style={{
+                              display: 'flex',
+                              flexDirection: 'column',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              padding: '10px 4px',
+                              borderRadius: 'var(--radius-lg, 12px)',
+                              border: isSelected ? '2px solid var(--color-primary)' : '1px solid var(--color-border-light, #E5E7EB)',
+                              background: isSelected ? 'var(--color-primary-lighter, #FFF5EE)' : '#FFFFFF',
+                              color: isSelected ? 'var(--color-primary)' : 'var(--color-text-secondary)',
+                              cursor: 'pointer',
+                              transition: 'all 0.15s ease',
+                              minHeight: '70px',
+                            }}
+                            aria-label={`${item.label} (${item.val} stars)`}
+                          >
+                            <span style={{ fontSize: '26px', lineHeight: 1, marginBottom: '6px', transform: isSelected ? 'scale(1.15)' : 'scale(1)', transition: 'transform 0.15s ease' }}>
+                              {item.emoji}
+                            </span>
+                            <span style={{ fontSize: '11px', fontWeight: isSelected ? '700' : '600', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                              {item.label}
+                            </span>
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
 
@@ -431,7 +453,7 @@ export default function ProductReviews({ product }) {
                     <input
                       className="input"
                       type="text"
-                      placeholder="e.g. Maria S."
+                      placeholder="e.g. Maria S. (Leave blank for anonymous)"
                       value={customerName}
                       onChange={(e) => setCustomerName(e.target.value)}
                       style={{

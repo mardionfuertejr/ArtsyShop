@@ -4,153 +4,168 @@ import { useState, useEffect, useCallback } from 'react';
 
 const CART_KEY = 'likha_cart';
 
-export function useCart() {
-  const [cart, setCart] = useState([]);
-  const [isLoaded, setIsLoaded] = useState(false);
+// Global shared in-memory store across all hook callers
+let globalCart = [];
+let isStoreInitialized = false;
+const listeners = new Set();
 
-  // Load cart from localStorage & listen for cross-component and mobile back/forward sync
-  useEffect(() => {
-    const loadCart = () => {
-      try {
-        const stored = localStorage.getItem(CART_KEY);
-        if (stored) {
-          const parsed = JSON.parse(stored);
-          if (Array.isArray(parsed)) {
-            // Deduplicate / ensure unique cartItemId for every item
-            const seenIds = new Set();
-            const sanitized = parsed.map((item, idx) => {
-              let id = item.cartItemId;
-              if (!id || seenIds.has(id)) {
-                id = `cart-${Date.now()}-${idx}-${Math.random().toString(36).slice(2, 8)}`;
-              }
-              seenIds.add(id);
-              return { ...item, cartItemId: id };
-            });
-            setCart(sanitized);
-            // Sync sanitized list back to storage if any IDs were fixed
-            localStorage.setItem(CART_KEY, JSON.stringify(sanitized));
-          }
-        }
-      } catch {}
-      setIsLoaded(true);
-    };
+function getStoredCart() {
+  if (typeof window === 'undefined') return [];
+  try {
+    const stored = localStorage.getItem(CART_KEY);
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      if (Array.isArray(parsed)) {
+        return parsed;
+      }
+    }
+  } catch {}
+  return [];
+}
 
-    loadCart();
-
-    const handleSync = () => loadCart();
-    window.addEventListener('likha_cart_updated', handleSync);
-    window.addEventListener('storage', handleSync);
-    window.addEventListener('pageshow', handleSync); // Handles iOS Safari & Android Chrome back-forward cache
-    window.addEventListener('focus', handleSync);
-
-    return () => {
-      window.removeEventListener('likha_cart_updated', handleSync);
-      window.removeEventListener('storage', handleSync);
-      window.removeEventListener('pageshow', handleSync);
-      window.removeEventListener('focus', handleSync);
-    };
-  }, []);
-
-  // Persist cart to localStorage
-  useEffect(() => {
-    if (!isLoaded) return;
+function saveCart(newCart) {
+  globalCart = newCart;
+  if (typeof window !== 'undefined') {
     try {
-      localStorage.setItem(CART_KEY, JSON.stringify(cart));
+      localStorage.setItem(CART_KEY, JSON.stringify(newCart));
     } catch {}
-  }, [cart, isLoaded]);
-
-  const dispatchUpdate = () => {
-    if (typeof window !== 'undefined') {
+    try {
       window.dispatchEvent(new CustomEvent('likha_cart_updated'));
+    } catch {}
+  }
+  listeners.forEach((listener) => {
+    try {
+      listener(globalCart);
+    } catch {}
+  });
+}
+
+function initStoreIfNeeded() {
+  if (isStoreInitialized || typeof window === 'undefined') return;
+  globalCart = getStoredCart();
+  isStoreInitialized = true;
+
+  const handleStorage = (e) => {
+    if (!e || e.key === CART_KEY || e.type === 'likha_cart_updated') {
+      globalCart = getStoredCart();
+      listeners.forEach((listener) => {
+        try {
+          listener(globalCart);
+        } catch {}
+      });
     }
   };
 
+  window.addEventListener('storage', handleStorage);
+  window.addEventListener('likha_cart_updated', handleStorage);
+  window.addEventListener('focus', handleStorage);
+}
+
+export function useCart() {
+  const [cart, setCart] = useState(() => {
+    if (typeof window !== 'undefined') {
+      initStoreIfNeeded();
+      return globalCart;
+    }
+    return [];
+  });
+  const [isLoaded, setIsLoaded] = useState(false);
+
+  useEffect(() => {
+    initStoreIfNeeded();
+    setCart([...globalCart]);
+    setIsLoaded(true);
+
+    const handleUpdate = (updatedCart) => {
+      setCart([...updatedCart]);
+    };
+
+    listeners.add(handleUpdate);
+    return () => {
+      listeners.delete(handleUpdate);
+    };
+  }, []);
+
   /**
-   * Add item to cart
-   * @param {{ productId, productSlug, productName, photo, unitPrice, quantity, options, notes }} item
+   * Add item to cart (increments quantity if matching product + options exist)
    */
   const addItem = useCallback((item) => {
-    setCart((prev) => {
-      // Check if same product + same options exist
-      const optKey = JSON.stringify(item.options || []);
-      const existIdx = prev.findIndex(
-        (c) => c.productId === item.productId && JSON.stringify(c.options || []) === optKey
-      );
+    initStoreIfNeeded();
+    const currentCart = getStoredCart();
 
-      let next;
-      if (existIdx !== -1) {
-        // Increment quantity
-        const updated = [...prev];
-        updated[existIdx] = {
-          ...updated[existIdx],
-          quantity: updated[existIdx].quantity + (item.quantity || 1),
-        };
-        next = updated;
-      } else {
-        const uniqueId = item.cartItemId || `cart-${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${Math.floor(Math.random() * 10000)}`;
-        next = [...prev, { ...item, cartItemId: uniqueId }];
+    const isOptionEqual = (optsA = [], optsB = []) => {
+      if (optsA.length !== optsB.length) return false;
+      const normA = optsA.map(o => `${o.optionName}:${o.optionValue}`).sort().join('|');
+      const normB = optsB.map(o => `${o.optionName}:${o.optionValue}`).sort().join('|');
+      return normA === normB;
+    };
+
+    const existIdx = currentCart.findIndex((c) => {
+      const idMatch = (c.productId && item.productId && c.productId === item.productId) ||
+                      (c.productSlug && item.productSlug && c.productSlug === item.productSlug);
+      if (!idMatch) return false;
+
+      if ((c.options?.length || 0) > 0 || (item.options?.length || 0) > 0) {
+        return isOptionEqual(c.options || [], item.options || []);
       }
-
-      try {
-        localStorage.setItem(CART_KEY, JSON.stringify(next));
-      } catch {}
-      setTimeout(dispatchUpdate, 10);
-      return next;
+      return true;
     });
+
+    let next;
+    if (existIdx !== -1) {
+      const existing = currentCart[existIdx];
+      const updatedItem = {
+        ...existing,
+        quantity: (existing.quantity || 1) + (item.quantity || 1),
+      };
+      // Move updated item to the top of the cart
+      const remaining = currentCart.filter((_, idx) => idx !== existIdx);
+      next = [updatedItem, ...remaining];
+    } else {
+      const uniqueId = item.cartItemId || `cart-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      // Prepend newest item to the top of the cart
+      next = [{ ...item, cartItemId: uniqueId }, ...currentCart];
+    }
+
+    saveCart(next);
   }, []);
 
   /** Remove item by cartItemId */
   const removeItem = useCallback((cartItemId) => {
-    setCart((prev) => {
-      const next = prev.filter((c) => c.cartItemId !== cartItemId);
-      try {
-        localStorage.setItem(CART_KEY, JSON.stringify(next));
-      } catch {}
-      setTimeout(dispatchUpdate, 10);
-      return next;
-    });
+    initStoreIfNeeded();
+    const currentCart = getStoredCart();
+    const next = currentCart.filter((c) => c.cartItemId !== cartItemId);
+    saveCart(next);
   }, []);
 
   /** Update quantity of an item */
   const updateQty = useCallback((cartItemId, quantity) => {
+    initStoreIfNeeded();
+    const currentCart = getStoredCart();
     if (quantity <= 0) {
-      removeItem(cartItemId);
+      const next = currentCart.filter((c) => c.cartItemId !== cartItemId);
+      saveCart(next);
       return;
     }
-    setCart((prev) => {
-      const next = prev.map((c) => c.cartItemId === cartItemId ? { ...c, quantity } : c);
-      try {
-        localStorage.setItem(CART_KEY, JSON.stringify(next));
-      } catch {}
-      setTimeout(dispatchUpdate, 10);
-      return next;
-    });
-  }, [removeItem]);
+    const next = currentCart.map((c) => c.cartItemId === cartItemId ? { ...c, quantity } : c);
+    saveCart(next);
+  }, []);
 
-  /** Update item properties (e.g., options, variant, quantity) */
+  /** Update item properties */
   const updateItem = useCallback((cartItemId, updates) => {
-    setCart((prev) => {
-      const next = prev.map((c) => c.cartItemId === cartItemId ? { ...c, ...updates } : c);
-      try {
-        localStorage.setItem(CART_KEY, JSON.stringify(next));
-      } catch {}
-      setTimeout(dispatchUpdate, 10);
-      return next;
-    });
+    initStoreIfNeeded();
+    const currentCart = getStoredCart();
+    const next = currentCart.map((c) => c.cartItemId === cartItemId ? { ...c, ...updates } : c);
+    saveCart(next);
   }, []);
 
   /** Clear entire cart */
   const clearCart = useCallback(() => {
-    setCart([]);
-    try {
-      localStorage.setItem(CART_KEY, JSON.stringify([]));
-    } catch {}
-    setTimeout(dispatchUpdate, 10);
+    saveCart([]);
   }, []);
 
-  /** Computed values */
-  const itemCount = cart.reduce((sum, c) => sum + c.quantity, 0);
-
+  const itemCount = cart.length;
+  const totalQuantity = cart.reduce((sum, c) => sum + (c.quantity || 1), 0);
   const subtotal = cart.reduce((sum, c) => {
     return sum + (parseFloat(c.unitPrice) || 0) * (c.quantity || 1);
   }, 0);
@@ -158,6 +173,7 @@ export function useCart() {
   return {
     cart,
     itemCount,
+    totalQuantity,
     subtotal,
     isLoaded,
     addItem,

@@ -1,5 +1,7 @@
 'use client';
 
+import { useState, useRef, useEffect } from 'react';
+
 function getColorSwatch(label = '') {
   const l = label.toLowerCase();
   if (l.includes('pink') || l.includes('blush') || l.includes('rose')) return '#F472B6';
@@ -22,9 +24,29 @@ export default function OptionSelector({
   selectedValue,
   onSelect,
 }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef(null);
+
   const name = optionName || option?.option_name || '';
   const rawChoices = choices || option?.choices || [];
   const activeSelected = selected ?? selectedValue ?? '';
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (containerRef.current && !containerRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    }
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('touchstart', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('touchstart', handleClickOutside);
+    };
+  }, [isOpen]);
 
   if (!rawChoices || rawChoices.length === 0) {
     return null;
@@ -35,111 +57,226 @@ export default function OptionSelector({
     name.toLowerCase().includes('theme') ||
     name.toLowerCase().includes('shade');
 
-  return (
-    <div style={{ marginBottom: '8px' }}>
-      {/* Clean Minimal Header */}
-      <div style={{ marginBottom: '5px' }}>
-        <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--color-text)' }}>
-          {name}
-        </span>
-      </div>
+  const selectedSwatch = isColorTheme ? getColorSwatch(activeSelected) : null;
 
-      {/* Space-Saving Balanced Option Chips */}
-      <div
-        role="radiogroup"
-        aria-label={name}
+  // Find extra cost of currently selected item
+  let selectedExtraCost = 0;
+  const currentChoiceObj = rawChoices.find((c) => {
+    const label = (typeof c === 'string' ? c : c.label || '')
+      .replace(/\s*\(\+?₱?[\d,.]+\)/gi, '')
+      .replace(/\s*\+?₱[\d,.]+/gi, '')
+      .trim();
+    return label === activeSelected;
+  });
+  if (currentChoiceObj) {
+    if (typeof currentChoiceObj === 'object' && currentChoiceObj.extra_cost) {
+      selectedExtraCost = currentChoiceObj.extra_cost;
+    } else {
+      const orig = typeof currentChoiceObj === 'string' ? currentChoiceObj : currentChoiceObj.label || '';
+      const match = orig.match(/\+?\s*₱?\s*(\d+[\d,]*)/);
+      if (match) selectedExtraCost = parseFloat(match[1].replace(/,/g, '')) || 0;
+    }
+  }
+
+  return (
+    <div ref={containerRef} style={{ position: 'relative', marginBottom: '8px' }}>
+      {/* Label */}
+      <label
         style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          gap: '5px',
+          display: 'block',
+          fontSize: '12px',
+          fontWeight: '700',
+          color: 'var(--color-text)',
+          marginBottom: '4px',
         }}
       >
-        {rawChoices.map((choice) => {
-          const originalLabel = typeof choice === 'string' ? choice : choice.label || '';
-          let extraCost = typeof choice === 'object' ? choice.extra_cost || 0 : 0;
+        {name}
+      </label>
 
-          if (!extraCost && typeof originalLabel === 'string') {
-            const match = originalLabel.match(/\+?\s*₱?\s*(\d+[\d,]*)/);
-            if (match) extraCost = parseFloat(match[1].replace(/,/g, '')) || 0;
-          }
-
-          const cleanLabel = originalLabel
-            .replace(/\s*\(\+?₱?[\d,.]+\)/gi, '')
-            .replace(/\s*\+?₱[\d,.]+/gi, '')
-            .trim();
-
-          const isSelected = activeSelected === cleanLabel;
-          const swatchColor = isColorTheme ? getColorSwatch(cleanLabel) : null;
-
-          return (
-            <button
-              key={cleanLabel}
-              type="button"
-              role="radio"
-              aria-checked={isSelected}
-              onClick={() => onSelect(cleanLabel, extraCost)}
+      {/* Trigger Button - Sleek Single Line */}
+      <button
+        type="button"
+        onClick={() => setIsOpen((prev) => !prev)}
+        style={{
+          width: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '8px',
+          padding: '8px 12px',
+          minHeight: '38px',
+          borderRadius: '10px',
+          border: isOpen
+            ? '1.5px solid var(--color-primary, #C2410C)'
+            : '1.5px solid var(--color-border-light, #E5E7EB)',
+          background: 'var(--color-surface, #FFFFFF)',
+          color: 'var(--color-text)',
+          fontSize: '12.5px',
+          cursor: 'pointer',
+          textAlign: 'left',
+          transition: 'all 0.18s ease',
+          boxSizing: 'border-box',
+          outline: 'none',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flex: 1 }}>
+          {selectedSwatch && (
+            <span
               style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '5px',
-                padding: '4px 9px',
-                borderRadius: isColorTheme ? '999px' : '6px',
-                border: isSelected
-                  ? '1.5px solid var(--color-primary)'
-                  : '1px solid var(--color-border-light, #E5E7EB)',
-                background: isSelected
-                  ? 'var(--color-primary-lighter, #FFF5F2)'
-                  : 'var(--color-surface, #FFFFFF)',
-                color: isSelected ? 'var(--color-primary)' : 'var(--color-text-secondary)',
-                cursor: 'pointer',
-                fontSize: '11.5px',
-                fontWeight: isSelected ? '600' : '500',
-                lineHeight: '1.2',
-                transition: 'all 0.12s ease',
-                minHeight: '29px',
-                userSelect: 'none',
-                whiteSpace: 'nowrap',
+                width: '11px',
+                height: '11px',
+                borderRadius: '50%',
+                backgroundColor: selectedSwatch,
+                border: '1px solid rgba(0,0,0,0.15)',
+                flexShrink: 0,
+                display: 'inline-block',
+              }}
+            />
+          )}
+          <span style={{ fontWeight: '600', color: 'var(--color-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {activeSelected || `Select ${name}`}
+          </span>
+          {selectedExtraCost > 0 && (
+            <span
+              style={{
+                fontSize: '10px',
+                fontWeight: '700',
+                color: 'var(--color-primary)',
+                background: 'rgba(194, 65, 12, 0.08)',
+                padding: '1px 5px',
+                borderRadius: '4px',
+                flexShrink: 0,
               }}
             >
-              {swatchColor && (
-                <span
-                  style={{
-                    width: '9px',
-                    height: '9px',
-                    borderRadius: '50%',
-                    backgroundColor: swatchColor,
-                    border: '1px solid rgba(0,0,0,0.15)',
-                    flexShrink: 0,
-                    display: 'inline-block',
-                  }}
-                />
-              )}
+              +₱{selectedExtraCost}
+            </span>
+          )}
+        </div>
 
-              <span>{cleanLabel}</span>
+        <i
+          className="fa-solid fa-chevron-down"
+          style={{
+            fontSize: '11px',
+            color: 'var(--color-text-muted)',
+            transition: 'transform 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+            transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+            flexShrink: 0,
+          }}
+        />
+      </button>
 
-              {extraCost > 0 ? (
-                <span
-                  style={{
-                    fontSize: '9.5px',
-                    fontWeight: '700',
-                    color: isSelected ? 'var(--color-primary)' : 'var(--color-text-muted)',
-                    background: isSelected ? 'rgba(194, 65, 12, 0.12)' : 'var(--color-surface-warm, #F3F4F6)',
-                    padding: '1px 4px',
-                    borderRadius: '3px',
-                  }}
-                >
-                  +₱{extraCost}
-                </span>
-              ) : isSelected ? (
-                <i
-                  className="fa-solid fa-check"
-                  style={{ fontSize: '9px', color: 'var(--color-primary)' }}
-                />
-              ) : null}
-            </button>
-          );
-        })}
-      </div>
+      {/* Floating Dropdown Options Panel */}
+      {isOpen && (
+        <div
+          style={{
+            position: 'absolute',
+            top: 'calc(100% + 4px)',
+            left: 0,
+            right: 0,
+            zIndex: 60,
+            background: 'var(--color-surface, #FFFFFF)',
+            border: '1px solid var(--color-border-light, #E5E7EB)',
+            borderRadius: '12px',
+            boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+            padding: '4px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '2px',
+            maxHeight: '220px',
+            overflowY: 'auto',
+          }}
+        >
+          {rawChoices.map((choice) => {
+            const originalLabel = typeof choice === 'string' ? choice : choice.label || '';
+            let extraCost = typeof choice === 'object' ? choice.extra_cost || 0 : 0;
+
+            if (!extraCost && typeof originalLabel === 'string') {
+              const match = originalLabel.match(/\+?\s*₱?\s*(\d+[\d,]*)/);
+              if (match) extraCost = parseFloat(match[1].replace(/,/g, '')) || 0;
+            }
+
+            const cleanLabel = originalLabel
+              .replace(/\s*\(\+?₱?[\d,.]+\)/gi, '')
+              .replace(/\s*\+?₱[\d,.]+/gi, '')
+              .trim();
+
+            const isSelected = activeSelected === cleanLabel;
+            const swatchColor = isColorTheme ? getColorSwatch(cleanLabel) : null;
+
+            return (
+              <button
+                key={cleanLabel}
+                type="button"
+                onClick={() => {
+                  onSelect(cleanLabel, extraCost);
+                  setIsOpen(false);
+                }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '8px',
+                  padding: '8px 10px',
+                  borderRadius: '8px',
+                  border: 'none',
+                  background: isSelected
+                    ? 'var(--color-primary-lighter, #FFF5F2)'
+                    : 'transparent',
+                  color: isSelected ? 'var(--color-primary)' : 'var(--color-text)',
+                  fontSize: '12px',
+                  fontWeight: isSelected ? '600' : '500',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  transition: 'background-color 0.12s ease',
+                  width: '100%',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flex: 1 }}>
+                  {swatchColor && (
+                    <span
+                      style={{
+                        width: '11px',
+                        height: '11px',
+                        borderRadius: '50%',
+                        backgroundColor: swatchColor,
+                        border: '1px solid rgba(0,0,0,0.15)',
+                        flexShrink: 0,
+                        display: 'inline-block',
+                      }}
+                    />
+                  )}
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {cleanLabel}
+                  </span>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                  {extraCost > 0 && (
+                    <span
+                      style={{
+                        fontSize: '10px',
+                        fontWeight: '700',
+                        color: isSelected ? 'var(--color-primary)' : 'var(--color-text-secondary)',
+                        background: isSelected ? 'rgba(194, 65, 12, 0.15)' : 'var(--color-surface-warm, #F3F4F6)',
+                        padding: '1px 5px',
+                        borderRadius: '4px',
+                      }}
+                    >
+                      +₱{extraCost}
+                    </span>
+                  )}
+                  {isSelected && (
+                    <i
+                      className="fa-solid fa-check"
+                      style={{ fontSize: '10px', color: 'var(--color-primary)' }}
+                    />
+                  )}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

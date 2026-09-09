@@ -9,7 +9,50 @@ import { generateOrderReference } from '@/lib/engine/reference';
 import { formatCurrency } from '@/lib/utils/formatCurrency';
 import { addMockOrder } from '@/lib/mockData';
 
-const DELIVERY_FEE = 50; // default, will come from settings later
+const DEFAULT_DELIVERY_FEE = 45;
+const BARUGO_STUDIO_COORDS = { lat: 11.3256, lng: 124.7349 };
+
+// Haversine formula to compute great-circle distance in kilometers
+function computeDistanceKm(lat1, lon1, lat2, lon2) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * (Math.PI / 180);
+  const dLon = (lon2 - lon1) * (Math.PI / 180);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * (Math.PI / 180)) *
+      Math.cos(lat2 * (Math.PI / 180)) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
+function calculateDynamicDeliveryFee(settings, deliveryLocation, orderType) {
+  if (orderType === 'pickup') return 0;
+  
+  if (settings.delivery_fee_mode === 'fixed') {
+    return parseFloat(settings.delivery_fee) || DEFAULT_DELIVERY_FEE;
+  }
+
+  const nearFee = parseFloat(settings.delivery_fee_near) || 20; // 0-2 km (Poblacion)
+  const midFee = parseFloat(settings.delivery_fee_mid) || 35;   // 2-5 km (Barangays)
+  const farFee = parseFloat(settings.delivery_fee_far) || 45;   // 5+ km (Carigara/Max)
+
+  if (!deliveryLocation || !deliveryLocation.lat || !deliveryLocation.lng) {
+    return nearFee;
+  }
+
+  const distKm = computeDistanceKm(
+    BARUGO_STUDIO_COORDS.lat,
+    BARUGO_STUDIO_COORDS.lng,
+    deliveryLocation.lat,
+    deliveryLocation.lng
+  );
+
+  if (distKm > 5) return farFee;
+  if (distKm > 2) return midFee;
+  return nearFee;
+}
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -21,7 +64,15 @@ export default function CheckoutPage() {
   const [deliveryAddress, setDeliveryAddress] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
-  const [settings, setSettings] = useState({ pickup_address: '', pickup_notes: '', delivery_fee: DELIVERY_FEE });
+  const [settings, setSettings] = useState({
+    pickup_address: '',
+    pickup_notes: '',
+    delivery_fee: DEFAULT_DELIVERY_FEE,
+    delivery_fee_mode: 'auto',
+    delivery_fee_near: 20,
+    delivery_fee_mid: 35,
+    delivery_fee_far: 45,
+  });
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const markerRef = useRef(null);
@@ -48,6 +99,10 @@ export default function CheckoutPage() {
     return sum + (parseFloat(c.unitPrice) || 0) * (c.quantity || 1);
   }, 0);
 
+  const totalPieces = checkoutCart.reduce((sum, item) => sum + (item.quantity || 1), 0);
+  const dynamicDeliveryFee = calculateDynamicDeliveryFee(settings, deliveryLocation, orderType);
+  const totalAmount = subtotal + dynamicDeliveryFee;
+
   // Load business settings & saved customer info
   useEffect(() => {
     try {
@@ -69,9 +124,13 @@ export default function CheckoutPage() {
         const data = await res.json();
         if (data?.settings) {
           setSettings({
-            pickup_address: data.settings.studioAddress,
-            pickup_notes: data.settings.studioAddress,
-            delivery_fee: parseFloat(data.settings.deliveryFee) || DELIVERY_FEE,
+            pickup_address: data.settings.studioAddress || data.settings.pickup_address,
+            pickup_notes: data.settings.pickup_notes || data.settings.pickupNotes || 'Pickup schedule and ready-for-pickup notice will be coordinated via Messenger.',
+            delivery_fee: parseFloat(data.settings.deliveryFee) || DEFAULT_DELIVERY_FEE,
+            delivery_fee_mode: data.settings.deliveryFeeMode || 'auto',
+            delivery_fee_near: parseFloat(data.settings.deliveryFeeNear) || 20,
+            delivery_fee_mid: parseFloat(data.settings.deliveryFeeMid) || 35,
+            delivery_fee_far: parseFloat(data.settings.deliveryFeeFar) || 45,
             gcash_name: data.settings.gcashName,
             gcash_number: data.settings.gcashNumber,
             studio_name: data.settings.studioName,
@@ -85,9 +144,13 @@ export default function CheckoutPage() {
         if (local) {
           const parsed = JSON.parse(local);
           setSettings({
-            pickup_address: parsed.studioAddress,
-            pickup_notes: parsed.studioAddress,
-            delivery_fee: parseFloat(parsed.deliveryFee) || DELIVERY_FEE,
+            pickup_address: parsed.studioAddress || parsed.pickup_address,
+            pickup_notes: parsed.pickup_notes || parsed.pickupNotes || 'Pickup schedule and ready-for-pickup notice will be coordinated via Messenger.',
+            delivery_fee: parseFloat(parsed.deliveryFee) || DEFAULT_DELIVERY_FEE,
+            delivery_fee_mode: parsed.deliveryFeeMode || 'auto',
+            delivery_fee_near: parseFloat(parsed.deliveryFeeNear) || 20,
+            delivery_fee_mid: parseFloat(parsed.deliveryFeeMid) || 35,
+            delivery_fee_far: parseFloat(parsed.deliveryFeeFar) || 45,
             gcash_name: parsed.gcashName,
             gcash_number: parsed.gcashNumber,
             studio_name: parsed.studioName,
@@ -100,7 +163,9 @@ export default function CheckoutPage() {
         const supabase = createClient();
         if (supabase) {
           const { data } = await supabase.from('business_settings').select('*').single();
-          if (data) setSettings(data);
+          if (data) {
+            setSettings(prev => ({ ...prev, ...data }));
+          }
         }
       } catch {
         // Fallback default settings
@@ -260,8 +325,8 @@ export default function CheckoutPage() {
   const handleUseMyLocation = () => {
     if (!navigator.geolocation) {
       setLocateStatus('Pin on map');
-      setError('Hindi supported ang automatic GPS sa browser na ito. Pindutin o i-drag lang ang pin sa mapa.');
-      setTimeout(() => setLocateStatus(''), 4000);
+      setError('Walang GPS. I-tap o i-drag ang pin sa mapa.');
+      setTimeout(() => setLocateStatus(''), 3000);
       return;
     }
 
@@ -310,8 +375,8 @@ export default function CheckoutPage() {
         if (err.code === err.PERMISSION_DENIED) {
           setLocating(false);
           setLocateStatus('Permission blocked');
-          setError('Naka-block ang Location sa browser. Pindutin lang ang mapa o i-drag ang pin patungo sa iyong bahay.');
-          setTimeout(() => setLocateStatus(''), 4000);
+          setError('Naka-block ang Location. I-tap ang pin sa mapa.');
+          setTimeout(() => setLocateStatus(''), 3500);
           return;
         }
 
@@ -323,8 +388,8 @@ export default function CheckoutPage() {
           () => {
             setLocating(false);
             setLocateStatus('Pin on map');
-            setError('Hindi ma-detect ang GPS. Paki-tap o i-drag ang pin sa satellite map papunta sa iyong address.');
-            setTimeout(() => setLocateStatus(''), 4000);
+            setError('Hindi ma-detect ang GPS. I-tap ang pin sa mapa.');
+            setTimeout(() => setLocateStatus(''), 3500);
           },
           { enableHighAccuracy: false, timeout: 8000, maximumAge: 300000 }
         );
@@ -337,14 +402,14 @@ export default function CheckoutPage() {
     e.preventDefault();
     if (checkoutCart.length === 0) return;
     if (orderType === 'delivery' && !deliveryLocation) {
-      setError('Please pin your delivery location on the map.');
+      setError('Paki-tap ang iyong delivery pin sa mapa.');
       return;
     }
     setSubmitting(true);
     setError('');
 
-    const deliveryFee = orderType === 'delivery' ? (settings.delivery_fee || DELIVERY_FEE) : 0;
-    const totalAmount = subtotal + deliveryFee;
+    const deliveryFee = dynamicDeliveryFee;
+    const orderTotalAmount = subtotal + deliveryFee;
     let referenceCode = '';
 
     try {
@@ -700,16 +765,17 @@ export default function CheckoutPage() {
                 marginTop: 'var(--space-3)',
                 border: '1px solid var(--color-border-light)',
               }}>
-                <p style={{ fontWeight: 'var(--weight-semibold)', marginBottom: 'var(--space-1)', color: 'var(--color-text)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <i className="fa-solid fa-store" style={{ color: 'var(--color-primary)' }}></i>
+                <p style={{ fontWeight: '600', fontSize: '13.5px', marginBottom: '4px', color: 'var(--color-text)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <i className="fa-solid fa-store" style={{ color: 'var(--color-primary)', fontSize: '14px' }}></i>
                   <span>Store Pickup Location</span>
                 </p>
-                <p style={{ fontSize: 'var(--text-sm)', color: 'var(--color-text-secondary)', lineHeight: 'var(--leading-relaxed)', margin: 0 }}>
-                  {settings.pickup_address || 'M&M Artsy Studio, Busay, Barugo, Leyte (Exact pickup schedule will be sent on Messenger)'}
+                <p style={{ fontSize: '13px', color: 'var(--color-text-secondary)', lineHeight: 1.5, margin: 0 }}>
+                  {settings.pickup_address || 'Poblacion, Barugo, Leyte (Near Town Plaza)'}
                 </p>
-                {settings.pickup_notes && (
-                  <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', marginTop: 'var(--space-2)', margin: 0 }}>
-                    {settings.pickup_notes}
+                {settings.pickup_notes && settings.pickup_notes.trim() !== (settings.pickup_address || '').trim() && (
+                  <p style={{ fontSize: '11.5px', color: 'var(--color-text-muted)', marginTop: '6px', margin: 0, display: 'flex', alignItems: 'center', gap: '5px' }}>
+                    <i className="fa-regular fa-clock" style={{ fontSize: '11px', color: 'var(--color-primary)' }}></i>
+                    <span>{settings.pickup_notes}</span>
                   </p>
                 )}
               </div>
@@ -722,12 +788,12 @@ export default function CheckoutPage() {
           <div className="section">
             <div className="input-group">
               <label className="input-label" htmlFor="notes">
-                Special Instructions (optional)
+                Notes
               </label>
               <textarea
                 id="notes"
                 className="input"
-                placeholder="e.g. Please leave with guard, call when nearby, or preferred pickup time..."
+                placeholder="Card message (e.g. 'Happy Birthday!'), kulay ng ribbon, o iba pang bilin..."
                 value={formData.notes}
                 onChange={(e) => setFormData(p => ({ ...p, notes: e.target.value }))}
                 rows={2}
@@ -739,63 +805,89 @@ export default function CheckoutPage() {
 
           {/* Order Summary */}
           <div className="section">
-            <div className="order-summary">
-              <h2 className="section-title" style={{ fontSize: 'var(--text-base)', marginBottom: 'var(--space-3)' }}>
-                Order Summary
-              </h2>
+            <div className="order-summary" style={{ padding: '16px 18px', borderRadius: 'var(--radius-xl)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                <h2 className="section-title" style={{ fontSize: '14.5px', fontWeight: '800', margin: 0 }}>
+                  Order Summary
+                </h2>
+                <span style={{ fontSize: '11.5px', fontWeight: '600', color: 'var(--color-text-secondary)', background: 'var(--color-surface-warm, #F3F4F6)', padding: '2px 8px', borderRadius: 'var(--radius-full)', border: '1px solid var(--color-border-light)' }}>
+                  {checkoutCart.length} {checkoutCart.length === 1 ? 'item' : 'items'}
+                </span>
+              </div>
 
               {/* Itemized Products Preview */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: 'var(--space-4)', paddingBottom: 'var(--space-3)', borderBottom: '1px dashed var(--color-border)' }}>
-                {checkoutCart.map((item) => (
-                  <div key={item.cartItemId} style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                    {item.photo ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={item.photo}
-                        alt={item.productName}
-                        style={{ width: '48px', height: '48px', objectFit: 'cover', borderRadius: 'var(--radius-md)', border: '1px solid var(--color-border-light)' }}
-                      />
-                    ) : (
-                      <div style={{ width: '48px', height: '48px', borderRadius: 'var(--radius-md)', background: 'var(--color-surface-warm)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-primary)' }}>
-                        <i className="fa-solid fa-gift" />
-                      </div>
-                    )}
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: '13.5px', fontWeight: '600', color: 'var(--color-text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {item.productName}
-                      </div>
-                      {item.options && item.options.length > 0 && (
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '2px' }}>
-                          {item.options.map((opt, idx) => (
-                            <span key={idx} style={{ fontSize: '11px', background: 'var(--color-surface-warm)', color: 'var(--color-text-secondary)', padding: '1px 6px', borderRadius: '4px', border: '1px solid var(--color-border-light)' }}>
-                              {opt.optionName}: <strong>{opt.optionValue}</strong>
-                            </span>
-                          ))}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '12px', paddingBottom: '12px', borderBottom: '1px dashed var(--color-border)' }}>
+                {checkoutCart.map((item) => {
+                  const lineTotal = (parseFloat(item.unitPrice) || 0) * (item.quantity || 1);
+                  return (
+                    <div key={item.cartItemId || item.productId} style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                      {item.photo ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={item.photo}
+                          alt={item.productName}
+                          style={{ width: '46px', height: '46px', objectFit: 'cover', borderRadius: 'var(--radius-md, 8px)', border: '1px solid var(--color-border-light)', flexShrink: 0 }}
+                        />
+                      ) : (
+                        <div style={{ width: '46px', height: '46px', borderRadius: 'var(--radius-md, 8px)', background: 'var(--color-surface-warm)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-primary)', flexShrink: 0 }}>
+                          <i className="fa-solid fa-gift" />
                         </div>
                       )}
-                      <div style={{ fontSize: '12px', color: 'var(--color-text-muted)', marginTop: '2px' }}>
-                        Qty: {item.quantity} &times; {formatCurrency(item.unitPrice)}
+
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        {/* Line 1: Title + Price in perfect horizontal alignment */}
+                        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: '8px' }}>
+                          <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--color-text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {item.productName}
+                          </span>
+                          <span style={{ fontSize: '13.5px', fontWeight: '700', color: 'var(--color-text)', flexShrink: 0 }}>
+                            {formatCurrency(lineTotal)}
+                          </span>
+                        </div>
+
+                        {/* Line 2: Variant Tag + Quantity on a single balanced line */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '3px', flexWrap: 'wrap' }}>
+                          {item.options && item.options.length > 0 && item.options.map((opt, idx) => (
+                            <span
+                              key={idx}
+                              style={{
+                                fontSize: '11px',
+                                background: 'var(--color-surface-warm, #FAF8F5)',
+                                color: 'var(--color-text-secondary)',
+                                padding: '1px 6px',
+                                borderRadius: '4px',
+                                border: '1px solid var(--color-border-light)',
+                                fontWeight: '500',
+                              }}
+                            >
+                              {opt.optionValue} {parseFloat(opt.additionalCost) > 0 ? `(+₱${opt.additionalCost})` : ''}
+                            </span>
+                          ))}
+                          <span style={{ fontSize: '11.5px', color: 'var(--color-text-muted)', fontWeight: '500' }}>
+                            {item.options?.length > 0 ? '· ' : ''}Qty: {item.quantity}
+                          </span>
+                        </div>
                       </div>
                     </div>
-                    <div style={{ fontSize: '13.5px', fontWeight: '700', color: 'var(--color-text)' }}>
-                      {formatCurrency((parseFloat(item.unitPrice) || 0) * (item.quantity || 1))}
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
-              <div className="order-summary-row">
-                <span>Products ({checkoutCart.length} {checkoutCart.length === 1 ? 'item' : 'items'})</span>
-                <span>{formatCurrency(subtotal)}</span>
+              {/* Fee Breakdown */}
+              <div className="order-summary-row" style={{ padding: '3px 0', fontSize: '13px' }}>
+                <span>Subtotal ({checkoutCart.length} {checkoutCart.length === 1 ? 'item' : 'items'})</span>
+                <span style={{ fontWeight: '600' }}>{formatCurrency(subtotal)}</span>
               </div>
-              <div className="order-summary-row">
-                <span>Fulfillment ({orderType === 'delivery' ? 'Delivery' : 'Pickup'})</span>
-                <span>{orderType === 'delivery' ? formatCurrency(settings.delivery_fee || DELIVERY_FEE) : 'Free'}</span>
+              <div className="order-summary-row" style={{ padding: '3px 0', fontSize: '13px' }}>
+                <span>Fulfillment ({orderType === 'delivery' ? 'Delivery' : 'Store Pickup'})</span>
+                <span style={{ fontWeight: '600', color: orderType === 'delivery' ? 'var(--color-text)' : 'var(--color-success, #16A34A)' }}>
+                  {orderType === 'delivery' ? formatCurrency(dynamicDeliveryFee) : 'FREE'}
+                </span>
               </div>
-              <div className="order-summary-row total">
-                <span>Total Amount</span>
-                <span className="amount">
-                  {formatCurrency(subtotal + (orderType === 'delivery' ? (settings.delivery_fee || DELIVERY_FEE) : 0))}
+              <div className="order-summary-row total" style={{ marginTop: '8px', paddingTop: '10px', fontSize: '14px', borderTop: '1px solid var(--color-border)' }}>
+                <span style={{ fontWeight: '700' }}>Total Amount</span>
+                <span className="amount" style={{ fontSize: '17px', fontWeight: '800' }}>
+                  {formatCurrency(totalAmount)}
                 </span>
               </div>
             </div>
@@ -804,17 +896,19 @@ export default function CheckoutPage() {
           {error && (
             <div style={{
               margin: '0 var(--space-4) var(--space-3)',
-              padding: 'var(--space-3)',
+              padding: '8px 12px',
               background: 'var(--color-danger-bg)',
               color: 'var(--color-danger)',
               borderRadius: 'var(--radius-lg)',
               display: 'flex',
               alignItems: 'center',
-              gap: '8px',
-              fontSize: '13px',
+              gap: '6px',
+              fontSize: '12px',
+              fontWeight: '500',
+              lineHeight: 1.3,
             }}>
-              <i className="fa-solid fa-triangle-exclamation"></i>
-              <span>{error}</span>
+              <i className="fa-solid fa-triangle-exclamation" style={{ flexShrink: 0, fontSize: '12px' }}></i>
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{error}</span>
             </div>
           )}
 

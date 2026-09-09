@@ -1,7 +1,20 @@
+'use client';
+
+import { useState } from 'react';
 import Link from 'next/link';
 import { formatCurrencyCompact } from '@/lib/utils/formatCurrency';
+import { useCart } from '@/lib/hooks/useCart';
 
 export default function ProductCard({ product, className = '', style = {} }) {
+  const { cart, addItem, updateQty, removeItem } = useCart();
+
+  // Find total quantity of this product in cart
+  const inCartItems = (cart || []).filter(
+    (c) => (c.productId && product.id && c.productId === product.id) ||
+           (c.productSlug && product.slug && c.productSlug === product.slug)
+  );
+  const inCartQty = inCartItems.reduce((sum, c) => sum + (c.quantity || 0), 0);
+
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const coverPhoto = product.product_photos?.find((p) => p.is_cover) || product.product_photos?.[0];
   const photoUrl = coverPhoto?.url
@@ -18,6 +31,35 @@ export default function ProductCard({ product, className = '', style = {} }) {
     : null;
 
   const saleBadgeText = discountPercent ? `${discountPercent}% OFF` : (product.sale_tag || 'Sale');
+
+  const [added, setAdded] = useState(false);
+
+  const handleQuickAdd = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (isSoldOut) return;
+
+    const unitPrice = parseFloat(product.is_on_sale && product.sale_price ? product.sale_price : product.base_price) || 250;
+    const existingOptions = inCartItems[0]?.options || [];
+
+    addItem({
+      productId: product.id,
+      productSlug: product.slug,
+      productName: product.name,
+      photo: photoUrl,
+      basePrice: unitPrice,
+      unitPrice: unitPrice,
+      quantity: 1,
+      options: existingOptions,
+    });
+
+    setAdded(true);
+    setTimeout(() => setAdded(false), 800);
+
+    try {
+      window.dispatchEvent(new CustomEvent('likha_cart_updated'));
+    } catch {}
+  };
 
   return (
     <Link
@@ -59,30 +101,44 @@ export default function ProductCard({ product, className = '', style = {} }) {
       </div>
       <div className="product-card-body">
         <h3 className="product-card-name" title={product.name}>{product.name}</h3>
-        <div className="product-card-price-wrap">
-          {product.is_on_sale && product.sale_price ? (
-            <div className="product-card-price-row is-sale">
-              <span className="product-card-price-current">
-                {formatCurrencyCompact(product.sale_price)}
-              </span>
-              <span className="product-card-price-original">
-                {formatCurrencyCompact(product.base_price)}
-              </span>
-            </div>
-          ) : isSoldOut ? (
-            <div className="product-card-price-row is-sold-out">
-              <span className="product-card-price-prefix">From</span>
-              <span className="product-card-price-current">
-                {formatCurrencyCompact(product.base_price)}
-              </span>
-            </div>
-          ) : (
-            <div className="product-card-price-row">
-              <span className="product-card-price-prefix">From</span>
-              <span className="product-card-price-current">
-                {formatCurrencyCompact(product.base_price)}
-              </span>
-            </div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px', marginTop: '3px' }}>
+          <div className="product-card-price-wrap" style={{ margin: 0 }}>
+            {product.is_on_sale && product.sale_price ? (
+              <div className="product-card-price-row is-sale">
+                <span className="product-card-price-current">
+                  {formatCurrencyCompact(product.sale_price)}
+                </span>
+                <span className="product-card-price-original">
+                  {formatCurrencyCompact(product.base_price)}
+                </span>
+              </div>
+            ) : isSoldOut ? (
+              <div className="product-card-price-row is-sold-out">
+                <span className="product-card-price-prefix">From</span>
+                <span className="product-card-price-current">
+                  {formatCurrencyCompact(product.base_price)}
+                </span>
+              </div>
+            ) : (
+              <div className="product-card-price-row">
+                <span className="product-card-price-prefix">From</span>
+                <span className="product-card-price-current">
+                  {formatCurrencyCompact(product.base_price)}
+                </span>
+              </div>
+            )}
+          </div>
+
+          {!isSoldOut && (
+            <button
+              type="button"
+              onClick={handleQuickAdd}
+              aria-label={`Add ${product.name} to cart`}
+              title="Quick Add to Cart"
+              className="product-card-quick-add"
+            >
+              <i className={added ? 'fa-solid fa-check' : 'fa-solid fa-plus'} />
+            </button>
           )}
         </div>
       </div>

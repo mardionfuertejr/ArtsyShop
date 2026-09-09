@@ -10,7 +10,11 @@ let serverSettings = {
   contactNumber: '0917 890 1234',
   gcashName: 'M&M ARTSY STUDIO',
   gcashNumber: '0917 890 1234',
-  deliveryFee: 50,
+  deliveryFee: 45,
+  deliveryFeeMode: 'auto', // 'auto' (Distance-based GPS) or 'fixed' (Manual flat fee)
+  deliveryFeeNear: 20,     // 0-2 km (Barugo Proper / Poblacion)
+  deliveryFeeMid: 35,      // 2-5 km (Other Barangays)
+  deliveryFeeFar: 45,      // 5+ km (Carigara & Boundary max)
   studioAddress: 'Poblacion, Barugo, Leyte (Near Town Plaza)',
   autoConfirm: false,
 };

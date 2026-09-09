@@ -14,7 +14,11 @@ export default function AdminSettingsClient() {
     contactNumber: '0917 890 1234',
     gcashName: 'M&M ARTSY STUDIO',
     gcashNumber: '0917 890 1234',
-    deliveryFee: 50,
+    deliveryFee: 45,
+    deliveryFeeMode: 'auto',
+    deliveryFeeNear: 20,
+    deliveryFeeMid: 35,
+    deliveryFeeFar: 45,
     studioAddress: 'Poblacion, Barugo, Leyte (Near Town Plaza)',
     autoConfirm: false,
   });
@@ -186,18 +190,132 @@ export default function AdminSettingsClient() {
                 />
               </div>
 
-              <div>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '6px', color: 'var(--color-text)' }}>
-                  Standard Barugo Delivery Fee (₱)
+              <div style={{ background: 'var(--color-surface-warm, #FAF8F5)', padding: '14px', borderRadius: 'var(--radius-lg)', border: '1px solid var(--color-border-light)' }}>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', marginBottom: '8px', color: 'var(--color-text)' }}>
+                  🛵 Delivery Fee Calculation Method
                 </label>
-                <input
-                  type="number"
-                  className="form-input"
-                  style={{ width: '100%' }}
-                  value={settings.deliveryFee}
-                  onChange={(e) => handleChange('deliveryFee', parseFloat(e.target.value) || 0)}
-                  min="0"
-                />
+                
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '12px' }}>
+                  <button
+                    type="button"
+                    onClick={() => handleChange('deliveryFeeMode', 'auto')}
+                    style={{
+                      padding: '8px 10px',
+                      borderRadius: 'var(--radius-md)',
+                      fontSize: '12.5px',
+                      fontWeight: '600',
+                      border: settings.deliveryFeeMode !== 'fixed' ? '2px solid var(--color-primary)' : '1px solid var(--color-border-light)',
+                      background: settings.deliveryFeeMode !== 'fixed' ? 'var(--color-primary-lighter)' : '#FFFFFF',
+                      color: settings.deliveryFeeMode !== 'fixed' ? 'var(--color-primary)' : 'var(--color-text-secondary)',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    <i className="fa-solid fa-route"></i>
+                    <span>Auto (Distance-based)</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => handleChange('deliveryFeeMode', 'fixed')}
+                    style={{
+                      padding: '8px 10px',
+                      borderRadius: 'var(--radius-md)',
+                      fontSize: '12.5px',
+                      fontWeight: '600',
+                      border: settings.deliveryFeeMode === 'fixed' ? '2px solid var(--color-primary)' : '1px solid var(--color-border-light)',
+                      background: settings.deliveryFeeMode === 'fixed' ? 'var(--color-primary-lighter)' : '#FFFFFF',
+                      color: settings.deliveryFeeMode === 'fixed' ? 'var(--color-primary)' : 'var(--color-text-secondary)',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    <i className="fa-solid fa-sliders"></i>
+                    <span>Fixed / Manual Fee</span>
+                  </button>
+                </div>
+
+                {settings.deliveryFeeMode !== 'fixed' ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    <p style={{ fontSize: '11.5px', color: 'var(--color-text-muted)', margin: '0 0 4px' }}>
+                      Auto-computes using GPS map pin from Studio in Barugo Proper:
+                    </p>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '11px', fontWeight: '600', color: 'var(--color-text-secondary)', marginBottom: '4px' }}>
+                          0–2 km (Poblacion)
+                        </label>
+                        <div style={{ position: 'relative' }}>
+                          <span style={{ position: 'absolute', left: '8px', top: '50%', transform: 'translateY(-50%)', fontSize: '12px', color: 'var(--color-text-muted)' }}>₱</span>
+                          <input
+                            type="number"
+                            className="form-input"
+                            style={{ width: '100%', paddingLeft: '22px', fontSize: '12.5px' }}
+                            value={settings.deliveryFeeNear !== undefined ? settings.deliveryFeeNear : 20}
+                            onChange={(e) => handleChange('deliveryFeeNear', parseFloat(e.target.value) || 0)}
+                            min="0"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label style={{ display: 'block', fontSize: '11px', fontWeight: '600', color: 'var(--color-text-secondary)', marginBottom: '4px' }}>
+                          2–5 km (Barangays)
+                        </label>
+                        <div style={{ position: 'relative' }}>
+                          <span style={{ position: 'absolute', left: '8px', top: '50%', transform: 'translateY(-50%)', fontSize: '12px', color: 'var(--color-text-muted)' }}>₱</span>
+                          <input
+                            type="number"
+                            className="form-input"
+                            style={{ width: '100%', paddingLeft: '22px', fontSize: '12.5px' }}
+                            value={settings.deliveryFeeMid !== undefined ? settings.deliveryFeeMid : 35}
+                            onChange={(e) => handleChange('deliveryFeeMid', parseFloat(e.target.value) || 0)}
+                            min="0"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label style={{ display: 'block', fontSize: '11px', fontWeight: '600', color: 'var(--color-text-secondary)', marginBottom: '4px' }}>
+                          5+ km (Carigara/Max)
+                        </label>
+                        <div style={{ position: 'relative' }}>
+                          <span style={{ position: 'absolute', left: '8px', top: '50%', transform: 'translateY(-50%)', fontSize: '12px', color: 'var(--color-text-muted)' }}>₱</span>
+                          <input
+                            type="number"
+                            className="form-input"
+                            style={{ width: '100%', paddingLeft: '22px', fontSize: '12.5px' }}
+                            value={settings.deliveryFeeFar !== undefined ? settings.deliveryFeeFar : 45}
+                            onChange={(e) => handleChange('deliveryFeeFar', parseFloat(e.target.value) || 0)}
+                            min="0"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '4px', color: 'var(--color-text-secondary)' }}>
+                      Flat Delivery Rate for All Deliveries (₱)
+                    </label>
+                    <input
+                      type="number"
+                      className="form-input"
+                      style={{ width: '100%' }}
+                      value={settings.deliveryFee !== undefined ? settings.deliveryFee : 45}
+                      onChange={(e) => handleChange('deliveryFee', parseFloat(e.target.value) || 0)}
+                      min="0"
+                    />
+                  </div>
+                )}
               </div>
 
               <div>

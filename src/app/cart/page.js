@@ -106,6 +106,7 @@ export default function CartPage() {
   // Edit modal state
   const [editOptions, setEditOptions] = useState([]);
   const [selectedEditOptions, setSelectedEditOptions] = useState({});
+  const [editQuantity, setEditQuantity] = useState(1);
   const [editLoading, setEditLoading] = useState(false);
 
   // Close dropdown when clicking or tapping outside
@@ -123,12 +124,41 @@ export default function CartPage() {
     };
   }, []);
 
+  const DEFAULT_HANDMADE_OPTIONS = [
+    {
+      id: 'default-opt-color',
+      option_name: 'Color Theme',
+      is_required: true,
+      choices: [
+        { label: 'Blush Pink', extra_cost: 0 },
+        { label: 'Velvet Red', extra_cost: 0 },
+        { label: 'Lavender', extra_cost: 0 },
+        { label: 'Sky Blue', extra_cost: 0 },
+        { label: 'Sunflower', extra_cost: 0 },
+        { label: 'Sage Green', extra_cost: 0 },
+        { label: 'Kraft Brown', extra_cost: 0 },
+      ],
+    },
+    {
+      id: 'default-opt-addons',
+      option_name: 'Add-ons',
+      is_required: false,
+      choices: [
+        { label: 'None', extra_cost: 0 },
+        { label: 'Fairy Lights (+₱35)', extra_cost: 35 },
+        { label: 'Greeting Card (+₱20)', extra_cost: 20 },
+        { label: 'Lights + Card (+₱50)', extra_cost: 50 },
+      ],
+    },
+  ];
+
   // Handle opening Edit Modal
   const handleOpenEdit = async (item) => {
     setEditingItem(item);
+    setEditQuantity(item.quantity || 1);
     setEditLoading(true);
 
-    // Set initial selected options from existing cart item
+    // Initial map from current item options
     const initialMap = {};
     (item.options || []).forEach((opt) => {
       initialMap[opt.optionName] = {
@@ -136,9 +166,10 @@ export default function CartPage() {
         extraCost: parseFloat(opt.additionalCost) || 0,
       };
     });
-    setSelectedEditOptions(initialMap);
 
-    // Fetch product options from Supabase or mockData
+    let loadedOptions = [];
+
+    // 1. Try Supabase
     try {
       const supabase = createClient();
       if (supabase && item.productId) {
@@ -149,20 +180,52 @@ export default function CartPage() {
           .order('display_order', { ascending: true });
 
         if (data && data.length > 0) {
-          setEditOptions(data);
-          setEditLoading(false);
-          return;
+          loadedOptions = data;
         }
       }
     } catch {}
 
-    // Fallback to mock product options
-    const mock = getMockProductBySlug(item.productSlug);
-    if (mock?.product_options) {
-      setEditOptions(mock.product_options);
-    } else {
-      setEditOptions([]);
+    // 2. Try localStorage custom products
+    if (loadedOptions.length === 0) {
+      try {
+        const local = localStorage.getItem('likha_custom_products');
+        if (local) {
+          const parsed = JSON.parse(local);
+          const match = parsed.find((p) => p.id === item.productId || p.slug === item.productSlug);
+          if (match?.product_options && match.product_options.length > 0) {
+            loadedOptions = match.product_options;
+          }
+        }
+      } catch {}
     }
+
+    // 3. Try mockData
+    if (loadedOptions.length === 0) {
+      const mock = getMockProductBySlug(item.productSlug);
+      if (mock?.product_options && mock.product_options.length > 0) {
+        loadedOptions = mock.product_options;
+      }
+    }
+
+    // 4. Fallback to default handcrafted options so customer always has choices
+    if (loadedOptions.length === 0) {
+      loadedOptions = DEFAULT_HANDMADE_OPTIONS;
+    }
+
+    // Ensure all options have valid selections
+    loadedOptions.forEach((opt) => {
+      const current = initialMap[opt.option_name];
+      if (!current && opt.choices?.length > 0) {
+        const first = opt.choices[0];
+        const label = typeof first === 'string' ? first : first.label;
+        const extraCost = typeof first === 'object' ? (first.extra_cost || 0) : 0;
+        const clean = label.replace(/\s*\(\+?₱?[\d,.]+\)/gi, '').replace(/\s*\+?₱[\d,.]+/gi, '').trim();
+        initialMap[opt.option_name] = { value: clean, extraCost };
+      }
+    });
+
+    setSelectedEditOptions(initialMap);
+    setEditOptions(loadedOptions);
     setEditLoading(false);
   };
 
@@ -188,7 +251,7 @@ export default function CartPage() {
   );
   const editUnitPrice = itemBasePrice + editExtraCost;
   const editLinePrice = editingItem
-    ? editUnitPrice * editingItem.quantity
+    ? editUnitPrice * editQuantity
     : 0;
 
   // Save changes from Edit Modal
@@ -208,6 +271,10 @@ export default function CartPage() {
       unitPrice: editUnitPrice,
       options: formattedOptions,
     });
+
+    if (editQuantity !== editingItem.quantity) {
+      updateQty(editingItem.cartItemId, editQuantity);
+    }
 
     setEditingItem(null);
   };
@@ -253,7 +320,7 @@ export default function CartPage() {
 
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px' }}>
           <span style={{ fontSize: 'var(--text-xs)', fontWeight: '600', color: 'var(--color-text-secondary)' }}>
-            {itemCount} {itemCount === 1 ? 'item' : 'items'}
+            {cart.length} {cart.length === 1 ? 'item' : 'items'}
           </span>
         </div>
       </header>
@@ -294,7 +361,7 @@ export default function CartPage() {
                     aria-label="Delete selected items"
                   >
                     <i className="fa-regular fa-trash-can"></i>
-                    <span>Delete ({selectedItemIds.length})</span>
+                    <span>Delete ({selectedItems.length})</span>
                   </button>
                 )}
               </div>
@@ -439,16 +506,16 @@ export default function CartPage() {
                 </h2>
                 <div className="order-summary-row" style={{ padding: '4px 0', fontSize: '13px' }}>
                   <span>
-                    Subtotal ({selectedItems.length} {selectedItems.length === 1 ? 'item' : 'items'} selected)
+                    Subtotal ({selectedItems.length} {selectedItems.length === 1 ? 'item' : 'items'})
                   </span>
                   <span style={{ fontWeight: '700' }}>{formatCurrency(selectedSubtotal)}</span>
                 </div>
                 <div className="order-summary-row" style={{ padding: '4px 0', fontSize: '13px' }}>
                   <span>Delivery fee</span>
-                  <span style={{ color: 'var(--color-text-muted)' }}>TBD at checkout</span>
+                  <span style={{ color: 'var(--color-text-muted)' }}>Calculated at checkout</span>
                 </div>
                 <div className="order-summary-row total" style={{ marginTop: '6px', paddingTop: '8px', fontSize: '14px' }}>
-                  <span>Estimated Total</span>
+                  <span>Total Amount</span>
                   <span className="amount" style={{ fontSize: '17px' }}>{formatCurrency(selectedSubtotal)}</span>
                 </div>
               </div>
@@ -480,7 +547,7 @@ export default function CartPage() {
             {selectedItems.length === 0 ? (
               <span>Select items to checkout</span>
             ) : (
-              <span>Proceed to Checkout ({selectedCount}) · {formatCurrency(selectedSubtotal)}</span>
+              <span>Proceed to Checkout · {formatCurrency(selectedSubtotal)}</span>
             )}
           </button>
         </div>
@@ -504,12 +571,19 @@ export default function CartPage() {
                 type="button"
                 onClick={() => setViewingItem(null)}
                 style={{
-                  background: 'none',
-                  border: 'none',
+                  background: 'var(--color-surface-warm, #FAF8F5)',
+                  border: '1px solid var(--color-border-light, #E5E7EB)',
                   color: 'var(--color-text-secondary)',
                   cursor: 'pointer',
-                  fontSize: '18px',
-                  padding: '4px',
+                  fontSize: '13px',
+                  width: '28px',
+                  height: '28px',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'all 0.15s ease',
+                  padding: 0,
                 }}
                 aria-label="Close"
               >
@@ -636,11 +710,11 @@ export default function CartPage() {
       )}
 
       {/* ── 2. EDIT ITEM MODAL ──────────────────────────────── */}
-      {editingItem && (
+      {editingItem && mounted && createPortal(
         <div className="modal-overlay" onClick={() => setEditingItem(null)} style={{ padding: '16px' }}>
           <div
             className="modal"
-            style={{ maxWidth: '420px', padding: '24px 20px', textAlign: 'left', maxHeight: '85vh', overflowY: 'auto' }}
+            style={{ maxWidth: '420px', padding: '22px 20px', textAlign: 'left', maxHeight: '88vh', overflowY: 'auto' }}
             onClick={(e) => e.stopPropagation()}
             role="dialog"
             aria-modal="true"
@@ -653,12 +727,19 @@ export default function CartPage() {
                 type="button"
                 onClick={() => setEditingItem(null)}
                 style={{
-                  background: 'none',
-                  border: 'none',
+                  background: 'var(--color-surface-warm, #FAF8F5)',
+                  border: '1px solid var(--color-border-light, #E5E7EB)',
                   color: 'var(--color-text-secondary)',
                   cursor: 'pointer',
-                  fontSize: '18px',
-                  padding: '4px',
+                  fontSize: '13px',
+                  width: '28px',
+                  height: '28px',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'all 0.15s ease',
+                  padding: 0,
                 }}
                 aria-label="Close"
               >
@@ -666,7 +747,7 @@ export default function CartPage() {
               </button>
             </div>
 
-            {/* Product header */}
+            {/* Product header preview */}
             <div style={{
               display: 'flex',
               alignItems: 'center',
@@ -678,8 +759,8 @@ export default function CartPage() {
               marginBottom: '16px',
             }}>
               <div style={{
-                width: '48px',
-                height: '48px',
+                width: '52px',
+                height: '52px',
                 borderRadius: 'var(--radius-md)',
                 background: 'var(--color-primary-lighter)',
                 overflow: 'hidden',
@@ -692,26 +773,26 @@ export default function CartPage() {
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={editingItem.photo} alt={editingItem.productName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 ) : (
-                  <i className="fa-solid fa-image" style={{ color: 'var(--color-primary)', fontSize: '16px' }}></i>
+                  <i className="fa-solid fa-image" style={{ color: 'var(--color-primary)', fontSize: '18px' }}></i>
                 )}
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <h4 style={{ fontSize: '13px', fontWeight: '700', margin: '0 0 2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                <h4 style={{ fontSize: '13.5px', fontWeight: '700', margin: '0 0 2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   {editingItem.productName}
                 </h4>
-                <p style={{ fontSize: '12px', fontWeight: '600', color: 'var(--color-primary)', margin: 0 }}>
-                  Updated Total: {formatCurrency(editLinePrice)}
+                <p style={{ fontSize: '12.5px', fontWeight: '700', color: 'var(--color-primary)', margin: 0 }}>
+                  {formatCurrency(editUnitPrice)} <span style={{ fontSize: '11px', color: 'var(--color-text-muted)', fontWeight: '400' }}>/ unit</span>
                 </p>
               </div>
             </div>
 
             {/* Option Selectors */}
             {editLoading ? (
-              <div style={{ padding: '20px', textAlign: 'center', color: 'var(--color-text-secondary)' }}>
-                <i className="fa-solid fa-spinner fa-spin" style={{ marginRight: '8px' }}></i> Loading options...
+              <div style={{ padding: '24px 0', textAlign: 'center', color: 'var(--color-text-secondary)', fontSize: '13px' }}>
+                <i className="fa-solid fa-spinner fa-spin" style={{ marginRight: '8px', color: 'var(--color-primary)' }}></i> Loading options...
               </div>
             ) : editOptions.length > 0 ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', marginBottom: '20px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '16px' }}>
                 {editOptions.map((opt) => (
                   <OptionSelector
                     key={opt.id || opt.option_name}
@@ -725,9 +806,63 @@ export default function CartPage() {
               </div>
             ) : (
               <div style={{ padding: '16px 0', color: 'var(--color-text-muted)', fontSize: '13px', textAlign: 'center' }}>
-                No custom option variants available for this item.
+                Standard handmade edition.
               </div>
             )}
+
+            {/* Quantity Selector inside Edit Modal */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '10px 12px',
+              background: '#FFFFFF',
+              border: '1px solid var(--color-border-light)',
+              borderRadius: 'var(--radius-lg)',
+              marginBottom: '16px',
+            }}>
+              <div>
+                <span style={{ fontSize: '12.5px', fontWeight: '600', color: 'var(--color-text)', display: 'block' }}>
+                  Quantity
+                </span>
+                <span style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>
+                  Number of pieces
+                </span>
+              </div>
+              <QuantityControl
+                value={editQuantity}
+                onChange={setEditQuantity}
+                min={1}
+              />
+            </div>
+
+            {/* Live Price Calculation Summary */}
+            <div style={{
+              padding: '12px 14px',
+              background: 'var(--color-primary-lighter, #FFF5F2)',
+              borderRadius: 'var(--radius-lg)',
+              marginBottom: '18px',
+              border: '1px solid rgba(194, 65, 12, 0.15)',
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: 'var(--color-text-secondary)', marginBottom: '4px' }}>
+                <span>Base Price {editQuantity > 1 ? `(${formatCurrency(itemBasePrice)} × ${editQuantity})` : ''}</span>
+                <span>{formatCurrency(itemBasePrice * editQuantity)}</span>
+              </div>
+              {editExtraCost > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: 'var(--color-primary)', marginBottom: '4px', fontWeight: '600' }}>
+                  <span>Custom Add-ons {editQuantity > 1 ? `(+${formatCurrency(editExtraCost)} × ${editQuantity})` : ''}</span>
+                  <span>+{formatCurrency(editExtraCost * editQuantity)}</span>
+                </div>
+              )}
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: 'var(--color-text-secondary)', marginBottom: '6px' }}>
+                <span>Unit Price</span>
+                <span style={{ fontWeight: '600' }}>{formatCurrency(editUnitPrice)} / pc</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '6px', borderTop: '1px dashed rgba(194, 65, 12, 0.25)' }}>
+                <span style={{ fontSize: '13px', fontWeight: '700', color: 'var(--color-text)' }}>Updated Total ({editQuantity} {editQuantity === 1 ? 'pc' : 'pcs'}):</span>
+                <span style={{ fontSize: '16px', fontWeight: '800', color: 'var(--color-primary)' }}>{formatCurrency(editLinePrice)}</span>
+              </div>
+            </div>
 
             {/* Actions */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
@@ -749,7 +884,8 @@ export default function CartPage() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* ── 3. REMOVE FROM CART CONFIRMATION DIALOG ─────────── */}

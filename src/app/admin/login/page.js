@@ -8,7 +8,7 @@ import { createClient } from '@/lib/supabase/client';
 
 export default function AdminLoginPage() {
   const router = useRouter();
-  const [form, setForm] = useState({ email: 'mardionjrcordetafuerte@gmail.com', password: '' });
+  const [form, setForm] = useState({ email: '', password: '' });
   const [rememberMe, setRememberMe] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -33,24 +33,6 @@ export default function AdminLoginPage() {
   const [forgotEmail, setForgotEmail] = useState('');
   const [forgotSubmitted, setForgotSubmitted] = useState(false);
 
-  const grantSession = (email) => {
-    const maxAge = rememberMe ? 2592000 : 86400; // 30 days vs 1 day
-    document.cookie = `admin_session=true; path=/; max-age=${maxAge}; SameSite=Lax`;
-
-    try {
-      if (rememberMe) {
-        localStorage.setItem('mm_admin_remember', 'true');
-        localStorage.setItem('mm_admin_email', email || form.email);
-      } else {
-        localStorage.setItem('mm_admin_remember', 'false');
-        localStorage.removeItem('mm_admin_email');
-      }
-    } catch {}
-
-    router.push('/admin');
-    router.refresh();
-  };
-
   const handleLogin = async (e) => {
     e.preventDefault();
     if (!form.email || !form.password) {
@@ -61,40 +43,41 @@ export default function AdminLoginPage() {
     setLoading(true);
     setError('');
 
-    const inputEmail = form.email.trim().toLowerCase();
-    const inputPass = form.password.trim();
-
-    // Check valid admin credentials
-    const validEmails = ['mardionjrcordetafuerte@gmail.com', 'admin@mmartsy.com', 'admin@mmartsy.ph', 'admin'];
-    const validPass = ['january2026', 'etala@2026', 'admin', 'admin2026'];
-
-    if (
-      (validEmails.includes(inputEmail) || inputEmail.includes('mardion') || inputEmail.includes('admin')) &&
-      validPass.includes(inputPass)
-    ) {
-      grantSession(inputEmail);
-      return;
-    }
-
     try {
-      const supabase = createClient();
-      if (supabase) {
-        const { error: authErr } = await supabase.auth.signInWithPassword({
-          email: form.email.trim(),
+      const res = await fetch('/api/admin/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: form.email,
           password: form.password,
-        });
+          rememberMe,
+        }),
+      });
 
-        if (!authErr) {
-          grantSession(inputEmail);
-          return;
-        }
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        try {
+          if (rememberMe) {
+            localStorage.setItem('mm_admin_remember', 'true');
+            localStorage.setItem('mm_admin_email', form.email.trim());
+          } else {
+            localStorage.setItem('mm_admin_remember', 'false');
+            localStorage.removeItem('mm_admin_email');
+          }
+        } catch {}
+
+        router.push('/admin');
+        router.refresh();
+        return;
       }
-    } catch {
-      // Ignore network errors
-    }
 
-    setError('Invalid email or password. Please try again.');
-    setLoading(false);
+      setError(data.message || 'Invalid email or password. Please try again.');
+    } catch {
+      setError('Network error during login. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleForgotSubmit = (e) => {

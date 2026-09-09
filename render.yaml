@@ -10,12 +10,12 @@ services:
       - key: NODE_VERSION
         value: 20
       - key: NEXT_PUBLIC_SUPABASE_URL
-        value: https://fqubsupqkorxfgohartk.supabase.co
+        sync: false
       - key: NEXT_PUBLIC_SUPABASE_ANON_KEY
-        value: sb_publishable_fCYxAzMOcCTisJNWjC-2NA_VDR-IVbR
+        sync: false
       - key: NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
-        value: sb_publishable_fCYxAzMOcCTisJNWjC-2NA_VDR-IVbR
-      - key: NEXT_PUBLIC_ADMIN_EMAIL
-        value: mardionjrcordetafuerte@gmail.com
-      - key: NEXT_PUBLIC_ADMIN_PASSWORD
-        value: january2026
+        sync: false
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false

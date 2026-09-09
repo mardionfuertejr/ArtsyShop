@@ -116,10 +116,25 @@ export default function AdminProductsClient({ initialProducts, categories = [] }
       display_order: categoriesList.length + 1,
     };
 
-    setCategoriesList((prev) => [...prev, newCat]);
+    const nextCats = [...categoriesList, newCat];
+    setCategoriesList(nextCats);
     setFormData((prev) => ({ ...prev, category_id: newCat.id }));
     setNewCatName('');
     setIsAddingNewCat(false);
+
+    try {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('likha_custom_categories', JSON.stringify(nextCats));
+      }
+    } catch {}
+
+    try {
+      await fetch('/api/categories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newCat),
+      });
+    } catch {}
 
     try {
       const supabase = createClient();
@@ -235,8 +250,21 @@ export default function AdminProductsClient({ initialProducts, categories = [] }
     if (!productToDelete) return;
     const prodId = productToDelete.id;
 
-    setProducts((prev) => prev.filter((p) => p.id !== prodId));
+    const nextProducts = products.filter((p) => p.id !== prodId);
+    setProducts(nextProducts);
     deleteMockProduct(prodId);
+
+    try {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('likha_custom_products', JSON.stringify(nextProducts));
+      }
+    } catch {}
+
+    try {
+      await fetch(`/api/products?id=${encodeURIComponent(prodId)}`, {
+        method: 'DELETE',
+      });
+    } catch {}
 
     try {
       const supabase = createClient();
@@ -436,15 +464,38 @@ export default function AdminProductsClient({ initialProducts, categories = [] }
     };
 
     const saved = saveMockProduct(payload);
+    let updatedProducts = [];
     setProducts((prev) => {
       const idx = prev.findIndex((p) => p.id === saved.id);
       if (idx >= 0) {
-        const next = [...prev];
-        next[idx] = saved;
-        return next;
+        updatedProducts = [...prev];
+        updatedProducts[idx] = saved;
+        return updatedProducts;
       }
-      return [saved, ...prev];
+      updatedProducts = [saved, ...prev];
+      return updatedProducts;
     });
+
+    try {
+      if (typeof window !== 'undefined') {
+        const localList = JSON.parse(localStorage.getItem('likha_custom_products') || '[]');
+        const existingIdx = localList.findIndex((p) => p.id === saved.id);
+        if (existingIdx >= 0) {
+          localList[existingIdx] = saved;
+        } else {
+          localList.unshift(saved);
+        }
+        localStorage.setItem('likha_custom_products', JSON.stringify(localList));
+      }
+    } catch {}
+
+    try {
+      await fetch('/api/products', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(saved),
+      });
+    } catch {}
 
     try {
       const supabase = createClient();
@@ -457,11 +508,18 @@ export default function AdminProductsClient({ initialProducts, categories = [] }
           base_price: saved.base_price,
           description: saved.description,
           is_available: saved.is_available,
+          is_bestseller: saved.is_bestseller,
+          is_ready_made: saved.is_ready_made,
+          ready_made_stock: saved.ready_made_stock,
+          is_on_sale: saved.is_on_sale,
+          sale_price: saved.sale_price,
+          sale_tag: saved.sale_tag,
+          is_sold_out: saved.is_sold_out,
         });
 
         for (const opt of saved.product_options || []) {
           await supabase.from('product_options').upsert({
-            id: opt.id.startsWith('opt-') ? undefined : opt.id,
+            id: opt.id && !opt.id.startsWith('opt-') ? opt.id : undefined,
             product_id: saved.id,
             option_name: opt.option_name,
             choices: opt.choices,

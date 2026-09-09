@@ -3,6 +3,9 @@ import { cache } from 'react';
 import { createClient } from '@/lib/supabase/server';
 import ProductDetailClient from './ProductDetailClient';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 import { getMockProductBySlug } from '@/lib/mockData';
 
 const getProduct = cache(async (slug) => {

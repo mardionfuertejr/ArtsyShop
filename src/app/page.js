@@ -8,6 +8,9 @@ import { createClient } from '@/lib/supabase/server';
 import { formatCurrencyCompact } from '@/lib/utils/formatCurrency';
 import { getMockProducts, getMockCategories } from '@/lib/mockData';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export const metadata = {
   title: 'M&M Artsy — Handmade Bouquets, Crochet & Gifts',
   description: 'Order handcrafted bouquets, crochet, resin and custom gifts from M&M Artsy.',

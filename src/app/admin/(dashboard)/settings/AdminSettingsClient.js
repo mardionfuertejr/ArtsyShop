@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 
 export default function AdminSettingsClient() {
@@ -19,18 +19,49 @@ export default function AdminSettingsClient() {
     autoConfirm: false,
   });
 
+  useEffect(() => {
+    async function loadSettings() {
+      try {
+        const res = await fetch('/api/settings');
+        const data = await res.json();
+        if (data && data.settings) {
+          setSettings((prev) => ({ ...prev, ...data.settings }));
+        }
+      } catch {
+        try {
+          const local = localStorage.getItem('mm_studio_settings');
+          if (local) setSettings(JSON.parse(local));
+        } catch {}
+      }
+    }
+    loadSettings();
+  }, []);
+
   const handleChange = (field, value) => {
     setSettings(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleSave = (e) => {
+  const handleSave = async (e) => {
     e.preventDefault();
     setSaving(true);
-    setTimeout(() => {
-      setSaving(false);
-      setToastMsg('Studio settings saved successfully! ✨');
-      setTimeout(() => setToastMsg(''), 3000);
-    }, 400);
+
+    try {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('mm_studio_settings', JSON.stringify(settings));
+      }
+    } catch {}
+
+    try {
+      await fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(settings),
+      });
+    } catch {}
+
+    setSaving(false);
+    setToastMsg('Studio settings saved successfully! ✨');
+    setTimeout(() => setToastMsg(''), 3000);
   };
 
   return (

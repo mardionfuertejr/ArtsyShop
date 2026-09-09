@@ -6,35 +6,60 @@ import ProductCard from './ProductCard';
 import { FUN_CUSTOM_PROMPTS, getRandomCustomPrompt, getPromptMessengerUrl, CUSTOM_ORDER_MESSENGER_URL } from '@/lib/constants/customPrompts';
 
 export default function LazyProductGrid({ products = [], initialCount = 10, batchSize = 10 }) {
+  const [items, setItems] = useState(products);
   const [visibleCount, setVisibleCount] = useState(initialCount);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [prompt, setPrompt] = useState(FUN_CUSTOM_PROMPTS[0]);
+
+  // Merge custom products / updates on mount or props change
+  useEffect(() => {
+    try {
+      const local = localStorage.getItem('likha_custom_products');
+      if (local) {
+        const parsed = JSON.parse(local);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const merged = [...products];
+          for (const p of parsed) {
+            const idx = merged.findIndex((m) => m.id === p.id || m.slug === p.slug);
+            if (idx >= 0) {
+              merged[idx] = { ...merged[idx], ...p };
+            } else {
+              merged.unshift(p);
+            }
+          }
+          setItems(merged);
+          return;
+        }
+      }
+    } catch {}
+    setItems(products);
+  }, [products]);
 
   // Pick a random fun prompt on mount
   useEffect(() => {
     setPrompt(getRandomCustomPrompt());
   }, []);
 
-  // Reset count if products list (e.g. category filter) changes
+  // Reset count if items list changes
   useEffect(() => {
     setVisibleCount(initialCount);
-  }, [products, initialCount]);
+  }, [items, initialCount]);
 
-  const visibleProducts = products.slice(0, visibleCount);
-  const hasMore = visibleCount < products.length;
-  const remainingCount = products.length - visibleProducts.length;
-  const progressPercent = Math.min(100, Math.round((visibleProducts.length / products.length) * 100));
+  const visibleProducts = items.slice(0, visibleCount);
+  const hasMore = visibleCount < items.length;
+  const remainingCount = items.length - visibleProducts.length;
+  const progressPercent = Math.min(100, Math.round((visibleProducts.length / (items.length || 1)) * 100));
 
   const handleLoadMore = () => {
     setIsLoadingMore(true);
     // Add small tactile delay for realistic smoothness
     setTimeout(() => {
-      setVisibleCount((prev) => Math.min(prev + batchSize, products.length));
+      setVisibleCount((prev) => Math.min(prev + batchSize, items.length));
       setIsLoadingMore(false);
     }, 280);
   };
 
-  if (!products || products.length === 0) {
+  if (!items || items.length === 0) {
     return (
       <div style={{ textAlign: 'center', padding: 'var(--space-10) var(--page-padding)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
         <div style={{

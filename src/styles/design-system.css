@@ -157,8 +157,16 @@ html {
   scroll-behavior: auto;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
-  scrollbar-gutter: stable;
+  overflow-x: hidden;
+  width: 100%;
+  max-width: 100vw;
   height: 100%;
+}
+
+@media (min-width: 1024px) {
+  html {
+    scrollbar-gutter: stable;
+  }
 }
 
 body {
@@ -173,7 +181,9 @@ body {
   min-height: 100dvh;
   display: flex;
   flex-direction: column;
-  overflow-x: clip;
+  overflow-x: hidden;
+  width: 100%;
+  max-width: 100vw;
   -webkit-tap-highlight-color: transparent;
 }
 

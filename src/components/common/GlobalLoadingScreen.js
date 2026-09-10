@@ -4,35 +4,26 @@ import { useState, useEffect, useRef } from 'react';
 import BrandLogo from './BrandLogo';
 
 const INACTIVITY_TIMEOUT_MS = 3 * 60 * 1000; // 3 minutes idle / hidden trigger
-const INITIAL_LOAD_MIN_MS = 750; // Smooth initial splash duration
-const WAKEUP_LOAD_DURATION_MS = 850; // Quick smooth refresh on resume
+const INITIAL_LOAD_MIN_MS = 650; // Smooth initial splash duration
+const WAKEUP_LOAD_DURATION_MS = 750; // Quick smooth refresh on resume
 
-const CRAFT_STORIES = [
+const STUDIO_TAGLINES = [
   {
     tagline: 'Stories shaped in every piece.',
-    note: 'Bespoke Bouquets, Crochet & Keepsakes',
-    badge: 'Artisan Crafted'
+    category: 'Handcrafted Bouquets & Resin Keepsakes',
   },
   {
-    tagline: 'Crafting moments, stitch by stitch.',
-    note: 'Handmade with Passion & Dedication',
-    badge: '100% Handcrafted'
+    tagline: 'Crafted with care, given with love.',
+    category: 'Floral Arrangements & Custom Creations',
   },
   {
-    tagline: 'Where heartfelt memories become art.',
-    note: 'Personalized Gifts & Floral Artistry',
-    badge: 'Made Just For You'
+    tagline: 'Turning precious memories into art.',
+    category: 'Everlasting Bouquets & Personalized Gifts',
   },
   {
-    tagline: 'Every petal and pour tells a story.',
-    note: 'Everlasting Botanicals & Resin Decor',
-    badge: 'Handmade in Barugo, Leyte'
+    tagline: 'Artisan blooms & bespoke keepsakes.',
+    category: 'M&M Artsy Studio · Barugo, Leyte',
   },
-  {
-    tagline: 'Treasured creations that last forever.',
-    note: 'Timeless Crochet & Custom Creations',
-    badge: 'Bespoke Artisan Studio'
-  }
 ];
 
 export default function GlobalLoadingScreen() {
@@ -41,15 +32,15 @@ export default function GlobalLoadingScreen() {
   const [showWakeupSplash, setShowWakeupSplash] = useState(false);
   const [wakeupFadingOut, setWakeupFadingOut] = useState(false);
 
-  // Pick an artisan story that rotates
-  const [storyIndex, setStoryIndex] = useState(0);
+  // Rotate tagline
+  const [taglineIndex, setTaglineIndex] = useState(0);
 
   const lastActiveTimestamp = useRef(Date.now());
   const hiddenTimestamp = useRef(null);
 
-  // Initialize random story on mount
+  // Initialize random tagline on mount
   useEffect(() => {
-    setStoryIndex(Math.floor(Math.random() * CRAFT_STORIES.length));
+    setTaglineIndex(Math.floor(Math.random() * STUDIO_TAGLINES.length));
   }, []);
 
   // 1. Initial Page Load Splash Screen
@@ -58,7 +49,7 @@ export default function GlobalLoadingScreen() {
       setIsFadingOut(true);
       setTimeout(() => {
         setShowInitialSplash(false);
-      }, 480); // Match CSS fade-out transition
+      }, 450); // Match CSS fade-out transition
     }, INITIAL_LOAD_MIN_MS);
 
     return () => clearTimeout(timer);
@@ -79,8 +70,8 @@ export default function GlobalLoadingScreen() {
         const wasIdleLong = (now - lastActiveTimestamp.current > INACTIVITY_TIMEOUT_MS);
 
         if (wasHiddenLong || wasIdleLong) {
-          // Rotate to next craft story on wake-up
-          setStoryIndex((prev) => (prev + 1) % CRAFT_STORIES.length);
+          // Rotate to next tagline on wake-up
+          setTaglineIndex((prev) => (prev + 1) % STUDIO_TAGLINES.length);
           setShowWakeupSplash(true);
           setWakeupFadingOut(false);
 
@@ -89,7 +80,7 @@ export default function GlobalLoadingScreen() {
             setTimeout(() => {
               setShowWakeupSplash(false);
               setWakeupFadingOut(false);
-            }, 450);
+            }, 420);
           }, WAKEUP_LOAD_DURATION_MS);
         }
 
@@ -111,7 +102,7 @@ export default function GlobalLoadingScreen() {
 
   if (!showInitialSplash && !showWakeupSplash) return null;
 
-  const currentStory = CRAFT_STORIES[storyIndex] || CRAFT_STORIES[0];
+  const currentStory = STUDIO_TAGLINES[taglineIndex] || STUDIO_TAGLINES[0];
 
   return (
     <>
@@ -131,16 +122,10 @@ export default function GlobalLoadingScreen() {
               <BrandLogo size="large" />
             </div>
 
-            {/* Artisan Badge */}
-            <div className="app-loading-badge">
-              <span className="app-loading-badge-dot" />
-              <span>{currentStory.badge}</span>
-            </div>
-
             {/* Dynamic Handcrafted Story */}
             <div className="app-loading-text-container">
               <h2 className="app-loading-tagline">{currentStory.tagline}</h2>
-              <p className="app-loading-subtitle">{currentStory.note}</p>
+              <p className="app-loading-subtitle">{currentStory.category}</p>
             </div>
 
             {/* Luxury Hairline Progress Flow */}
@@ -162,25 +147,19 @@ export default function GlobalLoadingScreen() {
           <div className="app-loading-backdrop-glow" />
 
           <div className="app-loading-content">
-            {/* Delicate Sparkle Emblem */}
-            <div className="app-wakeup-icon-wrapper">
-              <i className="fa-solid fa-sparkles" style={{ fontSize: '20px', color: 'var(--color-primary)' }} />
-            </div>
-
-            {/* Artisan Badge */}
-            <div className="app-loading-badge">
-              <span className="app-loading-badge-dot" />
-              <span>{currentStory.badge}</span>
+            {/* Logo Emblem */}
+            <div className="app-loading-logo-glow" style={{ marginBottom: '10px' }}>
+              <BrandLogo size="medium" />
             </div>
 
             {/* Rotating Story */}
             <div className="app-loading-text-container">
               <h2 className="app-loading-tagline">{currentStory.tagline}</h2>
-              <p className="app-loading-subtitle">{currentStory.note}</p>
+              <p className="app-loading-subtitle">{currentStory.category}</p>
             </div>
 
             {/* Luxury Hairline Progress Flow */}
-            <div className="app-loading-progress-track" style={{ width: '130px' }}>
+            <div className="app-loading-progress-track" style={{ width: '120px' }}>
               <div className="app-loading-progress-fill" />
             </div>
           </div>

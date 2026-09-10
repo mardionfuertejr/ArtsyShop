@@ -17,8 +17,8 @@ export const viewport = {
 
 export const metadata = {
   title: 'M&M Artsy — Handmade & Custom Creations',
-  description: 'Order handcrafted bouquets, crochet, resin and custom gifts from M&M Artsy. Made just for you.',
-  keywords: ['m&m artsy', 'handmade', 'custom bouquet', 'crochet', 'resin', 'artisan gifts'],
+  description: 'Order handcrafted bouquets, custom resin art, floral arrangements and personalized gifts from M&M Artsy. Made just for you.',
+  keywords: ['m&m artsy', 'handmade', 'custom bouquet', 'resin art', 'floral arrangement', 'artisan gifts'],
   manifest: '/manifest.json',
   icons: {
     icon: [
@@ -34,7 +34,7 @@ export const metadata = {
   },
   openGraph: {
     title: 'M&M Artsy — Handmade & Custom Creations',
-    description: 'Order handcrafted bouquets, crochet, resin and custom gifts from M&M Artsy.',
+    description: 'Order handcrafted bouquets, custom resin art, floral arrangements and personalized gifts from M&M Artsy.',
     type: 'website',
     images: ['/images/m&m_favicon.png'],
   },

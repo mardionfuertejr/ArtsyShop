@@ -50,10 +50,12 @@ button:active, .btn:active, .product-card:active, .bottom-nav-item:active, [role
   min-height: 100dvh;
   flex: 1 0 auto;
   width: 100%;
-  max-width: 100%;
+  max-width: 100vw;
   margin: 0 auto;
   background: var(--color-background);
   position: relative;
+  overflow-x: hidden;
+  box-sizing: border-box;
 }
 
 @media (min-width: 768px) {
@@ -70,8 +72,11 @@ button:active, .btn:active, .product-card:active, .bottom-nav-item:active, [role
   flex-direction: column;
   min-height: 0;
   width: 100%;
+  max-width: 100vw;
   padding-bottom: calc(var(--bottom-nav-height) + var(--safe-area-bottom) + 16px);
   -webkit-overflow-scrolling: touch;
+  overflow-x: hidden;
+  box-sizing: border-box;
 }
 
 .site-footer {
@@ -2293,6 +2298,9 @@ button:active, .btn:active, .product-card:active, .bottom-nav-item:active, [role
 /* ── Section Spacing (Tight & Maximized) ──────────────────── */
 .section {
   padding: 8px var(--page-padding) 12px;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .section-header {
@@ -3405,29 +3413,32 @@ button:active, .btn:active, .product-card:active, .bottom-nav-item:active, [role
 }
 
 .app-loading-text-container {
-  margin-bottom: 22px;
+  margin-bottom: 24px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  align-items: center;
+  gap: 6px;
 }
 
 .app-loading-tagline {
   font-family: var(--font-heading, 'Montserrat', sans-serif);
-  font-size: 16px;
+  font-size: 15.5px;
   font-weight: 700;
-  color: var(--color-text, #292524);
+  color: var(--color-text, #262220);
   letter-spacing: -0.2px;
   line-height: 1.35;
   margin: 0;
 }
 
 .app-loading-subtitle {
-  font-family: var(--font-sans, 'Inter', sans-serif);
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--color-text-secondary, #78716C);
-  letter-spacing: 0.3px;
+  font-family: var(--font-body, 'Inter', sans-serif);
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--color-primary, #C25E38);
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
   margin: 0;
+  opacity: 0.9;
 }
 
 .app-wakeup-icon-wrapper {

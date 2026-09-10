@@ -366,8 +366,8 @@ Hi M&M's Artsy! I would like to confirm my order from the website. Thank you!`;
               <span>{formatCurrency(order.subtotal)}</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--color-text-secondary)' }}>
-              <span>Fulfillment ({order.order_type === 'pickup' ? 'Store Pickup' : 'Delivery'})</span>
-              <span>{order.order_type === 'pickup' ? 'Free' : formatCurrency(order.delivery_fee)}</span>
+              <span>Delivery Fee</span>
+              <span>{order.order_type === 'pickup' ? 'Free (Pickup)' : formatCurrency(order.delivery_fee)}</span>
             </div>
             <div style={{
               display: 'flex',

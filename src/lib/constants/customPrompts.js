@@ -69,7 +69,7 @@ export const FUN_CUSTOM_PROMPTS = [
     title: 'Custom order yarn?',
     subtitle: 'Kahit anong weird o cute na idea, game ang artisans natin.',
     buttonText: 'Usap Tayo sa Messenger',
-    templateText: 'Hi M&M Artsy! Ask ko lang po kung pwede magpagawa ng custom crochet / wire project.',
+    templateText: 'Hi M&M Artsy! Ask ko lang po kung pwede magpagawa ng custom project.',
   },
   {
     title: 'Anniversary o Monthsary emergency?',
@@ -79,9 +79,9 @@ export const FUN_CUSTOM_PROMPTS = [
   },
   {
     title: 'Flower na hindi nalalanta?',
-    subtitle: 'Fuzzy wire o crochet bouquet, ikaw ang masusunod sa design.',
+    subtitle: 'Fuzzy wire bouquet, ikaw ang masusunod sa design.',
     buttonText: 'Pagawa ng Bouquet',
-    templateText: 'Hi M&M Artsy! Inquire po ako para sa everlasting fuzzy wire / crochet bouquet order.',
+    templateText: 'Hi M&M Artsy! Inquire po ako para sa everlasting fuzzy wire bouquet order.',
   },
   {
     title: 'Wala sa catalog ang bet mo?',

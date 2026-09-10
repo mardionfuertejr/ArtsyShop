@@ -3,6 +3,22 @@
    PWA feel: bottom nav, safe areas, touch targets, fullscreen
    ============================================================ */
 
+/* ── Zero-Latency Touch & Tap Feedback ─────────────────────── */
+*, *::before, *::after {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button, a, .btn, .product-card, .bottom-nav-item, .top-bar-action, .cart-btn-wrapper, [role="button"], [role="tab"] {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  cursor: pointer;
+}
+
+button:active, .btn:active, .product-card:active, .bottom-nav-item:active, [role="button"]:active {
+  transform: scale(0.97);
+}
+
 /* ── CSS Variables for mobile layout ───────────────────────── */
 :root {
   --top-bar-height: 52px;
@@ -45,9 +61,17 @@
 
 /* ── Page Content Area ────────────────────────────────────── */
 .page-content {
-  flex: 1;
+  flex: 1 0 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
   padding-bottom: calc(var(--bottom-nav-height) + var(--safe-area-bottom) + 16px);
   -webkit-overflow-scrolling: touch;
+}
+
+.site-footer {
+  margin-top: auto !important;
+  width: 100%;
 }
 
 .page-content.no-nav {

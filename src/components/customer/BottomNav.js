@@ -38,6 +38,7 @@ export default function BottomNav() {
           <Link
             key={item.href}
             href={item.href}
+            prefetch={true}
             className={`bottom-nav-item${isActive ? ' active' : ''} ${isCart && isBumping ? 'cart-bump' : ''}`}
             aria-label={item.label}
             aria-current={isActive ? 'page' : undefined}

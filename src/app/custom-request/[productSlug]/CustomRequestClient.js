@@ -213,14 +213,18 @@ export default function CustomRequestClient({ product }) {
           </div>
 
           <div className="input-group">
-            <label className="input-label" htmlFor="req-date">Date Needed</label>
+            <label className="input-label" htmlFor="req-date">
+              Date Needed <span className="required">*</span>
+            </label>
             <input
               id="req-date"
               name="preferredDate"
               className="input"
               type="date"
+              min={new Date().toISOString().split('T')[0]}
               value={formData.preferredDate}
               onChange={handleChange}
+              required
             />
           </div>
         </div>

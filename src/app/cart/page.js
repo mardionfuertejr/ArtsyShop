@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { CUSTOM_ORDER_MESSENGER_URL } from '@/lib/constants/customPrompts';
 import BottomNav from '@/components/customer/BottomNav';
 import BrandLogo from '@/components/common/BrandLogo';
+import SiteFooter from '@/components/common/SiteFooter';
 import EmptyState from '@/components/customer/EmptyState';
 import QuantityControl from '@/components/customer/QuantityControl';
 import OptionSelector from '@/components/customer/OptionSelector';
@@ -82,14 +83,15 @@ export default function CartPage() {
 
   // Batch delete selected items
   const handleBatchDelete = () => {
-    selectedItemIds.forEach((id) => removeItem(id));
-    setSelectedItemIds([]);
+    const ids = [...selectedItemIds];
     setBatchDeleteModalOpen(false);
+    setSelectedItemIds([]);
+    ids.forEach((id) => removeItem(id));
   };
 
   // Calculate selected items, subtotal & count
   const selectedItems = cart.filter((item) => selectedItemIds.includes(item.cartItemId));
-  const selectedCount = selectedItems.reduce((sum, item) => sum + item.quantity, 0);
+  const selectedCount = selectedItems.reduce((sum, item) => sum + (item.quantity || 1), 0);
   const selectedSubtotal = selectedItems.reduce((sum, item) => {
     return sum + (parseFloat(item.unitPrice) || 0) * (item.quantity || 1);
   }, 0);
@@ -279,7 +281,7 @@ export default function CartPage() {
     setEditingItem(null);
   };
 
-  if (!isLoaded) {
+  if (!isLoaded || !mounted) {
     return (
       <div className="customer-shell">
         <header className="top-bar">
@@ -522,6 +524,9 @@ export default function CartPage() {
             </div>
           </>
         )}
+
+        {/* Unified Sticky-Bottom Site Footer */}
+        <SiteFooter />
       </main>
 
       {cart.length > 0 && (
@@ -889,7 +894,7 @@ export default function CartPage() {
       )}
 
       {/* ── 3. REMOVE FROM CART CONFIRMATION DIALOG ─────────── */}
-      {itemToDelete && (
+      {itemToDelete && mounted && createPortal(
         <div className="modal-overlay" onClick={() => setItemToDelete(null)} style={{ padding: '16px' }}>
           <div
             className="modal"
@@ -944,11 +949,11 @@ export default function CartPage() {
                 alignItems: 'center',
                 justifyContent: 'center',
               }}>
-                {itemToDelete.photo ? (
+                {itemToDelete?.photo ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={itemToDelete.photo}
-                    alt={itemToDelete.productName}
+                    alt={itemToDelete.productName || 'Product'}
                     style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                   />
                 ) : (
@@ -957,9 +962,9 @@ export default function CartPage() {
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <p style={{ fontSize: '13px', fontWeight: '600', margin: '0 0 2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {itemToDelete.productName}
+                  {itemToDelete?.productName || 'Item'}
                 </p>
-                {itemToDelete.options?.length > 0 && (
+                {itemToDelete?.options?.length > 0 && (
                   <p style={{ fontSize: '11px', color: 'var(--color-text-muted)', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {itemToDelete.options.map((o) => o.optionValue).join(' · ')}
                   </p>
@@ -981,8 +986,11 @@ export default function CartPage() {
                 type="button"
                 className="btn"
                 onClick={() => {
-                  removeItem(itemToDelete.cartItemId);
+                  const idToRemove = itemToDelete?.cartItemId;
                   setItemToDelete(null);
+                  if (idToRemove) {
+                    removeItem(idToRemove);
+                  }
                 }}
                 style={{
                   height: '42px',
@@ -992,13 +1000,15 @@ export default function CartPage() {
                   color: '#FFFFFF',
                   border: 'none',
                   borderRadius: 'var(--radius-full)',
+                  cursor: 'pointer',
                 }}
               >
                 Remove from Cart
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* ── 4. BATCH DELETE CONFIRMATION MODAL ────────────────── */}

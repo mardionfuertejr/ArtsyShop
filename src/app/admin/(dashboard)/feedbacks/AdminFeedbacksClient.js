@@ -367,12 +367,12 @@ export default function AdminFeedbacksClient() {
             <tbody key={`feedbacks-${searchTerm}-${ratingFilter}-${currentPage}`} className="table-fade-enter">
               {paginatedItems.length === 0 ? (
                 <tr>
-                  <td colSpan={5} style={{ textAlign: 'center', padding: '48px 20px', border: 'none' }}>
-                    <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '44px', height: '44px', borderRadius: '50%', background: '#f8fafc', color: '#94a3b8', marginBottom: '10px', fontSize: '18px' }}>
-                      <i className="fa-regular fa-comments" style={{ opacity: 0.7 }}></i>
+                  <td colSpan={5} className="table-empty-cell" style={{ textAlign: 'center', padding: '120px 20px', border: 'none' }}>
+                    <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '56px', height: '56px', borderRadius: '50%', background: '#f8fafc', color: '#94a3b8', marginBottom: '14px', fontSize: '22px' }}>
+                      <i className="fa-regular fa-comments" style={{ opacity: 0.8 }}></i>
                     </div>
-                    <p style={{ margin: 0, fontWeight: '700', fontSize: '14px', color: '#0f172a' }}>No feedbacks found</p>
-                    <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#94a3b8' }}>
+                    <p style={{ margin: 0, fontWeight: '800', fontSize: '15px', color: '#0f172a' }}>No feedbacks found</p>
+                    <p style={{ margin: '6px 0 0', fontSize: '13px', color: '#64748b' }}>
                       {searchTerm || ratingFilter !== 'all' ? 'Try adjusting your search or filter.' : 'Customer feedback submissions will appear here.'}
                     </p>
                   </td>
@@ -382,8 +382,8 @@ export default function AdminFeedbacksClient() {
                   const isNearBottom = paginatedItems.length <= 3 ? idx >= 1 : idx >= paginatedItems.length - 2;
 
                   return (
-                    <tr key={fb.id} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background 0.12s ease' }}>
-                      <td style={{ padding: '13px 18px', verticalAlign: 'top', whiteSpace: 'nowrap' }}>
+                    <tr key={fb.id} style={{ borderBottom: '1px solid #E2E8F0', transition: 'background 0.12s ease' }}>
+                      <td style={{ padding: '13px 18px', verticalAlign: 'top', whiteSpace: 'nowrap', borderBottom: '1px solid #E2E8F0' }}>
                         <span style={{ fontSize: '12.5px', fontWeight: '700', color: '#0f172a', display: 'block' }}>
                           {formatDate(fb.created_at)}
                         </span>
@@ -526,12 +526,12 @@ export default function AdminFeedbacksClient() {
             <tbody key={`reviews-${searchTerm}-${ratingFilter}-${currentPage}`} className="table-fade-enter">
               {paginatedItems.length === 0 ? (
                 <tr>
-                  <td colSpan={6} style={{ textAlign: 'center', padding: '48px 20px', border: 'none' }}>
-                    <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '44px', height: '44px', borderRadius: '50%', background: '#f8fafc', color: '#94a3b8', marginBottom: '10px', fontSize: '18px' }}>
-                      <i className="fa-regular fa-star" style={{ opacity: 0.7 }}></i>
+                  <td colSpan={6} className="table-empty-cell" style={{ textAlign: 'center', padding: '120px 20px', border: 'none' }}>
+                    <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '56px', height: '56px', borderRadius: '50%', background: '#f8fafc', color: '#94a3b8', marginBottom: '14px', fontSize: '22px' }}>
+                      <i className="fa-regular fa-star" style={{ opacity: 0.8 }}></i>
                     </div>
-                    <p style={{ margin: 0, fontWeight: '700', fontSize: '14px', color: '#0f172a' }}>No product reviews found</p>
-                    <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#94a3b8' }}>
+                    <p style={{ margin: 0, fontWeight: '800', fontSize: '15px', color: '#0f172a' }}>No product reviews found</p>
+                    <p style={{ margin: '6px 0 0', fontSize: '13px', color: '#64748b' }}>
                       {searchTerm || ratingFilter !== 'all' ? 'Try adjusting your search or filter.' : 'Verified product reviews will appear here.'}
                     </p>
                   </td>
@@ -543,8 +543,8 @@ export default function AdminFeedbacksClient() {
                   const productSlug = rev.products?.slug || rev.productSlug;
 
                   return (
-                    <tr key={rev.id} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background 0.12s ease' }}>
-                      <td style={{ padding: '13px 18px', verticalAlign: 'top', whiteSpace: 'nowrap' }}>
+                    <tr key={rev.id} style={{ borderBottom: '1px solid #E2E8F0', transition: 'background 0.12s ease' }}>
+                      <td style={{ padding: '13px 18px', verticalAlign: 'top', whiteSpace: 'nowrap', borderBottom: '1px solid #E2E8F0' }}>
                         <span style={{ fontSize: '12.5px', fontWeight: '700', color: '#0f172a', display: 'block' }}>
                           {formatDate(rev.created_at)}
                         </span>
@@ -783,7 +783,7 @@ export default function AdminFeedbacksClient() {
             alignItems: 'center',
             justifyContent: 'space-between',
             padding: '12px 18px',
-            borderTop: '1px solid #f1f5f9',
+            borderTop: '1px solid #E2E8F0',
             background: '#ffffff',
             flexWrap: 'wrap',
             gap: '10px',

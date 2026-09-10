@@ -64,6 +64,7 @@ export default function ProductCard({ product, className = '', style = {} }) {
   return (
     <Link
       href={`/shop/${product.slug}`}
+      prefetch={true}
       className={`product-card${isSoldOut ? ' is-sold-out' : ''} ${className}`}
       style={{ textDecoration: 'none', ...style }}
     >

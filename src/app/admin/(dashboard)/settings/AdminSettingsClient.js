@@ -154,11 +154,11 @@ export default function AdminSettingsClient() {
             </div>
           </div>
 
-          {/* Payment & Fulfillment */}
+          {/* Payment & Delivery */}
           <div className="card">
             <h2 style={{ fontSize: 'var(--text-base)', fontWeight: 'var(--weight-bold)', marginBottom: 'var(--space-4)', color: 'var(--color-text)', display: 'flex', alignItems: 'center', gap: '8px' }}>
               <i className="fa-solid fa-wallet" style={{ color: 'var(--color-primary)' }}></i>
-              <span>Payment & Fulfillment Config</span>
+              <span>Payment & Delivery Config</span>
             </h2>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>

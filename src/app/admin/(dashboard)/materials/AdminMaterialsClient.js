@@ -285,12 +285,12 @@ export default function AdminMaterialsClient() {
           <tbody key={`${activeCategory}-${searchQuery}-${currentPage}`} className="table-fade-enter">
             {paginatedMaterials.length === 0 ? (
               <tr>
-                <td colSpan={6} style={{ textAlign: 'center', padding: '48px 20px', border: 'none' }}>
-                  <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '44px', height: '44px', borderRadius: '50%', background: '#f8fafc', color: '#94a3b8', marginBottom: '10px', fontSize: '18px' }}>
-                    <i className="fa-solid fa-boxes-stacked" style={{ opacity: 0.7 }}></i>
+                <td colSpan={6} className="table-empty-cell" style={{ textAlign: 'center', padding: '120px 20px', border: 'none' }}>
+                  <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '56px', height: '56px', borderRadius: '50%', background: '#f8fafc', color: '#94a3b8', marginBottom: '14px', fontSize: '22px' }}>
+                    <i className="fa-solid fa-boxes-stacked" style={{ opacity: 0.8 }}></i>
                   </div>
-                  <p style={{ margin: 0, fontWeight: '700', fontSize: '14px', color: '#0f172a' }}>No materials found</p>
-                  <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#94a3b8' }}>
+                  <p style={{ margin: 0, fontWeight: '800', fontSize: '15px', color: '#0f172a' }}>No materials found</p>
+                  <p style={{ margin: '6px 0 0', fontSize: '13px', color: '#64748b' }}>
                     {searchQuery || activeCategory !== 'all' ? 'Try adjusting your search or category filter.' : 'Click "+ Add Material" to register your first raw material.'}
                   </p>
                 </td>
@@ -302,8 +302,8 @@ export default function AdminMaterialsClient() {
                 const isOut = m.current_stock === 0;
 
                 return (
-                  <tr key={m.id} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background 0.12s ease' }}>
-                    <td style={{ padding: '13px 18px' }}>
+                  <tr key={m.id} style={{ borderBottom: '1px solid #E2E8F0', transition: 'background 0.12s ease' }}>
+                    <td style={{ padding: '13px 18px', borderBottom: '1px solid #E2E8F0' }}>
                       <p style={{ fontWeight: '700', color: '#0f172a', margin: 0, fontSize: '13px' }}>
                         {m.name}
                       </p>
@@ -536,7 +536,7 @@ export default function AdminMaterialsClient() {
             alignItems: 'center',
             justifyContent: 'space-between',
             padding: '12px 18px',
-            borderTop: '1px solid #f1f5f9',
+            borderTop: '1px solid #E2E8F0',
             background: '#ffffff',
             flexWrap: 'wrap',
             gap: '10px',

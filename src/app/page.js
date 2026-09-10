@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { CUSTOM_ORDER_MESSENGER_URL } from '@/lib/constants/customPrompts';
 import BottomNav from '@/components/customer/BottomNav';
 import BrandLogo from '@/components/common/BrandLogo';
+import SiteFooter from '@/components/common/SiteFooter';
 import HomeShowcaseTabs from '@/components/customer/HomeShowcaseTabs';
 import CartIconBtn from '@/components/customer/CartIconBtn';
 import { createClient } from '@/lib/supabase/server';
@@ -112,22 +113,8 @@ export default async function HomePage() {
         {/* ── CURATED SHOWCASE TABS (Bestsellers | On-Hand | Promos) ──────────────── */}
         <HomeShowcaseTabs allProducts={products} />
 
-        {/* Footer */}
-        <footer style={{
-          borderTop: '1px solid var(--color-border-light)',
-          padding: 'var(--space-4) var(--page-padding) var(--space-3)',
-          marginTop: 'var(--space-4)',
-          textAlign: 'center',
-        }}>
-          <p style={{
-            fontSize: 'var(--text-xs)',
-            color: 'var(--color-text-muted)',
-            letterSpacing: '0.02em',
-            margin: 0,
-          }}>
-            &copy; 2025 M&M Artsy. All Rights Reserved.
-          </p>
-        </footer>
+        {/* Unified Sticky-Bottom Site Footer */}
+        <SiteFooter />
       </main>
 
       <BottomNav />

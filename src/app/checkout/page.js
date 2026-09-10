@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
+import SiteFooter from '@/components/common/SiteFooter';
 import { useRouter } from 'next/navigation';
 import { useCart } from '@/lib/hooks/useCart';
 import { createClient } from '@/lib/supabase/client';
@@ -401,6 +402,10 @@ export default function CheckoutPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (checkoutCart.length === 0) return;
+    if (!formData.preferredDate) {
+      setError('Paki-pili ang Date Needed bago mag-submit.');
+      return;
+    }
     if (orderType === 'delivery' && !deliveryLocation) {
       setError('Paki-tap ang iyong delivery pin sa mapa.');
       return;
@@ -660,14 +665,29 @@ export default function CheckoutPage() {
                 autoComplete="name"
               />
             </div>
+
+            <div className="input-group" style={{ marginTop: 'var(--space-3)' }}>
+              <label className="input-label" htmlFor="preferred-date">
+                Date Needed <span className="required">*</span>
+              </label>
+              <input
+                id="preferred-date"
+                className="input"
+                type="date"
+                min={new Date().toISOString().split('T')[0]}
+                value={formData.preferredDate}
+                onChange={(e) => handleInputChange('preferredDate', e.target.value)}
+                required
+              />
+            </div>
           </div>
 
           <hr className="divider" style={{ margin: 0 }} />
 
-          {/* Fulfillment Method */}
+          {/* Delivery Method */}
           <div className="section">
             <h2 className="section-title" style={{ fontSize: 'var(--text-base)', marginBottom: 'var(--space-3)' }}>
-              Fulfillment Method
+              Delivery / Pickup Method
             </h2>
             <div className="fulfillment-toggle" role="radiogroup" aria-label="Order type">
               <button
@@ -879,9 +899,9 @@ export default function CheckoutPage() {
                 <span style={{ fontWeight: '600' }}>{formatCurrency(subtotal)}</span>
               </div>
               <div className="order-summary-row" style={{ padding: '3px 0', fontSize: '13px' }}>
-                <span>Fulfillment ({orderType === 'delivery' ? 'Delivery' : 'Store Pickup'})</span>
+                <span>Delivery Fee</span>
                 <span style={{ fontWeight: '600', color: orderType === 'delivery' ? 'var(--color-text)' : 'var(--color-success, #16A34A)' }}>
-                  {orderType === 'delivery' ? formatCurrency(dynamicDeliveryFee) : 'FREE'}
+                  {orderType === 'delivery' ? formatCurrency(dynamicDeliveryFee) : 'FREE (Pickup)'}
                 </span>
               </div>
               <div className="order-summary-row total" style={{ marginTop: '8px', paddingTop: '10px', fontSize: '14px', borderTop: '1px solid var(--color-border)' }}>
@@ -933,6 +953,9 @@ export default function CheckoutPage() {
             </button>
           </div>
         </form>
+
+        {/* Unified Sticky-Bottom Site Footer */}
+        <SiteFooter />
       </main>
     </div>
   );

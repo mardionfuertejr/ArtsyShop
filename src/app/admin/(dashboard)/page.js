@@ -37,7 +37,7 @@ async function getDashboardData() {
         const pendingRevenue = activeOrders.reduce((s, o) => s + parseFloat(o.total_amount || 0), 0);
         const totalSales = collectedRevenue + pendingRevenue;
 
-        const totalExpenses = allMonthOrders.reduce((s, o) => s + parseFloat(o.total_cost || (o.total_amount * 0.4) || 0), 0) || 5820.00;
+        const totalExpenses = allMonthOrders.reduce((s, o) => s + parseFloat(o.total_cost || 0), 0);
 
         const lowStock = (lowStockMaterials || []).filter(
           m => parseFloat(m.current_stock) <= parseFloat(m.minimum_stock)
@@ -47,7 +47,7 @@ async function getDashboardData() {
           totalSales,
           totalExpenses,
           activeOrders,
-          lowStockMaterials: lowStock.length > 0 ? lowStock : getMockDashboardData().lowStockMaterials,
+          lowStockMaterials: lowStock,
         };
       }
     }
@@ -57,9 +57,12 @@ async function getDashboardData() {
 
   const allOrders = getAllMockOrders();
   const activeOrders = allOrders.filter(o => ['pending', 'for_confirmation', 'confirmed', 'preparing', 'ready'].includes(o.status));
+  const completedOrders = allOrders.filter(o => o.status === 'completed');
 
-  const totalSales = 7090.00;
-  const totalExpenses = 5820.00;
+  const collectedRevenue = completedOrders.reduce((s, o) => s + parseFloat(o.total_amount || 0), 0);
+  const pendingRevenue = activeOrders.reduce((s, o) => s + parseFloat(o.total_amount || 0), 0);
+  const totalSales = collectedRevenue + pendingRevenue;
+  const totalExpenses = allOrders.reduce((s, o) => s + parseFloat(o.total_cost || 0), 0);
 
   const mock = getMockDashboardData();
 
@@ -254,10 +257,36 @@ export default async function AdminDashboardPage() {
         </div>
 
         {data.activeOrders.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '36px 20px', background: 'var(--color-surface-warm, #FAF6F0)', borderRadius: '12px' }}>
-            <i className="fa-solid fa-circle-check" style={{ fontSize: '2.4rem', color: '#16A34A', marginBottom: '8px', display: 'block' }}></i>
-            <p style={{ fontWeight: '800', fontSize: '14px', color: 'var(--color-text)', margin: 0 }}>
+          <div style={{
+            textAlign: 'center',
+            padding: '72px 20px',
+            minHeight: '220px',
+            background: 'var(--color-surface-warm, #FAF6F0)',
+            borderRadius: '12px',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '10px',
+          }}>
+            <div style={{
+              width: '56px',
+              height: '56px',
+              borderRadius: '50%',
+              background: '#DCFCE7',
+              color: '#16A34A',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '24px',
+            }}>
+              <i className="fa-solid fa-check"></i>
+            </div>
+            <p style={{ fontWeight: '800', fontSize: '15px', color: 'var(--color-text, #0f172a)', margin: 0 }}>
               All caught up! 🎉
+            </p>
+            <p style={{ fontSize: '12.5px', color: '#64748b', margin: 0 }}>
+              No active orders in the queue right now.
             </p>
           </div>
         ) : (
@@ -274,8 +303,8 @@ export default async function AdminDashboardPage() {
               </thead>
               <tbody>
                 {data.activeOrders.map((ord) => (
-                  <tr key={ord.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                    <td style={{ padding: '12px 14px' }}>
+                  <tr key={ord.id} style={{ borderBottom: '1px solid #E2E8F0' }}>
+                    <td style={{ padding: '12px 14px', borderBottom: '1px solid #E2E8F0' }}>
                       <Link href={`/admin/orders/${ord.id}`} style={{ display: 'block', fontWeight: '800', fontSize: '13px', color: '#0f172a', textDecoration: 'none' }}>
                         {ord.reference_code}
                       </Link>
@@ -290,7 +319,7 @@ export default async function AdminDashboardPage() {
                         )}
                       </span>
                     </td>
-                    <td style={{ padding: '12px 14px' }}>
+                    <td style={{ padding: '12px 14px', borderBottom: '1px solid #E2E8F0' }}>
                       <p style={{ fontWeight: '700', color: '#0f172a', margin: '0 0 2px', fontSize: '13px', whiteSpace: 'nowrap' }}>
                         {ord.customer_name}
                       </p>
@@ -299,64 +328,56 @@ export default async function AdminDashboardPage() {
                         <span>{ord.order_type === 'delivery' ? 'Delivery' : 'Pickup'}</span>
                       </span>
                     </td>
-                    <td style={{ padding: '12px 14px', verticalAlign: 'middle', maxWidth: '260px' }}>
+                    <td style={{ padding: '12px 14px', verticalAlign: 'middle', borderBottom: '1px solid #E2E8F0' }}>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                         {ord.order_items && ord.order_items.length > 0 ? (
-                          <>
-                            {ord.order_items.slice(0, 2).map((it, idx) => (
-                              <div
-                                key={idx}
+                          ord.order_items.map((it, idx) => (
+                            <div
+                              key={idx}
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                fontSize: '12px',
+                              }}
+                            >
+                              <span
                                 style={{
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '6px',
-                                  fontSize: '12px',
+                                  background: '#f1f5f9',
+                                  color: '#334155',
+                                  fontWeight: '700',
+                                  fontSize: '10.5px',
+                                  padding: '1px 5px',
+                                  borderRadius: '4px',
+                                  lineHeight: 1.2,
+                                  flexShrink: 0,
                                 }}
                               >
-                                <span
-                                  style={{
-                                    background: '#f1f5f9',
-                                    color: '#334155',
-                                    fontWeight: '700',
-                                    fontSize: '10.5px',
-                                    padding: '1px 5px',
-                                    borderRadius: '4px',
-                                    lineHeight: 1.2,
-                                    flexShrink: 0,
-                                  }}
-                                >
-                                  {it.quantity}×
-                                </span>
-                                <span
-                                  style={{
-                                    color: '#1e293b',
-                                    fontWeight: '500',
-                                    whiteSpace: 'nowrap',
-                                    overflow: 'hidden',
-                                    textOverflow: 'ellipsis',
-                                    maxWidth: '190px',
-                                  }}
-                                  title={it.product_name}
-                                >
-                                  {it.product_name}
-                                </span>
-                              </div>
-                            ))}
-                            {ord.order_items.length > 2 && (
-                              <span style={{ fontSize: '10.5px', color: '#64748b', fontWeight: '500', paddingLeft: '2px' }}>
-                                +{ord.order_items.length - 2} more item{ord.order_items.length - 2 > 1 ? 's' : ''}
+                                {it.quantity}×
                               </span>
-                            )}
-                          </>
+                              <span
+                                style={{
+                                  color: '#1e293b',
+                                  fontWeight: '500',
+                                  whiteSpace: 'nowrap',
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                }}
+                                title={it.product_name}
+                              >
+                                {it.product_name}
+                              </span>
+                            </div>
+                          ))
                         ) : (
                           <span style={{ fontSize: '12px', color: '#94a3b8', fontStyle: 'italic' }}>Custom crafts</span>
                         )}
                       </div>
                     </td>
-                    <td style={{ padding: '12px 14px', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                    <td style={{ padding: '12px 14px', textAlign: 'center', whiteSpace: 'nowrap', borderBottom: '1px solid #E2E8F0' }}>
                       {getStatusBadge(ord.status)}
                     </td>
-                    <td style={{ padding: '12px 14px', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                    <td style={{ padding: '12px 14px', textAlign: 'center', whiteSpace: 'nowrap', borderBottom: '1px solid #E2E8F0' }}>
                       <Link href={`/admin/orders/${ord.id}`} className="btn btn-secondary btn-sm" style={{ padding: '4px 12px', fontSize: '11.5px', fontWeight: '700', borderRadius: '8px', border: 'none', background: '#f1f5f9', color: '#334155', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                         <span>View</span>
                         <i className="fa-solid fa-arrow-right" style={{ fontSize: '9px', opacity: 0.7 }}></i>

@@ -2,6 +2,22 @@
    LIKHA — Admin Dashboard Styles
    ============================================================ */
 
+/* ── Global Zero-Latency Touch & Tap Feedback ─────────────── */
+*, *::before, *::after {
+  touch-action: manipulation;
+}
+
+button, a, .btn, .sidebar-link, .admin-drawer-link, .admin-bottom-tab, [role="button"], [role="tab"] {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  cursor: pointer;
+  transition: transform 0.06s ease, background-color 0.08s ease, color 0.08s ease, border-color 0.08s ease;
+}
+
+button:active, .btn:active, .sidebar-link:active, [role="button"]:active {
+  transform: scale(0.97) !important;
+}
+
 /* ── Admin Layout ─────────────────────────────────────────── */
 .admin-shell {
   display: flex;
@@ -554,6 +570,22 @@
   background: var(--color-surface, #ffffff);
   position: relative;
   margin-bottom: var(--space-6);
+  min-height: 520px;
+  display: flex;
+  flex-direction: column;
+}
+
+.data-table-wrapper > table,
+.admin-table-container > table {
+  width: 100%;
+  flex: 1;
+}
+
+.table-empty-cell {
+  text-align: center;
+  padding: 110px 24px !important;
+  border: none !important;
+  vertical-align: middle !important;
 }
 
 .admin-table,
@@ -593,7 +625,7 @@
 .admin-table td,
 .data-table td {
   padding: 14px 16px;
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid #E2E8F0;
   color: var(--color-text);
   vertical-align: middle;
   font-size: 13.5px;
@@ -620,12 +652,12 @@
 
 .admin-table tr:hover td,
 .data-table tbody tr:hover td {
-  background: rgba(245, 241, 235, 0.45);
+  background: #F8FAFC;
 }
 
 .admin-table tr:last-child td,
 .data-table tbody tr:last-child td {
-  border-bottom: none;
+  border-bottom: 1px solid #E2E8F0;
 }
 
 .data-table .ref-code,
@@ -975,49 +1007,56 @@
 .stock-dot.low     { background: var(--color-warning); }
 .stock-dot.out     { background: var(--color-danger); }
 
-/* ── Data Tables (Full Screen Width Maximized) ─────────────── */
-.data-table-wrapper {
-  width: 100%;
-  background: var(--color-surface);
-  border-radius: var(--radius-xl);
-  border: none;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
-  overflow-x: auto;
-  margin-bottom: var(--space-6);
+/* ── Unified Admin Table Pagination ───────────────────────── */
+.admin-pagination-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 18px;
+  border-top: 1px solid #E2E8F0;
+  background: #ffffff;
+  flex-wrap: wrap;
+  gap: 10px;
+  border-bottom-left-radius: 12px;
+  border-bottom-right-radius: 12px;
 }
 
-.data-table {
-  width: 100%;
-  border-collapse: collapse;
-  text-align: left;
+.admin-pagination-info {
+  font-size: 12px;
+  color: #64748b;
+  font-weight: 500;
 }
 
-.data-table th {
-  background: #FAF8F5;
-  color: var(--color-text-secondary);
-  font-size: 11px;
-  font-weight: var(--weight-bold);
-  text-transform: uppercase;
-  letter-spacing: 0.07em;
-  padding: 14px 20px;
-  border: none;
-  white-space: nowrap;
+.admin-pagination-btn {
+  padding: 5px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  color: #334155;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.08s ease;
 }
 
-.data-table td {
-  padding: 16px 20px;
-  border-bottom: 1px solid #f8fafc;
-  color: var(--color-text);
-  font-size: var(--text-sm);
-  vertical-align: middle;
+.admin-pagination-btn:hover:not(:disabled) {
+  background: #f8fafc;
+  border-color: #cbd5e1;
 }
 
-.data-table tbody tr:hover td {
-  background: #FDFCFB;
+.admin-pagination-btn:disabled {
+  background: #f8fafc;
+  color: #cbd5e1;
+  cursor: not-allowed;
 }
 
-.data-table tbody tr:last-child td {
-  border-bottom: none;
+.admin-pagination-btn.active {
+  background: var(--color-primary, #b45309);
+  color: #ffffff;
+  border-color: var(--color-primary, #b45309);
 }
 
 /* ── Admin Login ──────────────────────────────────────────── */
@@ -1169,9 +1208,9 @@
   animation: fadeInSlide 0.25s ease-out;
 }
 
-/* ── Page Enter Animation ────────────────────────────────── */
+/* ── Page Enter (Instant Load) ───────────────────────────── */
 .page-enter {
-  animation: fadeInSlide 0.2s ease-out;
+  animation: none !important;
 }
 
 /* ── Consistent Section Header (alignment utility) ───────── */

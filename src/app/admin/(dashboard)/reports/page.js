@@ -1,13 +1,36 @@
 import Link from 'next/link';
+import { createClient } from '@/lib/supabase/server';
 import { MOCK_ORDERS, MOCK_PRODUCTS } from '@/lib/mockData';
-import { formatCurrency, formatCurrencyCompact } from '@/lib/utils/formatCurrency';
+import { formatCurrency } from '@/lib/utils/formatCurrency';
 
 export const metadata = { title: 'Sales & Profit Reports — M&M Artsy' };
 
 export default async function AdminReportsPage() {
-  const completedOrders = MOCK_ORDERS.filter(o => o.status === 'completed');
-  const totalRevenue = completedOrders.reduce((sum, o) => sum + o.total_amount, 0);
-  const totalCost = completedOrders.reduce((sum, o) => sum + (o.total_cost || o.total_amount * 0.45), 0);
+  let completedOrders = [];
+  let products = [];
+
+  try {
+    const supabase = await createClient();
+    if (supabase) {
+      const [{ data: dbOrders }, { data: dbProducts }] = await Promise.all([
+        supabase.from('orders').select('*').eq('status', 'completed'),
+        supabase.from('products').select('*, category:categories(name, slug)'),
+      ]);
+
+      if (dbOrders) completedOrders = dbOrders;
+      if (dbProducts) products = dbProducts;
+    }
+  } catch (err) {}
+
+  if (completedOrders.length === 0) {
+    completedOrders = MOCK_ORDERS.filter((o) => o.status === 'completed');
+  }
+  if (products.length === 0) {
+    products = MOCK_PRODUCTS;
+  }
+
+  const totalRevenue = completedOrders.reduce((sum, o) => sum + (parseFloat(o.total_amount) || 0), 0);
+  const totalCost = completedOrders.reduce((sum, o) => sum + (parseFloat(o.total_cost) || 0), 0);
   const netProfit = totalRevenue - totalCost;
   const profitMargin = totalRevenue > 0 ? Math.round((netProfit / totalRevenue) * 100) : 0;
   const aov = completedOrders.length > 0 ? Math.round(totalRevenue / completedOrders.length) : 0;
@@ -55,63 +78,76 @@ export default async function AdminReportsPage() {
       </div>
 
       {/* Product Profitability Table */}
-      <div className="data-table-wrapper" style={{ margin: 0 }}>
-        <div style={{ padding: 'var(--space-4) var(--space-5)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
-          <h2 style={{ fontSize: 'var(--text-base)', fontWeight: 'var(--weight-bold)', color: 'var(--color-text)', margin: 0 }}>
+      <div className="data-table-wrapper" style={{ background: '#ffffff', borderRadius: '12px', overflow: 'visible', margin: 0, border: 'none', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
+        <div style={{ padding: '16px 20px', borderBottom: '1px solid #E2E8F0', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+          <h2 style={{ fontSize: '15px', fontWeight: '800', color: '#0f172a', margin: 0 }}>
             Product Catalog Margin Breakdown
           </h2>
-          <span style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)' }}>
+          <span style={{ fontSize: '12px', color: '#64748b', fontWeight: '500' }}>
             Based on active BOM recipes
           </span>
         </div>
 
-        <table className="admin-table">
+        <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
-            <tr>
-              <th className="text-left">Craft Creation</th>
-              <th className="text-left">Category</th>
-              <th className="text-right">Retail Price</th>
-              <th className="text-right">Est. Material Cost</th>
-              <th className="text-right">Est. Margin</th>
-              <th className="text-center">Status</th>
+            <tr style={{ background: '#F8FAFC', borderBottom: '1.5px solid #E2E8F0' }}>
+              <th style={{ padding: '13px 18px', textAlign: 'left', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#334155', borderBottom: '1.5px solid #E2E8F0' }}>Craft Creation</th>
+              <th style={{ padding: '13px 16px', textAlign: 'left', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#334155', borderBottom: '1.5px solid #E2E8F0' }}>Category</th>
+              <th style={{ padding: '13px 16px', textAlign: 'right', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#334155', borderBottom: '1.5px solid #E2E8F0' }}>Retail Price</th>
+              <th style={{ padding: '13px 16px', textAlign: 'right', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#334155', borderBottom: '1.5px solid #E2E8F0' }}>Est. Material Cost</th>
+              <th style={{ padding: '13px 16px', textAlign: 'right', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#334155', borderBottom: '1.5px solid #E2E8F0' }}>Est. Margin</th>
+              <th style={{ padding: '13px 14px', textAlign: 'center', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#334155', borderBottom: '1.5px solid #E2E8F0' }}>Status</th>
             </tr>
           </thead>
           <tbody>
-            {MOCK_PRODUCTS.map((prod) => {
-              const bomCost = prod.bom?.reduce((sum, item) => sum + (item.qty * item.unit_cost), 0) || (prod.base_price * 0.38);
-              const margin = Math.round(((prod.base_price - bomCost) / prod.base_price) * 100);
-              return (
-                <tr key={prod.id}>
-                  <td className="text-left">
-                    <p style={{ fontWeight: 'var(--weight-semibold)', color: 'var(--color-text)', margin: 0 }}>
-                      {prod.name}
-                    </p>
-                    <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', margin: 0 }}>
-                      /{prod.slug}
-                    </p>
-                  </td>
-                  <td className="text-left">
-                    <span className="badge" style={{ background: 'var(--color-surface-warm)', color: 'var(--color-primary)' }}>
-                      {prod.category?.name}
-                    </span>
-                  </td>
-                  <td className="text-right" style={{ fontWeight: '700', color: 'var(--color-text)' }}>
-                    {formatCurrency(prod.base_price)}
-                  </td>
-                  <td className="text-right" style={{ color: '#B91C1C', fontWeight: '500' }}>
-                    {formatCurrency(bomCost)}
-                  </td>
-                  <td className="text-right" style={{ color: '#15803D', fontWeight: '700' }}>
-                    {margin}%
-                  </td>
-                  <td className="text-center">
-                    <span className="badge badge-confirmed">
-                      Healthy Margin
-                    </span>
-                  </td>
-                </tr>
-              );
-            })}
+            {products.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="table-empty-cell" style={{ textAlign: 'center', padding: '120px 20px', border: 'none' }}>
+                  <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '56px', height: '56px', borderRadius: '50%', background: '#f8fafc', color: '#94a3b8', marginBottom: '14px', fontSize: '22px' }}>
+                    <i className="fa-solid fa-chart-pie" style={{ opacity: 0.8 }}></i>
+                  </div>
+                  <p style={{ fontWeight: '800', fontSize: '15px', color: '#0f172a', margin: 0 }}>No products in catalog yet</p>
+                  <p style={{ fontSize: '13px', margin: '6px 0 0', color: '#64748b' }}>Add products in the Products tab to see margin breakdown.</p>
+                </td>
+              </tr>
+            ) : (
+              products.map((prod) => {
+                const bomCost = prod.bom?.reduce((sum, item) => sum + (item.qty * item.unit_cost), 0) || ((parseFloat(prod.base_price) || 0) * 0.38);
+                const basePrice = parseFloat(prod.base_price) || 0;
+                const margin = basePrice > 0 ? Math.round(((basePrice - bomCost) / basePrice) * 100) : 0;
+                return (
+                  <tr key={prod.id} style={{ borderBottom: '1px solid #E2E8F0' }}>
+                    <td style={{ padding: '13px 18px', textAlign: 'left', borderBottom: '1px solid #E2E8F0' }}>
+                      <p style={{ fontWeight: '700', color: '#0f172a', margin: 0, fontSize: '13px' }}>
+                        {prod.name}
+                      </p>
+                      <p style={{ fontSize: '11px', color: '#64748b', margin: '2px 0 0' }}>
+                        /{prod.slug}
+                      </p>
+                    </td>
+                    <td style={{ padding: '13px 16px', textAlign: 'left', borderBottom: '1px solid #E2E8F0' }}>
+                      <span style={{ background: '#FAF6F0', color: 'var(--color-primary, #b45309)', fontWeight: '700', fontSize: '11px', padding: '3px 8px', borderRadius: '6px' }}>
+                        {prod.category?.name || 'Uncategorized'}
+                      </span>
+                    </td>
+                    <td style={{ padding: '13px 16px', textAlign: 'right', fontWeight: '700', color: '#0f172a', fontSize: '13px', borderBottom: '1px solid #E2E8F0' }}>
+                      {formatCurrency(basePrice)}
+                    </td>
+                    <td style={{ padding: '13px 16px', textAlign: 'right', color: '#B91C1C', fontWeight: '600', fontSize: '13px', borderBottom: '1px solid #E2E8F0' }}>
+                      {formatCurrency(bomCost)}
+                    </td>
+                    <td style={{ padding: '13px 16px', textAlign: 'right', color: '#15803D', fontWeight: '800', fontSize: '13px', borderBottom: '1px solid #E2E8F0' }}>
+                      {margin}%
+                    </td>
+                    <td style={{ padding: '13px 14px', textAlign: 'center', borderBottom: '1px solid #E2E8F0' }}>
+                      <span style={{ fontSize: '11px', fontWeight: '800', letterSpacing: '0.04em', padding: '0 8px', height: '24px', borderRadius: '9999px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: '#DCFCE7', color: '#166534' }}>
+                        Healthy Margin
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })
+            )}
           </tbody>
         </table>
       </div>

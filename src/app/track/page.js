@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import BottomNav from '@/components/customer/BottomNav';
 import BrandLogo from '@/components/common/BrandLogo';
+import SiteFooter from '@/components/common/SiteFooter';
 import CartIconBtn from '@/components/customer/CartIconBtn';
 import HeaderSearchBar from '@/components/customer/HeaderSearchBar';
 import { useCart } from '@/lib/hooks/useCart';
@@ -808,8 +809,8 @@ function TrackContent() {
                   </div>
 
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ color: 'var(--color-text-muted)', fontSize: '11.5px' }}>Fulfillment Method</span>
-                    <span style={{ fontWeight: '700', color: 'var(--color-text)' }}>{isDelivery ? 'Delivery' : 'Pickup'}</span>
+                    <span style={{ color: 'var(--color-text-muted)', fontSize: '11.5px' }}>Delivery Method</span>
+                    <span style={{ fontWeight: '700', color: 'var(--color-text)' }}>{isDelivery ? 'Delivery' : 'Store Pickup'}</span>
                   </div>
 
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -1185,6 +1186,9 @@ function TrackContent() {
             </div>
           </div>
         )}
+
+        {/* Unified Sticky-Bottom Site Footer */}
+        <SiteFooter />
       </main>
 
       <BottomNav />

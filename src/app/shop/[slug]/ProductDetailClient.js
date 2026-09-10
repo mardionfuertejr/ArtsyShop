@@ -8,6 +8,7 @@ import PhotoCarousel from '@/components/customer/PhotoCarousel';
 import OptionSelector from '@/components/customer/OptionSelector';
 import QuantityControl from '@/components/customer/QuantityControl';
 import ProductReviews from '@/components/customer/ProductReviews';
+import SiteFooter from '@/components/common/SiteFooter';
 import BottomNav from '@/components/customer/BottomNav';
 import CartIconBtn from '@/components/customer/CartIconBtn';
 import HeaderSearchBar from '@/components/customer/HeaderSearchBar';
@@ -361,6 +362,9 @@ export default function ProductDetailClient({ product, photos }) {
             )}
           </div>
         ))}
+
+        {/* Unified Sticky-Bottom Site Footer */}
+        <SiteFooter />
       </main>
 
       <BottomNav />

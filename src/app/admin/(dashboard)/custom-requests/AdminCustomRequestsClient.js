@@ -229,12 +229,12 @@ export default function AdminCustomRequestsClient() {
           <tbody key={`${statusFilter}-${searchQuery}-${currentPage}`} className="table-fade-enter">
             {paginatedRequests.length === 0 ? (
               <tr>
-                <td colSpan={6} style={{ textAlign: 'center', padding: '48px 20px', border: 'none' }}>
-                  <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '44px', height: '44px', borderRadius: '50%', background: '#f8fafc', color: '#94a3b8', marginBottom: '10px', fontSize: '18px' }}>
-                    <i className="fa-solid fa-wand-magic-sparkles" style={{ opacity: 0.7 }}></i>
+                <td colSpan={6} className="table-empty-cell" style={{ textAlign: 'center', padding: '120px 20px', border: 'none' }}>
+                  <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '56px', height: '56px', borderRadius: '50%', background: '#f8fafc', color: '#94a3b8', marginBottom: '14px', fontSize: '22px' }}>
+                    <i className="fa-solid fa-wand-magic-sparkles" style={{ opacity: 0.8 }}></i>
                   </div>
-                  <p style={{ margin: 0, fontWeight: '700', fontSize: '14px', color: '#0f172a' }}>No custom requests found</p>
-                  <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#94a3b8' }}>
+                  <p style={{ margin: 0, fontWeight: '800', fontSize: '15px', color: '#0f172a' }}>No custom requests found</p>
+                  <p style={{ margin: '6px 0 0', fontSize: '13px', color: '#64748b' }}>
                     {searchQuery || statusFilter !== 'all' ? 'Try adjusting your search or status filter.' : 'Customer custom quote requests will appear here.'}
                   </p>
                 </td>
@@ -245,8 +245,8 @@ export default function AdminCustomRequestsClient() {
                 const isQuoted = req.status === 'quoted';
 
                 return (
-                  <tr key={req.id} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background 0.12s ease' }}>
-                    <td style={{ padding: '13px 18px', verticalAlign: 'top' }}>
+                  <tr key={req.id} style={{ borderBottom: '1px solid #E2E8F0', transition: 'background 0.12s ease' }}>
+                    <td style={{ padding: '13px 18px', verticalAlign: 'top', borderBottom: '1px solid #E2E8F0' }}>
                       <span style={{ fontWeight: '800', fontSize: '13px', color: '#0f172a', display: 'block', marginBottom: '2px' }}>
                         {req.reference_code}
                       </span>
@@ -516,7 +516,7 @@ export default function AdminCustomRequestsClient() {
             alignItems: 'center',
             justifyContent: 'space-between',
             padding: '12px 18px',
-            borderTop: '1px solid #f1f5f9',
+            borderTop: '1px solid #E2E8F0',
             background: '#ffffff',
             flexWrap: 'wrap',
             gap: '10px',

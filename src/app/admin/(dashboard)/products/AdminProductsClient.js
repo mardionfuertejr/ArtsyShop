@@ -807,26 +807,34 @@ export default function AdminProductsClient({ initialProducts, categories = [] }
 
           {/* Products Table Card */}
           <div className="data-table-wrapper" style={{ background: '#ffffff', borderRadius: '12px', overflow: 'visible', margin: 0, border: 'none', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
-            <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+              <colgroup>
+                <col style={{ width: '36%' }} />
+                <col style={{ width: '16%' }} />
+                <col style={{ width: '15%' }} />
+                <col style={{ width: '19%' }} />
+                <col style={{ width: '10%' }} />
+                <col style={{ width: '4%' }} />
+              </colgroup>
               <thead>
                 <tr style={{ background: '#F8FAFC', borderBottom: '1.5px solid #E2E8F0' }}>
-                  <th style={{ width: '36%', padding: '13px 18px', textAlign: 'left', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#334155', borderBottom: '1.5px solid #E2E8F0' }}>Product</th>
-                  <th style={{ width: '18%', padding: '13px 16px', textAlign: 'left', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#334155', borderBottom: '1.5px solid #E2E8F0' }}>Category</th>
-                  <th style={{ width: '16%', padding: '13px 16px', textAlign: 'left', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#334155', borderBottom: '1.5px solid #E2E8F0' }}>Base Price</th>
-                  <th style={{ width: '14%', padding: '13px 16px', textAlign: 'left', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#334155', borderBottom: '1.5px solid #E2E8F0' }}>Options</th>
-                  <th style={{ width: '10%', padding: '13px 14px', textAlign: 'center', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#334155', borderBottom: '1.5px solid #E2E8F0' }}>Status</th>
-                  <th style={{ width: '6%', padding: '13px 14px', textAlign: 'center', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#334155', borderBottom: '1.5px solid #E2E8F0' }}>Action</th>
+                  <th style={{ width: '36%', padding: '12px 14px', textAlign: 'left', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#334155', borderBottom: '1.5px solid #E2E8F0' }}>Product</th>
+                  <th style={{ width: '16%', padding: '12px 14px', textAlign: 'left', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#334155', borderBottom: '1.5px solid #E2E8F0' }}>Category</th>
+                  <th style={{ width: '15%', padding: '12px 14px', textAlign: 'left', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#334155', borderBottom: '1.5px solid #E2E8F0' }}>Base Price</th>
+                  <th style={{ width: '19%', padding: '12px 14px', textAlign: 'left', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#334155', borderBottom: '1.5px solid #E2E8F0' }}>Options</th>
+                  <th style={{ width: '10%', padding: '12px 10px', textAlign: 'center', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#334155', borderBottom: '1.5px solid #E2E8F0' }}>Status</th>
+                  <th style={{ width: '4%', padding: '12px 8px', textAlign: 'center', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#334155', borderBottom: '1.5px solid #E2E8F0' }}>Action</th>
                 </tr>
               </thead>
               <tbody key={`${activeCategory}-${searchQuery}-${currentPage}`} className="table-fade-enter">
                 {paginatedProducts.length === 0 ? (
                   <tr>
-                    <td colSpan={6} style={{ textAlign: 'center', padding: '48px 20px', border: 'none' }}>
-                      <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '44px', height: '44px', borderRadius: '50%', background: '#f8fafc', color: '#94a3b8', marginBottom: '10px', fontSize: '18px' }}>
-                        <i className="fa-solid fa-box-open" style={{ opacity: 0.7 }}></i>
+                    <td colSpan={6} className="table-empty-cell" style={{ textAlign: 'center', padding: '120px 20px', border: 'none' }}>
+                      <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '56px', height: '56px', borderRadius: '50%', background: '#f8fafc', color: '#94a3b8', marginBottom: '14px', fontSize: '22px' }}>
+                        <i className="fa-solid fa-box-open" style={{ opacity: 0.8 }}></i>
                       </div>
-                      <p style={{ margin: 0, fontWeight: '700', fontSize: '14px', color: '#0f172a' }}>No products found</p>
-                      <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#94a3b8' }}>
+                      <p style={{ margin: 0, fontWeight: '800', fontSize: '15px', color: '#0f172a' }}>No products found</p>
+                      <p style={{ margin: '6px 0 0', fontSize: '13px', color: '#64748b' }}>
                         {searchQuery || activeCategory !== 'all' ? 'Try adjusting your search or filters.' : 'Click "+ New Product" to create your first product.'}
                       </p>
                     </td>
@@ -840,8 +848,8 @@ export default function AdminProductsClient({ initialProducts, categories = [] }
                       'https://images.unsplash.com/photo-1561181286-d3fee7d55364?auto=format&fit=crop&w=400&q=80';
 
                     return (
-                      <tr key={p.id} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background 0.12s ease' }}>
-                        <td style={{ padding: '13px 18px' }}>
+                      <tr key={p.id} style={{ borderBottom: '1px solid #E2E8F0', transition: 'background 0.12s ease' }}>
+                        <td style={{ padding: '13px 18px', borderBottom: '1px solid #E2E8F0' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                             {/* eslint-disable-next-line @next/next/no-img-element */}
                             <img
@@ -1097,7 +1105,7 @@ export default function AdminProductsClient({ initialProducts, categories = [] }
                 alignItems: 'center',
                 justifyContent: 'space-between',
                 padding: '12px 18px',
-                borderTop: '1px solid #f1f5f9',
+                borderTop: '1px solid #E2E8F0',
                 background: '#ffffff',
                 flexWrap: 'wrap',
                 gap: '10px',

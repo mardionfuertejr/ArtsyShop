@@ -46,7 +46,7 @@ function initStoreIfNeeded() {
   isStoreInitialized = true;
 
   const handleStorage = (e) => {
-    if (!e || e.key === CART_KEY || e.type === 'likha_cart_updated') {
+    if (!e || e.key === CART_KEY) {
       globalCart = getStoredCart();
       listeners.forEach((listener) => {
         try {
@@ -57,18 +57,21 @@ function initStoreIfNeeded() {
   };
 
   window.addEventListener('storage', handleStorage);
-  window.addEventListener('likha_cart_updated', handleStorage);
-  window.addEventListener('focus', handleStorage);
+  window.addEventListener('focus', () => {
+    const fresh = getStoredCart();
+    if (JSON.stringify(fresh) !== JSON.stringify(globalCart)) {
+      globalCart = fresh;
+      listeners.forEach((listener) => {
+        try {
+          listener(globalCart);
+        } catch {}
+      });
+    }
+  });
 }
 
 export function useCart() {
-  const [cart, setCart] = useState(() => {
-    if (typeof window !== 'undefined') {
-      initStoreIfNeeded();
-      return globalCart;
-    }
-    return [];
-  });
+  const [cart, setCart] = useState([]);
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {

@@ -66,6 +66,7 @@ export default function AdminShellClient({ user, children }) {
               <Link
                 key={item.href}
                 href={item.href}
+                prefetch={true}
                 className={`sidebar-link${active ? ' active' : ''}`}
                 id={`nav-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
               >
@@ -129,6 +130,7 @@ export default function AdminShellClient({ user, children }) {
               <Link
                 key={item.href}
                 href={item.href}
+                prefetch={true}
                 className={`admin-drawer-link${active ? ' active' : ''}`}
                 onClick={() => setDrawerOpen(false)}
               >
@@ -204,8 +206,8 @@ export default function AdminShellClient({ user, children }) {
           </div>
         </header>
 
-        {/* Dynamic Admin Page Content with screen-change transitions */}
-        <div key={pathname} className="admin-content page-enter">
+        {/* Dynamic Admin Page Content */}
+        <div key={pathname} className="admin-content">
           {children}
         </div>
 
@@ -217,6 +219,7 @@ export default function AdminShellClient({ user, children }) {
               <Link
                 key={item.href}
                 href={item.href}
+                prefetch={true}
                 className={`admin-bottom-tab${active ? ' active' : ''}`}
               >
                 <i className={item.icon}></i>

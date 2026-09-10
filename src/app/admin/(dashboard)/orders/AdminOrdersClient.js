@@ -594,13 +594,13 @@ export default function AdminOrdersClient({ initialOrders }) {
           <tbody key={`${statusFilter}-${searchQuery}-${currentPage}`} className="table-fade-enter">
             {paginatedOrders.length === 0 ? (
               <tr>
-                <td colSpan={5} style={{ textAlign: 'center', padding: '48px 20px', border: 'none' }}>
-                  <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '44px', height: '44px', borderRadius: '50%', background: '#f8fafc', color: '#94a3b8', marginBottom: '10px', fontSize: '18px' }}>
-                    <i className="fa-solid fa-box-open" style={{ opacity: 0.7 }}></i>
+                <td colSpan={5} className="table-empty-cell" style={{ textAlign: 'center', padding: '120px 20px', border: 'none' }}>
+                  <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '56px', height: '56px', borderRadius: '50%', background: '#f8fafc', color: '#94a3b8', marginBottom: '14px', fontSize: '22px' }}>
+                    <i className="fa-solid fa-cart-shopping" style={{ opacity: 0.8 }}></i>
                   </div>
-                  <p style={{ margin: 0, fontWeight: '700', fontSize: '14px', color: '#0f172a' }}>No orders found</p>
-                  <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#94a3b8' }}>
-                    Try adjusting your search query or filter tab.
+                  <p style={{ margin: 0, fontWeight: '800', fontSize: '15px', color: '#0f172a' }}>No orders found</p>
+                  <p style={{ margin: '6px 0 0', fontSize: '13px', color: '#64748b' }}>
+                    {searchQuery || statusFilter !== 'all' ? 'Try adjusting your search query or filter tab.' : 'Customer orders will appear here once placed.'}
                   </p>
                 </td>
               </tr>
@@ -620,14 +620,14 @@ export default function AdminOrdersClient({ initialOrders }) {
                 const badge = statusBadgeConfig[ord.status] || { label: (ord.status || 'CONFIRMED').toUpperCase(), bg: '#F3F4F6', color: '#374151' };
 
                 return (
-                  <tr key={ord.id} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background 0.12s ease' }}>
-                    <td style={{ padding: '14px 18px' }}>
+                  <tr key={ord.id} style={{ borderBottom: '1px solid #E2E8F0', transition: 'background 0.12s ease' }}>
+                    <td style={{ padding: '14px 18px', borderBottom: '1px solid #E2E8F0' }}>
                       <Link href={`/admin/orders/${ord.id}`} style={{ display: 'block', marginBottom: '2px', fontWeight: '800', fontSize: '13px', color: '#0f172a', textDecoration: 'none' }}>
                         {ord.reference_code}
                       </Link>
                       {renderNeededDate(ord)}
                     </td>
-                    <td style={{ padding: '14px 18px' }}>
+                    <td style={{ padding: '14px 18px', borderBottom: '1px solid #E2E8F0' }}>
                       <p style={{ fontWeight: '700', color: '#0f172a', margin: '0 0 3px', fontSize: '13.5px', whiteSpace: 'nowrap' }}>
                         {ord.customer_name}
                       </p>
@@ -642,61 +642,53 @@ export default function AdminOrdersClient({ initialOrders }) {
                         <span>{ord.order_type === 'delivery' ? 'Delivery' : 'Pickup'}</span>
                       </span>
                     </td>
-                    <td style={{ padding: '14px 18px', verticalAlign: 'middle', textAlign: 'left' }}>
+                    <td style={{ padding: '14px 18px', verticalAlign: 'middle', textAlign: 'left', borderBottom: '1px solid #E2E8F0' }}>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'flex-start' }}>
                         {ord.order_items && ord.order_items.length > 0 ? (
-                          <>
-                            {ord.order_items.slice(0, 2).map((it, itemIdx) => (
-                              <div
-                                key={itemIdx}
+                          ord.order_items.map((it, itemIdx) => (
+                            <div
+                              key={itemIdx}
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                fontSize: '12px',
+                              }}
+                            >
+                              <span
                                 style={{
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '6px',
-                                  fontSize: '12px',
+                                  background: '#f1f5f9',
+                                  color: '#334155',
+                                  fontWeight: '700',
+                                  fontSize: '10.5px',
+                                  padding: '1px 5px',
+                                  borderRadius: '4px',
+                                  lineHeight: 1.2,
+                                  flexShrink: 0,
                                 }}
                               >
-                                <span
-                                  style={{
-                                    background: '#f1f5f9',
-                                    color: '#334155',
-                                    fontWeight: '700',
-                                    fontSize: '10.5px',
-                                    padding: '1px 5px',
-                                    borderRadius: '4px',
-                                    lineHeight: 1.2,
-                                    flexShrink: 0,
-                                  }}
-                                >
-                                  {it.quantity}×
-                                </span>
-                                <span
-                                  style={{
-                                    color: '#1e293b',
-                                    fontWeight: '500',
-                                    whiteSpace: 'nowrap',
-                                    overflow: 'hidden',
-                                    textOverflow: 'ellipsis',
-                                    maxWidth: '360px',
-                                  }}
-                                  title={it.product_name}
-                                >
-                                  {it.product_name}
-                                </span>
-                              </div>
-                            ))}
-                            {ord.order_items.length > 2 && (
-                              <span style={{ fontSize: '10.5px', color: '#64748b', fontWeight: '500', paddingLeft: '2px' }}>
-                                +{ord.order_items.length - 2} more item{ord.order_items.length - 2 > 1 ? 's' : ''}
+                                {it.quantity}×
                               </span>
-                            )}
-                          </>
+                              <span
+                                style={{
+                                  color: '#1e293b',
+                                  fontWeight: '500',
+                                  whiteSpace: 'nowrap',
+                                  overflow: 'hidden',
+                                  textOverflow: 'ellipsis',
+                                }}
+                                title={it.product_name}
+                              >
+                                {it.product_name}
+                              </span>
+                            </div>
+                          ))
                         ) : (
                           <span style={{ fontSize: '12px', color: '#94a3b8', fontStyle: 'italic' }}>No items</span>
                         )}
                       </div>
                     </td>
-                    <td style={{ padding: '14px 14px', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                    <td style={{ padding: '14px 14px', textAlign: 'center', whiteSpace: 'nowrap', borderBottom: '1px solid #E2E8F0' }}>
                       <span style={{
                         background: badge.bg,
                         color: badge.color,
@@ -883,7 +875,7 @@ export default function AdminOrdersClient({ initialOrders }) {
               alignItems: 'center',
               justifyContent: 'space-between',
               padding: '12px 18px',
-              borderTop: '1px solid #f1f5f9',
+              borderTop: '1px solid #E2E8F0',
               background: '#ffffff',
               flexWrap: 'wrap',
               gap: '10px',

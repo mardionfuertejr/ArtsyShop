@@ -1,4 +1,4 @@
-import { MOCK_ORDERS } from '@/lib/mockData';
+import { getAllMockOrders, MOCK_ORDERS } from '@/lib/mockData';
 import { createClient } from '@/lib/supabase/server';
 import OrderDetailClient from './OrderDetailClient';
 
@@ -42,8 +42,8 @@ export default async function AdminOrderDetailPage({ params }) {
         `);
 
       const { data: dbOrder } = isUUID
-        ? await query.eq('id', orderId).single()
-        : await query.eq('reference_code', orderId).single();
+        ? await query.eq('id', orderId).maybeSingle()
+        : await query.or(`id.eq.${orderId},reference_code.eq.${orderId}`).maybeSingle();
 
       if (dbOrder) {
         order = {
@@ -82,7 +82,8 @@ export default async function AdminOrderDetailPage({ params }) {
   } catch {}
 
   if (!order) {
-    order = MOCK_ORDERS.find(o => o.id === orderId || o.reference_code === orderId) || {
+    const allMocks = getAllMockOrders();
+    order = allMocks.find(o => o.id === orderId || o.reference_code === orderId) || {
       id: orderId,
       reference_code: orderId,
       customer_name: 'Customer Order',

@@ -4,8 +4,8 @@ import { useState, useEffect, useRef } from 'react';
 import BrandLogo from './BrandLogo';
 
 const INACTIVITY_TIMEOUT_MS = 3 * 60 * 1000; // 3 minutes idle / hidden trigger
-const INITIAL_LOAD_MIN_MS = 650; // Smooth initial splash duration
-const WAKEUP_LOAD_DURATION_MS = 750; // Quick smooth refresh on resume
+const INITIAL_LOAD_MIN_MS = 1400; // Comfortable duration to view logo and read brand story
+const WAKEUP_LOAD_DURATION_MS = 1250; // Smooth duration on wake-up resume
 
 const STUDIO_TAGLINES = [
   {
@@ -49,7 +49,7 @@ export default function GlobalLoadingScreen() {
       setIsFadingOut(true);
       setTimeout(() => {
         setShowInitialSplash(false);
-      }, 450); // Match CSS fade-out transition
+      }, 500); // Match CSS fade-out transition
     }, INITIAL_LOAD_MIN_MS);
 
     return () => clearTimeout(timer);
@@ -80,7 +80,7 @@ export default function GlobalLoadingScreen() {
             setTimeout(() => {
               setShowWakeupSplash(false);
               setWakeupFadingOut(false);
-            }, 420);
+            }, 500);
           }, WAKEUP_LOAD_DURATION_MS);
         }
 
@@ -117,9 +117,9 @@ export default function GlobalLoadingScreen() {
           <div className="app-loading-backdrop-glow" />
 
           <div className="app-loading-content">
-            {/* Logo Emblem */}
+            {/* Logo Emblem (Hero size for impressive brand impact) */}
             <div className="app-loading-logo-glow">
-              <BrandLogo size="large" />
+              <BrandLogo size="splash" />
             </div>
 
             {/* Dynamic Handcrafted Story */}
@@ -148,8 +148,8 @@ export default function GlobalLoadingScreen() {
 
           <div className="app-loading-content">
             {/* Logo Emblem */}
-            <div className="app-loading-logo-glow" style={{ marginBottom: '10px' }}>
-              <BrandLogo size="medium" />
+            <div className="app-loading-logo-glow" style={{ marginBottom: '12px' }}>
+              <BrandLogo size="large" />
             </div>
 
             {/* Rotating Story */}

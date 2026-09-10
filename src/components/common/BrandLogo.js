@@ -5,10 +5,12 @@ export default function BrandLogo({ size = 'medium', className = '', dark = fals
   // Height sizing
   const dimensions = size === 'small'
     ? { height: 38, maxWidth: '150px' }
-    : size === 'large'
-    ? { height: 62, maxWidth: '240px' }
+    : (size === 'splash' || size === 'hero')
+    ? { height: 84, maxWidth: '300px' }
     : size === 'xl'
-    ? { height: 72, maxWidth: '280px' }
+    ? { height: 74, maxWidth: '280px' }
+    : size === 'large'
+    ? { height: 64, maxWidth: '240px' }
     : { height: 48, maxWidth: '190px' };
 
   return (

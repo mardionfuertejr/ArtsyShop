@@ -4,8 +4,36 @@ import { useState, useEffect, useRef } from 'react';
 import BrandLogo from './BrandLogo';
 
 const INACTIVITY_TIMEOUT_MS = 3 * 60 * 1000; // 3 minutes idle / hidden trigger
-const INITIAL_LOAD_MIN_MS = 650; // Smooth initial splash duration
-const WAKEUP_LOAD_DURATION_MS = 750; // Quick smooth refresh on resume
+const INITIAL_LOAD_MIN_MS = 750; // Smooth initial splash duration
+const WAKEUP_LOAD_DURATION_MS = 850; // Quick smooth refresh on resume
+
+const CRAFT_STORIES = [
+  {
+    tagline: 'Stories shaped in every piece.',
+    note: 'Bespoke Bouquets, Crochet & Keepsakes',
+    badge: 'Artisan Crafted'
+  },
+  {
+    tagline: 'Crafting moments, stitch by stitch.',
+    note: 'Handmade with Passion & Dedication',
+    badge: '100% Handcrafted'
+  },
+  {
+    tagline: 'Where heartfelt memories become art.',
+    note: 'Personalized Gifts & Floral Artistry',
+    badge: 'Made Just For You'
+  },
+  {
+    tagline: 'Every petal and pour tells a story.',
+    note: 'Everlasting Botanicals & Resin Decor',
+    badge: 'Handmade in Barugo, Leyte'
+  },
+  {
+    tagline: 'Treasured creations that last forever.',
+    note: 'Timeless Crochet & Custom Creations',
+    badge: 'Bespoke Artisan Studio'
+  }
+];
 
 export default function GlobalLoadingScreen() {
   const [showInitialSplash, setShowInitialSplash] = useState(true);
@@ -13,8 +41,16 @@ export default function GlobalLoadingScreen() {
   const [showWakeupSplash, setShowWakeupSplash] = useState(false);
   const [wakeupFadingOut, setWakeupFadingOut] = useState(false);
 
+  // Pick an artisan story that rotates
+  const [storyIndex, setStoryIndex] = useState(0);
+
   const lastActiveTimestamp = useRef(Date.now());
   const hiddenTimestamp = useRef(null);
+
+  // Initialize random story on mount
+  useEffect(() => {
+    setStoryIndex(Math.floor(Math.random() * CRAFT_STORIES.length));
+  }, []);
 
   // 1. Initial Page Load Splash Screen
   useEffect(() => {
@@ -22,7 +58,7 @@ export default function GlobalLoadingScreen() {
       setIsFadingOut(true);
       setTimeout(() => {
         setShowInitialSplash(false);
-      }, 450); // Match CSS fade-out transition
+      }, 480); // Match CSS fade-out transition
     }, INITIAL_LOAD_MIN_MS);
 
     return () => clearTimeout(timer);
@@ -43,7 +79,8 @@ export default function GlobalLoadingScreen() {
         const wasIdleLong = (now - lastActiveTimestamp.current > INACTIVITY_TIMEOUT_MS);
 
         if (wasHiddenLong || wasIdleLong) {
-          // Trigger smooth wake-up loading screen
+          // Rotate to next craft story on wake-up
+          setStoryIndex((prev) => (prev + 1) % CRAFT_STORIES.length);
           setShowWakeupSplash(true);
           setWakeupFadingOut(false);
 
@@ -52,7 +89,7 @@ export default function GlobalLoadingScreen() {
             setTimeout(() => {
               setShowWakeupSplash(false);
               setWakeupFadingOut(false);
-            }, 400);
+            }, 450);
           }, WAKEUP_LOAD_DURATION_MS);
         }
 
@@ -74,6 +111,8 @@ export default function GlobalLoadingScreen() {
 
   if (!showInitialSplash && !showWakeupSplash) return null;
 
+  const currentStory = CRAFT_STORIES[storyIndex] || CRAFT_STORIES[0];
+
   return (
     <>
       {/* ── Initial App Loading Splash ── */}
@@ -84,16 +123,27 @@ export default function GlobalLoadingScreen() {
           aria-live="polite"
           aria-label="Loading M&M Artsy"
         >
+          <div className="app-loading-backdrop-glow" />
+
           <div className="app-loading-content">
+            {/* Logo Emblem */}
             <div className="app-loading-logo-glow">
               <BrandLogo size="large" />
             </div>
 
-            <div className="app-loading-text-container">
-              <p className="app-loading-subtitle">Handmade & Custom Creations</p>
+            {/* Artisan Badge */}
+            <div className="app-loading-badge">
+              <span className="app-loading-badge-dot" />
+              <span>{currentStory.badge}</span>
             </div>
 
-            {/* Artisan Progress Shimmer Bar */}
+            {/* Dynamic Handcrafted Story */}
+            <div className="app-loading-text-container">
+              <h2 className="app-loading-tagline">{currentStory.tagline}</h2>
+              <p className="app-loading-subtitle">{currentStory.note}</p>
+            </div>
+
+            {/* Luxury Hairline Progress Flow */}
             <div className="app-loading-progress-track">
               <div className="app-loading-progress-fill" />
             </div>
@@ -107,15 +157,29 @@ export default function GlobalLoadingScreen() {
           className={`app-loading-screen app-wakeup-screen ${wakeupFadingOut ? 'app-loading-fade-out' : ''}`}
           role="status"
           aria-live="polite"
+          aria-label="Refreshing M&M Artsy"
         >
+          <div className="app-loading-backdrop-glow" />
+
           <div className="app-loading-content">
+            {/* Delicate Sparkle Emblem */}
             <div className="app-wakeup-icon-wrapper">
-              <i className="fa-solid fa-sparkles" style={{ fontSize: '24px', color: 'var(--color-primary)' }} />
+              <i className="fa-solid fa-sparkles" style={{ fontSize: '20px', color: 'var(--color-primary)' }} />
             </div>
 
-            <h3 className="app-wakeup-title">Welcome back ✨</h3>
-            <p className="app-loading-subtitle">Refreshing handcrafted details...</p>
+            {/* Artisan Badge */}
+            <div className="app-loading-badge">
+              <span className="app-loading-badge-dot" />
+              <span>{currentStory.badge}</span>
+            </div>
 
+            {/* Rotating Story */}
+            <div className="app-loading-text-container">
+              <h2 className="app-loading-tagline">{currentStory.tagline}</h2>
+              <p className="app-loading-subtitle">{currentStory.note}</p>
+            </div>
+
+            {/* Luxury Hairline Progress Flow */}
             <div className="app-loading-progress-track" style={{ width: '130px' }}>
               <div className="app-loading-progress-fill" />
             </div>

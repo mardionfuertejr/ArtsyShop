@@ -3289,7 +3289,7 @@ button:active, .btn:active, .product-card:active, .bottom-nav-item:active, [role
   transform: scale(1.02);
 }
 
-/* ── Global App Loading & Wake-Up Screen ───────────────────── */
+/* ── Global App Loading & Luxury Storytelling Screen ──────── */
 .app-loading-screen {
   position: fixed;
   inset: 0;
@@ -3299,21 +3299,38 @@ button:active, .btn:active, .product-card:active, .bottom-nav-item:active, [role
   align-items: center;
   justify-content: center;
   padding: 24px;
-  transition: opacity 0.45s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.45s;
+  transition: opacity 0.48s cubic-bezier(0.16, 1, 0.3, 1), transform 0.48s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.48s;
   pointer-events: auto;
   user-select: none;
+  overflow: hidden;
 }
 
 .app-loading-screen.app-wakeup-screen {
-  background: rgba(250, 248, 245, 0.94);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
+  background: rgba(250, 248, 245, 0.96);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
 }
 
 .app-loading-screen.app-loading-fade-out {
   opacity: 0 !important;
+  transform: scale(1.02) !important;
   visibility: hidden !important;
   pointer-events: none !important;
+}
+
+.app-loading-backdrop-glow {
+  position: absolute;
+  width: 320px;
+  height: 320px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(234, 88, 12, 0.08) 0%, rgba(254, 215, 170, 0.04) 50%, transparent 70%);
+  pointer-events: none;
+  animation: appBackdropGlow 4s ease-in-out infinite alternate;
+}
+
+@keyframes appBackdropGlow {
+  0% { transform: scale(0.9); opacity: 0.7; }
+  100% { transform: scale(1.15); opacity: 1; }
 }
 
 .app-loading-content {
@@ -3322,13 +3339,17 @@ button:active, .btn:active, .product-card:active, .bottom-nav-item:active, [role
   align-items: center;
   justify-content: center;
   text-align: center;
-  animation: appLoadingContentEnter 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  position: relative;
+  z-index: 1;
+  max-width: 340px;
+  margin: 0 auto;
+  animation: appLoadingContentEnter 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 @keyframes appLoadingContentEnter {
   0% {
     opacity: 0;
-    transform: scale(0.94) translateY(10px);
+    transform: scale(0.94) translateY(14px);
   }
   100% {
     opacity: 1;
@@ -3338,45 +3359,89 @@ button:active, .btn:active, .product-card:active, .bottom-nav-item:active, [role
 
 .app-loading-logo-glow {
   position: relative;
-  margin-bottom: 12px;
-  animation: appLogoGlowPulse 2.8s ease-in-out infinite;
+  margin-bottom: 14px;
+  animation: appLogoGlowPulse 3s ease-in-out infinite;
 }
 
 @keyframes appLogoGlowPulse {
   0%, 100% {
     transform: scale(1);
-    filter: drop-shadow(0 4px 12px rgba(234, 88, 12, 0.12));
+    filter: drop-shadow(0 4px 14px rgba(234, 88, 12, 0.12));
   }
   50% {
-    transform: scale(1.03);
-    filter: drop-shadow(0 6px 18px rgba(234, 88, 12, 0.22));
+    transform: scale(1.025);
+    filter: drop-shadow(0 8px 22px rgba(234, 88, 12, 0.22));
   }
+}
+
+.app-loading-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: var(--color-primary, #EA580C);
+  background: var(--color-primary-lighter, #FFF5F2);
+  border: 1px solid rgba(234, 88, 12, 0.2);
+  padding: 3px 10px;
+  border-radius: 9999px;
+  margin-bottom: 12px;
+  box-shadow: 0 1px 4px rgba(234, 88, 12, 0.06);
+}
+
+.app-loading-badge-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--color-primary, #EA580C);
+  animation: pulseDot 1.5s ease-in-out infinite;
+}
+
+@keyframes pulseDot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.75); }
 }
 
 .app-loading-text-container {
-  margin-bottom: 20px;
+  margin-bottom: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.app-loading-tagline {
+  font-family: var(--font-heading, 'Montserrat', sans-serif);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--color-text, #292524);
+  letter-spacing: -0.2px;
+  line-height: 1.35;
+  margin: 0;
 }
 
 .app-loading-subtitle {
-  font-family: var(--font-heading, 'Montserrat', sans-serif);
-  font-size: 13px;
+  font-family: var(--font-sans, 'Inter', sans-serif);
+  font-size: 12px;
   font-weight: 500;
   color: var(--color-text-secondary, #78716C);
-  letter-spacing: 0.5px;
+  letter-spacing: 0.3px;
   margin: 0;
 }
 
 .app-wakeup-icon-wrapper {
-  width: 58px;
-  height: 58px;
+  width: 54px;
+  height: 54px;
   border-radius: 50%;
   background: var(--color-primary-lighter, #FFF5F2);
-  border: 1.5px solid rgba(234, 88, 12, 0.2);
+  border: 1.5px solid rgba(234, 88, 12, 0.22);
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 14px;
-  animation: wakeupIconBounce 1.5s ease-in-out infinite;
+  margin-bottom: 12px;
+  box-shadow: 0 6px 18px rgba(234, 88, 12, 0.14);
+  animation: wakeupIconBounce 2s ease-in-out infinite;
 }
 
 @keyframes wakeupIconBounce {
@@ -3384,22 +3449,14 @@ button:active, .btn:active, .product-card:active, .bottom-nav-item:active, [role
     transform: translateY(0) rotate(0deg);
   }
   50% {
-    transform: translateY(-4px) rotate(6deg);
+    transform: translateY(-3px) rotate(8deg);
   }
 }
 
-.app-wakeup-title {
-  font-family: var(--font-heading, 'Montserrat', sans-serif);
-  font-size: 17px;
-  font-weight: 700;
-  color: var(--color-text, #292524);
-  margin: 0 0 4px;
-}
-
-/* ── Artisan Loading Progress Bar ─────────────────────────── */
+/* ── Luxury Hairline Progress Flow ────────────────────────── */
 .app-loading-progress-track {
-  width: 150px;
-  height: 3.5px;
+  width: 140px;
+  height: 3px;
   background: rgba(234, 88, 12, 0.12);
   border-radius: 9999px;
   overflow: hidden;
@@ -3411,10 +3468,10 @@ button:active, .btn:active, .product-card:active, .bottom-nav-item:active, [role
   top: 0;
   bottom: 0;
   left: 0;
-  width: 50%;
+  width: 45%;
   background: linear-gradient(90deg, var(--color-primary-light, #FDBA74), var(--color-primary, #EA580C), var(--color-primary-dark, #C2410C));
   border-radius: 9999px;
-  animation: appLoadingProgressFlow 1.3s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+  animation: appLoadingProgressFlow 1.25s cubic-bezier(0.65, 0, 0.35, 1) infinite;
 }
 
 @keyframes appLoadingProgressFlow {
@@ -3424,10 +3481,11 @@ button:active, .btn:active, .product-card:active, .bottom-nav-item:active, [role
   }
   50% {
     left: 30%;
-    width: 60%;
+    width: 55%;
   }
   100% {
     left: 100%;
     width: 30%;
   }
 }
+

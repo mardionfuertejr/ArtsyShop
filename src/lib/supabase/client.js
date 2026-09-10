@@ -11,16 +11,6 @@ export function createClient() {
 
   return createBrowserClient(
     url,
-    key,
-    {
-      global: {
-        fetch: (input, init = {}) => {
-          return fetch(input, {
-            ...init,
-            signal: AbortSignal.timeout(800), // Max 800ms network timeout
-          });
-        },
-      },
-    }
+    key
   );
 }

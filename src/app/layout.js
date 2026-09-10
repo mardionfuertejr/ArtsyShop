@@ -3,6 +3,7 @@ import '@/styles/mobile-app.css';
 import '@/styles/admin.css';
 import '@/styles/animations.css';
 import FloatingFeedbackMenu from '@/components/customer/FloatingFeedbackMenu';
+import GlobalFlyingCart from '@/components/customer/GlobalFlyingCart';
 
 export const viewport = {
   width: 'device-width',
@@ -63,6 +64,7 @@ export default function RootLayout({ children }) {
       <body>
         {children}
         <FloatingFeedbackMenu />
+        <GlobalFlyingCart />
       </body>
     </html>
   );

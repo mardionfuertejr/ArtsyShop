@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import SiteFooter from '@/components/common/SiteFooter';
 import { formatCurrency } from '@/lib/utils/formatCurrency';
 
 export default function ConfirmationClient({ order: serverOrder, referenceCode }) {
@@ -429,6 +430,8 @@ Hi M&M's Artsy! I would like to confirm my order from the website. Thank you!`;
             <span>Shop More</span>
           </Link>
         </div>
+
+        <SiteFooter />
       </main>
     </div>
   );

@@ -63,24 +63,11 @@ export default function ProductDetailClient({ product, photos }) {
     ? currentProduct.product_options
     : defaultHandmadeOptions;
 
-  // Initialize default selections for required options
-  const [selectedOptions, setSelectedOptions] = useState(() => {
-    const initial = {};
-    options.forEach((opt) => {
-      if (opt.is_required && opt.choices?.length > 0) {
-        const first = opt.choices[0];
-        const label = typeof first === 'string' ? first : first.label;
-        const extraCost = typeof first === 'object' ? (first.extra_cost || 0) : 0;
-        const clean = label.replace(/\s*\(\+?₱?[\d,.]+\)/gi, '').replace(/\s*\+?₱[\d,.]+/gi, '').trim();
-        initial[opt.option_name] = { value: clean, extraCost };
-      }
-    });
-    return initial;
-  });
+  // Blank/unselected options by default (displays '---')
+  const [selectedOptions, setSelectedOptions] = useState({});
   const { addItem, itemCount } = useCart();
   const [quantity, setQuantity] = useState(1);
   const [added, setAdded] = useState(false);
-  const [flyingItems, setFlyingItems] = useState([]);
   const addBtnRef = useRef(null);
 
   const isSoldOut = Boolean(currentProduct.is_sold_out || (currentProduct.is_ready_made && currentProduct.ready_made_stock === 0));
@@ -101,10 +88,27 @@ export default function ProductDetailClient({ product, photos }) {
   const totalPrice = unitPrice * quantity;
 
   const handleOptionSelect = (optionName, value, extraCost) => {
-    setSelectedOptions((prev) => ({
-      ...prev,
-      [optionName]: { value, extraCost },
-    }));
+    setSelectedOptions((prev) => {
+      if (!value || value === '---') {
+        const next = { ...prev };
+        delete next[optionName];
+        return next;
+      }
+      return {
+        ...prev,
+        [optionName]: { value, extraCost: extraCost || 0 },
+      };
+    });
+  };
+
+  const getFilteredSelectedOptions = () => {
+    return Object.entries(selectedOptions)
+      .filter(([_, opt]) => opt?.value && opt.value !== '— Select —' && opt.value !== '---' && opt.value.trim() !== '')
+      .map(([name, { value, extraCost }]) => ({
+        optionName: name,
+        optionValue: value,
+        additionalCost: extraCost || 0,
+      }));
   };
 
   const handleAddToCart = () => {
@@ -118,11 +122,7 @@ export default function ProductDetailClient({ product, photos }) {
       basePrice: effectiveBasePrice,
       unitPrice,
       quantity,
-      options: Object.entries(selectedOptions).map(([name, { value, extraCost }]) => ({
-        optionName: name,
-        optionValue: value,
-        additionalCost: extraCost,
-      })),
+      options: getFilteredSelectedOptions(),
     });
     setAdded(true);
     setTimeout(() => setAdded(false), 2000);
@@ -130,34 +130,20 @@ export default function ProductDetailClient({ product, photos }) {
     // Trigger Parabolic Fly-to-Cart Animation
     try {
       const btnEl = addBtnRef.current || document.getElementById('add-to-cart-btn');
-      const cartEl = document.getElementById('detail-cart-btn') || document.querySelector('.cart-btn-wrapper');
-
-      if (btnEl && cartEl) {
+      if (btnEl) {
         const btnRect = btnEl.getBoundingClientRect();
-        const cartRect = cartEl.getBoundingClientRect();
-
         const startX = btnRect.left + btnRect.width / 2;
         const startY = btnRect.top + btnRect.height / 2;
-        const targetX = cartRect.left + cartRect.width / 2;
-        const targetY = cartRect.top + cartRect.height / 2;
 
-        const particleId = `fly-${Date.now()}`;
-        const newParticle = {
-          id: particleId,
-          startX: `${startX}px`,
-          startY: `${startY}px`,
-          targetX: `${targetX}px`,
-          targetY: `${targetY}px`,
-          photo: photoUrl,
-        };
-
-        setFlyingItems((prev) => [...prev, newParticle]);
-
-        // On arrival at top cart icon (650ms), trigger cart bounce & badge pop
-        setTimeout(() => {
-          window.dispatchEvent(new CustomEvent('likha_cart_updated'));
-          setFlyingItems((prev) => prev.filter((item) => item.id !== particleId));
-        }, 650);
+        window.dispatchEvent(
+          new CustomEvent('likha_fly_to_cart', {
+            detail: {
+              startX,
+              startY,
+              photo: photoUrl,
+            },
+          })
+        );
       }
     } catch {}
   };
@@ -173,11 +159,7 @@ export default function ProductDetailClient({ product, photos }) {
       basePrice: effectiveBasePrice,
       unitPrice,
       quantity,
-      options: Object.entries(selectedOptions).map(([name, { value, extraCost }]) => ({
-        optionName: name,
-        optionValue: value,
-        additionalCost: extraCost,
-      })),
+      options: getFilteredSelectedOptions(),
     });
 
     router.push('/checkout');
@@ -200,7 +182,7 @@ export default function ProductDetailClient({ product, photos }) {
         <nav className="top-bar-nav">
           <Link href="/" className="top-bar-link">Home</Link>
           <Link href="/shop" className="top-bar-link active">Collection</Link>
-          <a href={CUSTOM_ORDER_MESSENGER_URL} target="_blank" rel="noopener noreferrer" className="top-bar-link">Custom Orders</a>
+          <Link href="/custom-request" className="top-bar-link">Custom Orders</Link>
           <Link href="/track" className="top-bar-link">Track Order</Link>
         </nav>
 
@@ -250,7 +232,6 @@ export default function ProductDetailClient({ product, photos }) {
                     optionName={opt.option_name}
                     choices={opt.choices}
                     selected={selectedOptions[opt.option_name]?.value}
-                    required={opt.is_required}
                     onSelect={(val, cost) => handleOptionSelect(opt.option_name, val, cost)}
                   />
                 </div>
@@ -316,7 +297,6 @@ export default function ProductDetailClient({ product, photos }) {
                     type="button"
                     className="shopee-btn-add-cart ripple"
                     onClick={handleAddToCart}
-                    disabled={!allRequiredSelected}
                     id="add-to-cart-btn"
                   >
                     <i className={added ? 'fa-solid fa-check' : 'fa-solid fa-cart-plus'}></i>
@@ -328,7 +308,6 @@ export default function ProductDetailClient({ product, photos }) {
                     type="button"
                     className="shopee-btn-buy-now ripple"
                     onClick={handleCheckoutNow}
-                    disabled={!allRequiredSelected}
                     id="checkout-now-btn"
                   >
                     <span>Buy Now · {formatCurrency(totalPrice)}</span>
@@ -341,27 +320,6 @@ export default function ProductDetailClient({ product, photos }) {
 
         {/* Customer Reviews Section */}
         <ProductReviews product={product} />
-
-        {/* Parabolic Flying Cart Items */}
-        {flyingItems.map((item) => (
-          <div
-            key={item.id}
-            className="flying-cart-particle"
-            style={{
-              '--fly-start-x': item.startX,
-              '--fly-start-y': item.startY,
-              '--fly-end-x': item.targetX,
-              '--fly-end-y': item.targetY,
-            }}
-          >
-            {item.photo ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={item.photo} alt="Piece added" />
-            ) : (
-              <i className="fa-solid fa-gift" style={{ color: '#FFFFFF', fontSize: '20px' }}></i>
-            )}
-          </div>
-        ))}
 
         {/* Unified Sticky-Bottom Site Footer */}
         <SiteFooter />

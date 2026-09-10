@@ -158,6 +158,7 @@ html {
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
   scrollbar-gutter: stable;
+  height: 100%;
 }
 
 body {
@@ -170,6 +171,8 @@ body {
   -moz-osx-font-smoothing: grayscale;
   min-height: 100vh;
   min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
   overflow-x: clip;
   -webkit-tap-highlight-color: transparent;
 }

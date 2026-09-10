@@ -91,15 +91,13 @@ export default function LazyProductGrid({ products = [], initialCount = 10, batc
           >
             View All Products
           </Link>
-          <a
-            href={CUSTOM_ORDER_MESSENGER_URL}
-            target="_blank"
-            rel="noopener noreferrer"
+          <Link
+            href="/custom-request"
             className="btn btn-secondary btn-sm ripple"
             style={{ borderRadius: 'var(--radius-full)', padding: '8px 18px', fontSize: '12.5px', fontWeight: '600' }}
           >
             Custom Order
-          </a>
+          </Link>
         </div>
       </div>
     );

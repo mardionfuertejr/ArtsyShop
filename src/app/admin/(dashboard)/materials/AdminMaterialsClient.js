@@ -1,11 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { MOCK_MATERIALS } from '@/lib/mockData';
+import { MOCK_MATERIALS, getMockMaterials, saveMockMaterial, deleteMockMaterial } from '@/lib/mockData';
 import { formatCurrency } from '@/lib/utils/formatCurrency';
 
 export default function AdminMaterialsClient() {
-  const [materials, setMaterials] = useState(MOCK_MATERIALS);
+  const [materials, setMaterials] = useState(getMockMaterials);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState('all');
   const [toastMsg, setToastMsg] = useState('');
@@ -13,6 +13,21 @@ export default function AdminMaterialsClient() {
   const [pageSize, setPageSize] = useState(10);
   const [activeMenuId, setActiveMenuId] = useState(null);
   const [materialToDelete, setMaterialToDelete] = useState(null);
+
+  // Sync custom materials on mount
+  useEffect(() => {
+    try {
+      if (typeof window !== 'undefined') {
+        const saved = localStorage.getItem('likha_custom_materials');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setMaterials(parsed);
+          }
+        }
+      }
+    } catch {}
+  }, []);
 
   // Lock body scroll and listen for ESC key when modal is open
   useEffect(() => {
@@ -53,10 +68,10 @@ export default function AdminMaterialsClient() {
     id: '',
     name: '',
     category: 'Chenille Stems',
-    current_stock: 50,
+    current_stock: 0,
     unit: 'pcs',
-    cost_per_unit: 1.5,
-    minimum_stock: 30,
+    cost_per_unit: 0,
+    minimum_stock: 10,
   });
 
   const showToast = (msg) => {
@@ -123,7 +138,17 @@ export default function AdminMaterialsClient() {
   // Confirm Delete
   const handleConfirmDelete = () => {
     if (!materialToDelete) return;
-    setMaterials((prev) => prev.filter((m) => m.id !== materialToDelete.id));
+    const matId = materialToDelete.id;
+    deleteMockMaterial(matId);
+    setMaterials((prev) => {
+      const next = prev.filter((m) => m.id !== matId);
+      try {
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('likha_custom_materials', JSON.stringify(next));
+        }
+      } catch {}
+      return next;
+    });
     showToast(`Deleted ${materialToDelete.name}`);
     setMaterialToDelete(null);
   };
@@ -133,13 +158,32 @@ export default function AdminMaterialsClient() {
     e.preventDefault();
     if (!formData.name.trim()) return;
 
-    if (editingMaterial) {
-      setMaterials((prev) => prev.map((m) => (m.id === editingMaterial.id ? { ...formData } : m)));
-      showToast(`Updated material ${formData.name}`);
-    } else {
-      setMaterials((prev) => [formData, ...prev]);
-      showToast(`Added new material ${formData.name}`);
-    }
+    const payload = {
+      ...formData,
+      id: formData.id || `mat-${Date.now()}`,
+      current_stock: parseFloat(formData.current_stock) || 0,
+      cost_per_unit: parseFloat(formData.cost_per_unit) || 0,
+      minimum_stock: parseFloat(formData.minimum_stock) || 0,
+    };
+
+    saveMockMaterial(payload);
+
+    setMaterials((prev) => {
+      let next;
+      if (editingMaterial) {
+        next = prev.map((m) => (m.id === payload.id ? payload : m));
+      } else {
+        next = [payload, ...prev];
+      }
+      try {
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('likha_custom_materials', JSON.stringify(next));
+        }
+      } catch {}
+      return next;
+    });
+
+    showToast(editingMaterial ? `Updated material ${formData.name}` : `Added new material ${formData.name}`);
     setIsModalOpen(false);
   };
 

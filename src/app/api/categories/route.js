@@ -1,10 +1,8 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { getMockCategories } from '@/lib/mockData';
+import { getMockCategories, saveMockCategory } from '@/lib/mockData';
 
 export const dynamic = 'force-dynamic';
-
-let serverCustomCategories = [];
 
 export async function GET() {
   try {
@@ -20,9 +18,8 @@ export async function GET() {
     }
   } catch {}
 
-  const baseCategories = getMockCategories();
-  const merged = [...baseCategories, ...serverCustomCategories];
-  return NextResponse.json({ success: true, categories: merged });
+  const categories = getMockCategories();
+  return NextResponse.json({ success: true, categories });
 }
 
 export async function POST(request) {
@@ -41,7 +38,7 @@ export async function POST(request) {
       display_order: display_order || 99,
     };
 
-    serverCustomCategories.push(newCat);
+    saveMockCategory(newCat);
 
     try {
       const supabase = await createClient();

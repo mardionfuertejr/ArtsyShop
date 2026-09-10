@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import SiteFooter from '@/components/common/SiteFooter';
 import { createClient } from '@/lib/supabase/client';
 import { generateCustomRequestReference } from '@/lib/engine/reference';
 
@@ -248,6 +249,8 @@ export default function CustomRequestClient({ product }) {
           {!submitting && <i className="fa-solid fa-arrow-right" style={{ fontSize: '13px' }}></i>}
         </button>
       </form>
+
+      <SiteFooter />
     </div>
   );
 }

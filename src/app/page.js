@@ -35,7 +35,7 @@ async function getFeaturedProducts() {
   } catch (err) {
     // Fallback to mock data
   }
-  return getMockProducts('all');
+  return getMockProducts('all').filter((p) => p.is_available !== false);
 }
 
 async function getReadyMadeProducts() {
@@ -58,7 +58,7 @@ async function getReadyMadeProducts() {
   } catch (err) {
     // Fallback to mock data
   }
-  return getMockProducts('ready-made');
+  return getMockProducts('ready-made').filter((p) => p.is_available !== false);
 }
 
 async function getCategories() {
@@ -99,7 +99,7 @@ export default async function HomePage() {
         <nav className="top-bar-nav">
           <Link href="/" className="top-bar-link active">Home</Link>
           <Link href="/shop" className="top-bar-link">Collection</Link>
-          <a href={CUSTOM_ORDER_MESSENGER_URL} target="_blank" rel="noopener noreferrer" className="top-bar-link">Custom Orders</a>
+          <Link href="/custom-request" className="top-bar-link">Custom Orders</Link>
           <Link href="/track" className="top-bar-link">Track Order</Link>
         </nav>
 

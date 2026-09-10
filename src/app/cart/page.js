@@ -24,6 +24,7 @@ export default function CartPage() {
   // Shopee-style Item Selection State
   const [selectedItemIds, setSelectedItemIds] = useState([]);
   const [batchDeleteModalOpen, setBatchDeleteModalOpen] = useState(false);
+  const [deletingItemIds, setDeletingItemIds] = useState([]);
 
   // Dropdown & Modal States
   const [openMenuId, setOpenMenuId] = useState(null);
@@ -81,12 +82,34 @@ export default function CartPage() {
     }
   };
 
-  // Batch delete selected items
+  // Animated Single Item Deletion Handler
+  const handleConfirmSingleDelete = () => {
+    const idToRemove = itemToDelete?.cartItemId;
+    setItemToDelete(null);
+    if (!idToRemove) return;
+
+    setDeletingItemIds((prev) => [...prev, idToRemove]);
+    setSelectedItemIds((prev) => prev.filter((id) => id !== idToRemove));
+
+    setTimeout(() => {
+      removeItem(idToRemove);
+      setDeletingItemIds((prev) => prev.filter((id) => id !== idToRemove));
+    }, 320);
+  };
+
+  // Animated Batch delete selected items
   const handleBatchDelete = () => {
     const ids = [...selectedItemIds];
     setBatchDeleteModalOpen(false);
+    if (ids.length === 0) return;
+
+    setDeletingItemIds((prev) => [...prev, ...ids]);
     setSelectedItemIds([]);
-    ids.forEach((id) => removeItem(id));
+
+    setTimeout(() => {
+      ids.forEach((id) => removeItem(id));
+      setDeletingItemIds((prev) => prev.filter((id) => !ids.includes(id)));
+    }, 320);
   };
 
   // Calculate selected items, subtotal & count
@@ -316,7 +339,7 @@ export default function CartPage() {
         <nav className="top-bar-nav">
           <Link href="/" className="top-bar-link">Home</Link>
           <Link href="/shop" className="top-bar-link">Collection</Link>
-          <a href={CUSTOM_ORDER_MESSENGER_URL} target="_blank" rel="noopener noreferrer" className="top-bar-link">Custom Orders</a>
+          <Link href="/custom-request" className="top-bar-link">Custom Orders</Link>
           <Link href="/track" className="top-bar-link">Track Order</Link>
         </nav>
 
@@ -373,11 +396,12 @@ export default function CartPage() {
                 const lineTotal = (parseFloat(item.unitPrice) || 0) * item.quantity;
                 const isMenuOpen = Boolean(openMenuId && openMenuId === item.cartItemId);
                 const isSelected = selectedItemIds.includes(item.cartItemId);
+                const isDeleting = deletingItemIds.includes(item.cartItemId);
 
                 return (
                   <div
                     key={item.cartItemId || `item-${item.productId}`}
-                    className={`cart-item ${isSelected ? 'selected' : ''} ${isMenuOpen ? 'menu-active' : ''}`}
+                    className={`cart-item ${isSelected ? 'selected' : ''} ${isMenuOpen ? 'menu-active' : ''} ${isDeleting ? 'cart-item-exiting' : ''}`}
                   >
                     {/* Item Checkbox */}
                     <div
@@ -426,13 +450,14 @@ export default function CartPage() {
                         <QuantityControl
                           value={item.quantity}
                           onChange={(qty) => updateQty(item.cartItemId, qty)}
+                          onDelete={() => setItemToDelete(item)}
                           min={1}
                         />
                         <p className="cart-item-price">{formatCurrency(lineTotal)}</p>
                       </div>
                     </div>
 
-                    {/* Three-Dot Action Menu Container */}
+                    {/* Three-Dot Menu */}
                     <div className={`cart-item-menu-container ${isMenuOpen ? 'active' : ''}`}>
                       <button
                         type="button"
@@ -444,7 +469,7 @@ export default function CartPage() {
                         aria-label={`Actions for ${item.productName}`}
                         aria-expanded={isMenuOpen}
                       >
-                        <i className="fa-solid fa-ellipsis-vertical" style={{ fontSize: '15px' }}></i>
+                        <i className="fa-solid fa-ellipsis-vertical" style={{ fontSize: '14px' }}></i>
                       </button>
 
                       {/* Dropdown Menu */}
@@ -498,8 +523,8 @@ export default function CartPage() {
                       )}
                     </div>
                   </div>
-                );
-              })}
+              );
+            })}
 
               {/* Order Summary (Clean, unified card) */}
               <div className="order-summary" style={{ marginTop: '2px', padding: '14px 16px' }}>
@@ -985,13 +1010,7 @@ export default function CartPage() {
               <button
                 type="button"
                 className="btn"
-                onClick={() => {
-                  const idToRemove = itemToDelete?.cartItemId;
-                  setItemToDelete(null);
-                  if (idToRemove) {
-                    removeItem(idToRemove);
-                  }
-                }}
+                onClick={handleConfirmSingleDelete}
                 style={{
                   height: '42px',
                   fontSize: '13px',

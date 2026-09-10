@@ -39,6 +39,26 @@ export default function ProductCard({ product, className = '', style = {} }) {
     e.stopPropagation();
     if (isSoldOut) return;
 
+    // Trigger visual parabolic flying animation to the top-right cart
+    try {
+      const btn = e.currentTarget;
+      if (btn) {
+        const rect = btn.getBoundingClientRect();
+        const startX = rect.left + rect.width / 2;
+        const startY = rect.top + rect.height / 2;
+
+        window.dispatchEvent(
+          new CustomEvent('likha_fly_to_cart', {
+            detail: {
+              startX,
+              startY,
+              photo: photoUrl,
+            },
+          })
+        );
+      }
+    } catch {}
+
     const unitPrice = parseFloat(product.is_on_sale && product.sale_price ? product.sale_price : product.base_price) || 250;
     const existingOptions = inCartItems[0]?.options || [];
 
@@ -54,11 +74,7 @@ export default function ProductCard({ product, className = '', style = {} }) {
     });
 
     setAdded(true);
-    setTimeout(() => setAdded(false), 800);
-
-    try {
-      window.dispatchEvent(new CustomEvent('likha_cart_updated'));
-    } catch {}
+    setTimeout(() => setAdded(false), 900);
   };
 
   return (
@@ -136,7 +152,7 @@ export default function ProductCard({ product, className = '', style = {} }) {
               onClick={handleQuickAdd}
               aria-label={`Add ${product.name} to cart`}
               title="Quick Add to Cart"
-              className="product-card-quick-add"
+              className={`product-card-quick-add ${added ? 'is-added' : ''}`}
             >
               <i className={added ? 'fa-solid fa-check' : 'fa-solid fa-plus'} />
             </button>

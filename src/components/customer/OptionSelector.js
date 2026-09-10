@@ -57,24 +57,33 @@ export default function OptionSelector({
     name.toLowerCase().includes('theme') ||
     name.toLowerCase().includes('shade');
 
-  const selectedSwatch = isColorTheme ? getColorSwatch(activeSelected) : null;
+  const hasSelection = Boolean(
+    activeSelected &&
+    activeSelected !== '— Select —' &&
+    activeSelected !== '---' &&
+    activeSelected.trim() !== ''
+  );
+
+  const selectedSwatch = isColorTheme && hasSelection ? getColorSwatch(activeSelected) : null;
 
   // Find extra cost of currently selected item
   let selectedExtraCost = 0;
-  const currentChoiceObj = rawChoices.find((c) => {
-    const label = (typeof c === 'string' ? c : c.label || '')
-      .replace(/\s*\(\+?₱?[\d,.]+\)/gi, '')
-      .replace(/\s*\+?₱[\d,.]+/gi, '')
-      .trim();
-    return label === activeSelected;
-  });
-  if (currentChoiceObj) {
-    if (typeof currentChoiceObj === 'object' && currentChoiceObj.extra_cost) {
-      selectedExtraCost = currentChoiceObj.extra_cost;
-    } else {
-      const orig = typeof currentChoiceObj === 'string' ? currentChoiceObj : currentChoiceObj.label || '';
-      const match = orig.match(/\+?\s*₱?\s*(\d+[\d,]*)/);
-      if (match) selectedExtraCost = parseFloat(match[1].replace(/,/g, '')) || 0;
+  if (hasSelection) {
+    const currentChoiceObj = rawChoices.find((c) => {
+      const label = (typeof c === 'string' ? c : c.label || '')
+        .replace(/\s*\(\+?₱?[\d,.]+\)/gi, '')
+        .replace(/\s*\+?₱[\d,.]+/gi, '')
+        .trim();
+      return label === activeSelected;
+    });
+    if (currentChoiceObj) {
+      if (typeof currentChoiceObj === 'object' && currentChoiceObj.extra_cost) {
+        selectedExtraCost = currentChoiceObj.extra_cost;
+      } else {
+        const orig = typeof currentChoiceObj === 'string' ? currentChoiceObj : currentChoiceObj.label || '';
+        const match = orig.match(/\+?\s*₱?\s*(\d+[\d,]*)/);
+        if (match) selectedExtraCost = parseFloat(match[1].replace(/,/g, '')) || 0;
+      }
     }
   }
 
@@ -108,7 +117,7 @@ export default function OptionSelector({
           borderRadius: '10px',
           border: isOpen
             ? '1.5px solid var(--color-primary, #C2410C)'
-            : '1.5px solid var(--color-border-light, #E5E7EB)',
+            : '1.5px solid var(--color-border-light, #E2E8F0)',
           background: 'var(--color-surface, #FFFFFF)',
           color: 'var(--color-text)',
           fontSize: '12.5px',
@@ -133,8 +142,16 @@ export default function OptionSelector({
               }}
             />
           )}
-          <span style={{ fontWeight: '600', color: 'var(--color-text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {activeSelected || `Select ${name}`}
+          <span
+            style={{
+              fontWeight: hasSelection ? '600' : '500',
+              color: hasSelection ? 'var(--color-text)' : 'var(--color-text-muted, #94A3B8)',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {hasSelection ? activeSelected : '— Select —'}
           </span>
           {selectedExtraCost > 0 && (
             <span
@@ -186,6 +203,37 @@ export default function OptionSelector({
             overflowY: 'auto',
           }}
         >
+          {/* Default Unselected / Reset Item */}
+          <button
+            type="button"
+            onClick={() => {
+              onSelect('', 0);
+              setIsOpen(false);
+            }}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '8px',
+              padding: '8px 10px',
+              borderRadius: '8px',
+              border: 'none',
+              background: !hasSelection ? 'var(--color-primary-lighter, #FFF5F2)' : 'transparent',
+              color: !hasSelection ? 'var(--color-primary)' : 'var(--color-text-muted, #94A3B8)',
+              fontSize: '12px',
+              fontWeight: !hasSelection ? '700' : '500',
+              cursor: 'pointer',
+              textAlign: 'left',
+              width: '100%',
+            }}
+          >
+            <span>— Select —</span>
+            {!hasSelection && (
+              <i className="fa-solid fa-check" style={{ fontSize: '10px', color: 'var(--color-primary)' }} />
+            )}
+          </button>
+
+          {/* Configured Choices */}
           {rawChoices.map((choice) => {
             const originalLabel = typeof choice === 'string' ? choice : choice.label || '';
             let extraCost = typeof choice === 'object' ? choice.extra_cost || 0 : 0;

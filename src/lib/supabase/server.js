@@ -28,14 +28,6 @@ export async function createClient() {
           }
         },
       },
-      global: {
-        fetch: (input, init = {}) => {
-          return fetch(input, {
-            ...init,
-            signal: AbortSignal.timeout(600), // Max 600ms network timeout to prevent SSR hanging
-          });
-        },
-      },
     }
   );
 }

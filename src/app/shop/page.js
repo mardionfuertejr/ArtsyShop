@@ -52,7 +52,7 @@ async function getProducts(categorySlug) {
   } catch (err) {
     // Fallback to mock
   }
-  return getMockProducts(categorySlug);
+  return getMockProducts(categorySlug).filter((p) => p.is_available !== false);
 }
 
 async function getCategories() {
@@ -109,7 +109,7 @@ export default async function ShopPage({ searchParams }) {
         <nav className="top-bar-nav">
           <Link href="/" className="top-bar-link">Home</Link>
           <Link href="/shop" className="top-bar-link active">Collection</Link>
-          <a href={CUSTOM_ORDER_MESSENGER_URL} target="_blank" rel="noopener noreferrer" className="top-bar-link">Custom Orders</a>
+          <Link href="/custom-request" className="top-bar-link">Custom Orders</Link>
           <Link href="/track" className="top-bar-link">Track Order</Link>
         </nav>
 

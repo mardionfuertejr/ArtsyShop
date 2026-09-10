@@ -7,9 +7,12 @@ export default function SiteFooter({ className = '', style = {} }) {
       style={{
         marginTop: 'auto',
         width: '100%',
+        flexShrink: 0,
         borderTop: '1px solid var(--color-border-light, #E2E8F0)',
         padding: '24px 16px 20px',
         textAlign: 'center',
+        background: 'transparent',
+        boxSizing: 'border-box',
         ...style,
       }}
     >
@@ -19,6 +22,7 @@ export default function SiteFooter({ className = '', style = {} }) {
           color: 'var(--color-text-muted, #64748B)',
           letterSpacing: '0.02em',
           margin: 0,
+          fontWeight: '500',
         }}
       >
         &copy; {new Date().getFullYear()} M&M Artsy. All Rights Reserved.

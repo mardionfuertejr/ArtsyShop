@@ -195,11 +195,40 @@ export default function ProductReviews({ product }) {
         </h3>
       </div>
 
-      {/* Header & Overall Summary Card */}
-      <div className="reviews-summary-card">
-        <div className="reviews-score-block">
-          {totalReviews > 0 ? (
-            <>
+      {/* Content Area */}
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: '28px 16px', color: 'var(--color-text-muted)', fontSize: '13px', background: 'var(--color-surface)', borderRadius: 'var(--radius-xl)', border: '1px solid var(--color-border-light)' }}>
+          <i className="fa-solid fa-spinner fa-spin" style={{ color: 'var(--color-primary)', marginRight: '8px' }}></i>
+          Loading reviews...
+        </div>
+      ) : totalReviews === 0 ? (
+        /* Friendly & Engaging Empty Reviews Card */
+        <div className="empty-reviews-card">
+          <div className="empty-reviews-badge">
+            <i className="fa-solid fa-star-half-stroke"></i>
+          </div>
+          <h4 className="empty-reviews-title">No reviews yet</h4>
+          <p className="empty-reviews-subtitle">
+            Be the first to share your experience with this handmade creation!
+          </p>
+
+          <button
+            type="button"
+            className="btn btn-primary empty-reviews-cta ripple"
+            onClick={() => {
+              setRating(5);
+              setIsModalOpen(true);
+            }}
+          >
+            <i className="fa-solid fa-pen-nib"></i>
+            <span>Write the First Review</span>
+          </button>
+        </div>
+      ) : (
+        <>
+          {/* Header & Overall Summary Card for existing reviews */}
+          <div className="reviews-summary-card">
+            <div className="reviews-score-block">
               <span className="rating-score-num">{avgRating}</span>
               <div className="stars-info-col">
                 <div className="stars-row-gold">
@@ -214,52 +243,20 @@ export default function ProductReviews({ product }) {
                   Based on {totalReviews} {totalReviews === 1 ? 'review' : 'reviews'}
                 </span>
               </div>
-            </>
-          ) : (
-            <>
-              <span className="rating-score-num" style={{ fontSize: '1.45rem', color: 'var(--color-text-muted)' }}>
-                —
-              </span>
-              <div className="stars-info-col">
-                <div className="stars-row-gold">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <i key={star} className="fa-solid fa-star star-empty" />
-                  ))}
-                </div>
-                <span className="reviews-subtitle-text">
-                  No reviews yet
-                </span>
-              </div>
-            </>
-          )}
-        </div>
+            </div>
 
-        <button
-          type="button"
-          className="btn btn-secondary write-review-action-btn ripple"
-          onClick={() => setIsModalOpen(true)}
-        >
-          <span>Write a Review</span>
-        </button>
-      </div>
+            <button
+              type="button"
+              className="btn btn-secondary write-review-action-btn ripple"
+              onClick={() => setIsModalOpen(true)}
+            >
+              <i className="fa-solid fa-pen-nib" style={{ fontSize: '11px' }}></i>
+              <span>Write a Review</span>
+            </button>
+          </div>
 
-      {/* Reviews List & Pagination */}
-      <div className="reviews-list">
-        {loading ? (
-          <div style={{ textAlign: 'center', padding: '24px', color: 'var(--color-text-muted)', fontSize: '13px' }}>
-            Loading reviews...
-          </div>
-        ) : reviews.length === 0 ? (
-          <div className="empty-reviews-box" style={{ padding: '32px 16px', textAlign: 'center' }}>
-            <p className="empty-reviews-title" style={{ fontWeight: '700', fontSize: '15px', color: 'var(--color-text)', margin: '0 0 4px 0' }}>
-              No customer reviews yet
-            </p>
-            <p className="empty-reviews-subtitle" style={{ fontSize: '13px', color: 'var(--color-text-secondary)', margin: 0 }}>
-              Be the first to share your experience with this creation.
-            </p>
-          </div>
-        ) : (
-          <>
+          {/* Reviews List & Pagination */}
+          <div className="reviews-list">
             {reviews
               .slice((currentPage - 1) * reviewsPerPage, currentPage * reviewsPerPage)
               .map((rev) => (
@@ -358,9 +355,9 @@ export default function ProductReviews({ product }) {
                 </button>
               </div>
             )}
-          </>
-        )}
-      </div>
+          </div>
+        </>
+      )}
 
       {/* Write a Review Modal */}
       {isModalOpen && mounted && createPortal(

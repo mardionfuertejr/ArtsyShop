@@ -40,6 +40,37 @@ export default function AdminProductsClient({ initialProducts, categories = [] }
     return () => document.removeEventListener('click', handleDocClick);
   }, []);
 
+  // Sync custom categories & products on mount
+  useEffect(() => {
+    try {
+      if (typeof window !== 'undefined') {
+        const savedCats = localStorage.getItem('likha_custom_categories');
+        if (savedCats) {
+          const parsed = JSON.parse(savedCats);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setCategoriesList((prev) => {
+              const map = new Map();
+              [...prev, ...parsed].forEach((c) => map.set(c.id || c.slug, c));
+              return Array.from(map.values());
+            });
+          }
+        }
+
+        const savedProds = localStorage.getItem('likha_custom_products');
+        if (savedProds) {
+          const parsed = JSON.parse(savedProds);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setProducts((prev) => {
+              const map = new Map();
+              [...parsed, ...prev].forEach((p) => map.set(p.id, p));
+              return Array.from(map.values());
+            });
+          }
+        }
+      }
+    } catch {}
+  }, []);
+
   // Delete Confirmation State
   const [productToDelete, setProductToDelete] = useState(null);
 
@@ -109,8 +140,9 @@ export default function AdminProductsClient({ initialProducts, categories = [] }
     if (!newCatName.trim()) return;
     const name = newCatName.trim();
     const slug = name.toLowerCase().replace(/[^\w\s-]/g, '').replace(/\s+/g, '-').trim();
+    const catId = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `cat-${Date.now()}`;
     const newCat = {
-      id: `cat-${Date.now()}`,
+      id: catId,
       name,
       slug,
       display_order: categoriesList.length + 1,
@@ -139,10 +171,12 @@ export default function AdminProductsClient({ initialProducts, categories = [] }
     try {
       const supabase = createClient();
       if (supabase) {
-        await supabase.from('categories').insert({
+        await supabase.from('categories').upsert({
+          id: newCat.id,
           name: newCat.name,
           slug: newCat.slug,
           display_order: newCat.display_order,
+          is_active: true,
         });
       }
     } catch {}
@@ -234,6 +268,27 @@ export default function AdminProductsClient({ initialProducts, categories = [] }
 
     setProducts((prev) => prev.map((p) => (p.id === prod.id ? updatedProd : p)));
     saveMockProduct(updatedProd);
+
+    try {
+      if (typeof window !== 'undefined') {
+        const localList = JSON.parse(localStorage.getItem('likha_custom_products') || '[]');
+        const existingIdx = localList.findIndex((p) => p.id === prod.id);
+        if (existingIdx >= 0) {
+          localList[existingIdx] = updatedProd;
+        } else {
+          localList.unshift(updatedProd);
+        }
+        localStorage.setItem('likha_custom_products', JSON.stringify(localList));
+      }
+    } catch {}
+
+    try {
+      await fetch('/api/products', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedProd),
+      });
+    } catch {}
 
     try {
       const supabase = createClient();
@@ -432,7 +487,7 @@ export default function AdminProductsClient({ initialProducts, categories = [] }
     }));
   };
 
-  // Save Form Submission
+  // Submit Product Form (Create / Edit)
   const handleSaveProduct = async (e) => {
     e.preventDefault();
     if (!formData.name.trim() || !formData.slug.trim()) {
@@ -441,14 +496,15 @@ export default function AdminProductsClient({ initialProducts, categories = [] }
     }
 
     setSaving(true);
-    const categoryObj = categories.find((c) => c.id === formData.category_id) || categories[0];
+    const categoryObj = categoriesList.find((c) => c.id === formData.category_id || c.slug === formData.category_id) || categoriesList[0] || null;
+    const prodId = formData.id || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `prod-${Date.now()}`);
 
     const payload = {
-      id: formData.id || `prod-${Date.now()}`,
+      id: prodId,
       name: formData.name.trim(),
       slug: formData.slug.trim(),
       category: categoryObj,
-      category_id: categoryObj?.id,
+      category_id: categoryObj?.id || null,
       base_price: parseFloat(formData.base_price) || 0,
       description: formData.description.trim(),
       is_available: formData.is_available,
@@ -459,8 +515,8 @@ export default function AdminProductsClient({ initialProducts, categories = [] }
       sale_price: parseFloat(formData.sale_price) || 0,
       sale_tag: formData.sale_tag.trim(),
       is_sold_out: formData.is_sold_out,
-      product_photos: formData.product_photos,
-      product_options: formData.product_options,
+      product_photos: formData.product_photos || [],
+      product_options: formData.product_options || [],
     };
 
     const saved = saveMockProduct(payload);
@@ -517,15 +573,28 @@ export default function AdminProductsClient({ initialProducts, categories = [] }
           is_sold_out: saved.is_sold_out,
         });
 
-        for (const opt of saved.product_options || []) {
-          await supabase.from('product_options').upsert({
-            id: opt.id && !opt.id.startsWith('opt-') ? opt.id : undefined,
-            product_id: saved.id,
-            option_name: opt.option_name,
-            choices: opt.choices,
-            is_required: opt.is_required,
-            display_order: opt.display_order,
-          });
+        if (Array.isArray(saved.product_photos)) {
+          for (const photo of saved.product_photos) {
+            await supabase.from('product_photos').upsert({
+              product_id: saved.id,
+              storage_path: photo.storage_path || photo.url || '',
+              is_cover: Boolean(photo.is_cover),
+              display_order: photo.display_order || 0,
+            });
+          }
+        }
+
+        if (Array.isArray(saved.product_options)) {
+          for (const opt of saved.product_options) {
+            await supabase.from('product_options').upsert({
+              id: opt.id && !opt.id.startsWith('opt-') ? opt.id : undefined,
+              product_id: saved.id,
+              option_name: opt.option_name,
+              choices: opt.choices,
+              is_required: opt.is_required,
+              display_order: opt.display_order,
+            });
+          }
         }
       }
     } catch {}
@@ -895,8 +964,8 @@ export default function AdminProductsClient({ initialProducts, categories = [] }
                           </div>
                         </td>
                         <td style={{ padding: '13px 16px' }}>
-                          <span style={{ background: '#f1f5f9', color: '#334155', fontWeight: '700', fontSize: '11px', padding: '3px 8px', borderRadius: '6px' }}>
-                            {p.category?.name || 'Crafts'}
+                          <span style={{ background: '#f1f5f9', color: '#475569', fontWeight: '700', fontSize: '11px', padding: '3px 8px', borderRadius: '6px' }}>
+                            {p.category?.name || categoriesList.find((c) => c.id === p.category_id)?.name || 'Unassigned'}
                           </span>
                         </td>
                         <td style={{ padding: '13px 16px', fontWeight: '800', color: '#0f172a', fontSize: '13px' }}>

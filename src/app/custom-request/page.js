@@ -7,6 +7,10 @@ import BrandLogo from '@/components/common/BrandLogo';
 import { createClient } from '@/lib/supabase/client';
 import { generateCustomRequestReference } from '@/lib/engine/reference';
 
+import HeaderSearchBar from '@/components/customer/HeaderSearchBar';
+import CartIconBtn from '@/components/customer/CartIconBtn';
+import SiteFooter from '@/components/common/SiteFooter';
+
 export default function CustomRequestPage() {
   const [formData, setFormData] = useState({
     name: '',
@@ -83,10 +87,23 @@ export default function CustomRequestPage() {
           <Link href="/" style={{ display: 'inline-flex', alignItems: 'center', textDecoration: 'none' }}>
             <BrandLogo size="small" />
           </Link>
+
+          {/* Desktop Navigation */}
+          <nav className="top-bar-nav">
+            <Link href="/" className="top-bar-link">Home</Link>
+            <Link href="/shop" className="top-bar-link">Collection</Link>
+            <Link href="/custom-request" className="top-bar-link active">Custom Orders</Link>
+            <Link href="/track" className="top-bar-link">Track Order</Link>
+          </nav>
+
+          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <HeaderSearchBar />
+            <CartIconBtn />
+          </div>
         </header>
 
         <main className="page-content page-enter">
-          <div style={{ padding: 'var(--space-6) var(--space-4)', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 'var(--space-3)' }}>
+          <div style={{ maxWidth: '560px', margin: '0 auto', width: '100%', padding: 'var(--space-6) var(--space-4)', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 'var(--space-3)' }}>
             <div style={{
               width: '64px',
               height: '64px',
@@ -145,6 +162,8 @@ export default function CustomRequestPage() {
               Back to Collection
             </Link>
           </div>
+
+          <SiteFooter />
         </main>
 
         <BottomNav />
@@ -155,15 +174,35 @@ export default function CustomRequestPage() {
   return (
     <div className="customer-shell">
       <header className="top-bar">
-        <Link href="/shop" className="top-bar-action" aria-label="Back">
-          <i className="fa-solid fa-arrow-left"></i>
+        <Link href="/" style={{ display: 'inline-flex', alignItems: 'center', textDecoration: 'none' }}>
+          <BrandLogo size="small" />
         </Link>
-        <span className="top-bar-title" style={{ flex: 1, margin: 0 }}>Custom Order</span>
-        <div style={{ width: 40 }} />
+
+        {/* Desktop Navigation */}
+        <nav className="top-bar-nav">
+          <Link href="/" className="top-bar-link">Home</Link>
+          <Link href="/shop" className="top-bar-link">Collection</Link>
+          <Link href="/custom-request" className="top-bar-link active">Custom Orders</Link>
+          <Link href="/track" className="top-bar-link">Track Order</Link>
+        </nav>
+
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <HeaderSearchBar />
+          <CartIconBtn />
+        </div>
       </header>
 
-      <main className="page-content page-enter">
+      <main className="page-content page-enter" style={{ maxWidth: '580px', margin: '0 auto', width: '100%' }}>
         <div className="section" style={{ paddingTop: 'var(--space-2)' }}>
+          <div style={{ marginBottom: 'var(--space-4)' }}>
+            <h1 className="section-title" style={{ fontSize: '20px', fontWeight: '800', margin: '0 0 4px 0', color: 'var(--color-text)' }}>
+              Custom Handmade Order
+            </h1>
+            <p style={{ fontSize: '13px', color: 'var(--color-text-secondary)', margin: 0, lineHeight: 1.4 }}>
+              Tell us what you have in mind! We create bespoke crochet bouquets, fuzzy wire art, bloom boxes, and floral lamps tailored to your design and budget.
+            </p>
+          </div>
+
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
             <div className="input-group">
               <label className="input-label" htmlFor="custom-name">Your Name *</label>
@@ -174,6 +213,20 @@ export default function CustomRequestPage() {
                 type="text"
                 placeholder="e.g. Maria Santos"
                 value={formData.name}
+                onChange={handleChange}
+                required
+              />
+            </div>
+
+            <div className="input-group">
+              <label className="input-label" htmlFor="custom-phone">Contact Number / FB Name *</label>
+              <input
+                id="custom-phone"
+                name="phone"
+                className="input"
+                type="text"
+                placeholder="e.g. 0917 123 4567 or FB Account"
+                value={formData.phone}
                 onChange={handleChange}
                 required
               />
@@ -272,6 +325,7 @@ export default function CustomRequestPage() {
         </div>
 
         <div style={{ height: 'var(--space-4)' }} />
+        <SiteFooter />
       </main>
 
       <BottomNav />

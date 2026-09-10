@@ -94,7 +94,7 @@ export default function CartPage() {
     setTimeout(() => {
       removeItem(idToRemove);
       setDeletingItemIds((prev) => prev.filter((id) => id !== idToRemove));
-    }, 320);
+    }, 350);
   };
 
   // Animated Batch delete selected items
@@ -109,8 +109,11 @@ export default function CartPage() {
     setTimeout(() => {
       ids.forEach((id) => removeItem(id));
       setDeletingItemIds((prev) => prev.filter((id) => !ids.includes(id)));
-    }, 320);
+    }, 350);
   };
+
+  // Track if all items or the last item is currently animating deletion
+  const isClearingAll = cart.length > 0 && cart.every((item) => deletingItemIds.includes(item.cartItemId));
 
   // Calculate selected items, subtotal & count
   const selectedItems = cart.filter((item) => selectedItemIds.includes(item.cartItemId));
@@ -353,17 +356,39 @@ export default function CartPage() {
       <main className="page-content page-enter">
         {cart.length === 0 ? (
           <EmptyState
-            icon={<i className="fa-solid fa-basket-shopping" style={{ fontSize: '2.5rem', color: 'var(--color-primary)' }}></i>}
+            icon={
+              <div className="empty-cart-icon-wrapper">
+                <i className="fa-solid fa-basket-shopping" style={{ fontSize: '2.4rem', color: 'var(--color-primary)' }}></i>
+              </div>
+            }
             title="Your cart is empty"
+            message="Looks like you haven't added any handcrafted items to your cart yet."
             action={
-              <Link href="/shop" className="btn btn-primary" id="cart-shop-btn">
-                Browse Collection
+              <Link
+                href="/shop"
+                className="btn btn-primary ripple"
+                id="cart-shop-btn"
+                style={{
+                  padding: '12px 28px',
+                  fontSize: '14px',
+                  fontWeight: '700',
+                  borderRadius: 'var(--radius-full)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px'
+                }}
+              >
+                <i className="fa-solid fa-sparkles" style={{ fontSize: '13px' }}></i>
+                <span>Browse Collection</span>
               </Link>
             }
           />
         ) : (
           <>
-            <div className="section" style={{ display: 'flex', flexDirection: 'column', gap: '8px', paddingTop: 'var(--space-3)' }}>
+            <div
+              className={`section cart-section-content ${isClearingAll ? 'cart-content-exiting' : ''}`}
+              style={{ display: 'flex', flexDirection: 'column', gap: '8px', paddingTop: 'var(--space-3)' }}
+            >
               {/* Shopee-style Master Select All Bar */}
               <div className="cart-select-all-bar">
                 <div
@@ -555,7 +580,7 @@ export default function CartPage() {
       </main>
 
       {cart.length > 0 && (
-        <div className="sticky-cta">
+        <div className={`sticky-cta ${isClearingAll ? 'sticky-cta-exiting' : ''}`}>
           <button
             type="button"
             onClick={handleProceedToCheckout}

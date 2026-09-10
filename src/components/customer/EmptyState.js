@@ -3,9 +3,10 @@ export default function EmptyState({
   title,
   message,
   action,
+  className = '',
 }) {
   return (
-    <div className="empty-state fade-in">
+    <div className={`empty-state empty-state-enter ${className}`.trim()}>
       <div className="empty-state-icon" aria-hidden="true">{icon}</div>
       <p className="empty-state-title">{title}</p>
       {message && <p className="empty-state-message">{message}</p>}

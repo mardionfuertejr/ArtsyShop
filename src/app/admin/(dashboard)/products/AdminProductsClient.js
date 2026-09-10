@@ -497,7 +497,19 @@ export default function AdminProductsClient({ initialProducts, categories = [] }
 
     setSaving(true);
     const categoryObj = categoriesList.find((c) => c.id === formData.category_id || c.slug === formData.category_id) || categoriesList[0] || null;
-    const prodId = formData.id || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `prod-${Date.now()}`);
+    
+    const isValidUUID = (str) => typeof str === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
+    const generateUUID = () => {
+      if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+        try { return crypto.randomUUID(); } catch {}
+      }
+      return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+      });
+    };
+
+    const prodId = (formData.id && formData.id.trim()) ? formData.id.trim() : generateUUID();
 
     const payload = {
       id: prodId,
@@ -522,7 +534,7 @@ export default function AdminProductsClient({ initialProducts, categories = [] }
     const saved = saveMockProduct(payload);
     let updatedProducts = [];
     setProducts((prev) => {
-      const idx = prev.findIndex((p) => p.id === saved.id);
+      const idx = prev.findIndex((p) => p.id === saved.id || p.slug === saved.slug);
       if (idx >= 0) {
         updatedProducts = [...prev];
         updatedProducts[idx] = saved;
@@ -535,7 +547,7 @@ export default function AdminProductsClient({ initialProducts, categories = [] }
     try {
       if (typeof window !== 'undefined') {
         const localList = JSON.parse(localStorage.getItem('likha_custom_products') || '[]');
-        const existingIdx = localList.findIndex((p) => p.id === saved.id);
+        const existingIdx = localList.findIndex((p) => p.id === saved.id || p.slug === saved.slug);
         if (existingIdx >= 0) {
           localList[existingIdx] = saved;
         } else {
@@ -556,27 +568,30 @@ export default function AdminProductsClient({ initialProducts, categories = [] }
     try {
       const supabase = createClient();
       if (supabase) {
-        await supabase.from('products').upsert({
-          id: saved.id,
+        const dbProduct = {
           name: saved.name,
           slug: saved.slug,
-          category_id: saved.category_id,
+          category_id: isValidUUID(saved.category_id) ? saved.category_id : null,
           base_price: saved.base_price,
           description: saved.description,
           is_available: saved.is_available,
-          is_bestseller: saved.is_bestseller,
-          is_ready_made: saved.is_ready_made,
-          ready_made_stock: saved.ready_made_stock,
-          is_on_sale: saved.is_on_sale,
-          sale_price: saved.sale_price,
-          sale_tag: saved.sale_tag,
-          is_sold_out: saved.is_sold_out,
-        });
+        };
+        if (isValidUUID(saved.id)) {
+          dbProduct.id = saved.id;
+        }
 
-        if (Array.isArray(saved.product_photos)) {
+        const { data: upserted } = await supabase
+          .from('products')
+          .upsert(dbProduct, { onConflict: 'slug' })
+          .select('id')
+          .single();
+
+        const actualId = upserted?.id || (isValidUUID(saved.id) ? saved.id : null);
+
+        if (actualId && Array.isArray(saved.product_photos)) {
           for (const photo of saved.product_photos) {
             await supabase.from('product_photos').upsert({
-              product_id: saved.id,
+              product_id: actualId,
               storage_path: photo.storage_path || photo.url || '',
               is_cover: Boolean(photo.is_cover),
               display_order: photo.display_order || 0,
@@ -584,15 +599,15 @@ export default function AdminProductsClient({ initialProducts, categories = [] }
           }
         }
 
-        if (Array.isArray(saved.product_options)) {
+        if (actualId && Array.isArray(saved.product_options)) {
           for (const opt of saved.product_options) {
             await supabase.from('product_options').upsert({
-              id: opt.id && !opt.id.startsWith('opt-') ? opt.id : undefined,
-              product_id: saved.id,
+              id: isValidUUID(opt.id) ? opt.id : undefined,
+              product_id: actualId,
               option_name: opt.option_name,
               choices: opt.choices,
-              is_required: opt.is_required,
-              display_order: opt.display_order,
+              is_required: Boolean(opt.is_required),
+              display_order: opt.display_order || 0,
             });
           }
         }
@@ -928,7 +943,8 @@ export default function AdminProductsClient({ initialProducts, categories = [] }
                                 width: '42px',
                                 height: '42px',
                                 borderRadius: '8px',
-                                objectFit: 'cover',
+                                objectFit: 'contain',
+                                background: '#f8fafc',
                                 flexShrink: 0,
                               }}
                             />
@@ -1813,7 +1829,7 @@ export default function AdminProductsClient({ initialProducts, categories = [] }
                       }}
                     >
                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={ph.url} alt="Product" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      <img src={ph.url} alt="Product" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
 
                       {ph.is_cover && (
                         <span style={{ position: 'absolute', top: '2px', left: '2px', background: 'var(--color-primary, #b45309)', color: '#fff', fontSize: '8px', fontWeight: '800', padding: '1px 3px', borderRadius: '3px' }}>
@@ -1855,7 +1871,7 @@ export default function AdminProductsClient({ initialProducts, categories = [] }
                 <div style={{ background: '#ffffff', borderRadius: '10px', overflow: 'hidden', border: 'none', maxWidth: '240px', margin: '0 auto', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
                   <div style={{ position: 'relative', height: '140px', background: '#f1f5f9' }}>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={coverPhotoPreview} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    <img src={coverPhotoPreview} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
                     <div style={{ position: 'absolute', top: '6px', left: '6px', display: 'flex', flexDirection: 'column', gap: '3px' }}>
                       {formData.is_bestseller && (
                         <span style={{ fontSize: '8.5px', fontWeight: '800', background: '#FFEDD5', color: '#C2410C', padding: '1px 5px', borderRadius: '4px' }}>

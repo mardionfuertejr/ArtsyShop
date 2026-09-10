@@ -421,7 +421,7 @@ export default function CartPage() {
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        background: 'var(--color-primary-lighter)',
+                        background: 'var(--color-surface-warm)',
                       }}
                     >
                       {item.photo ? (
@@ -644,7 +644,7 @@ export default function CartPage() {
               }}>
                 {viewingItem.photo ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={viewingItem.photo} alt={viewingItem.productName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  <img src={viewingItem.photo} alt={viewingItem.productName} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
                 ) : (
                   <i className="fa-solid fa-image" style={{ color: 'var(--color-primary)', fontSize: '20px' }}></i>
                 )}
@@ -801,7 +801,7 @@ export default function CartPage() {
               }}>
                 {editingItem.photo ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={editingItem.photo} alt={editingItem.productName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  <img src={editingItem.photo} alt={editingItem.productName} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
                 ) : (
                   <i className="fa-solid fa-image" style={{ color: 'var(--color-primary)', fontSize: '18px' }}></i>
                 )}
@@ -979,7 +979,7 @@ export default function CartPage() {
                   <img
                     src={itemToDelete.photo}
                     alt={itemToDelete.productName || 'Product'}
-                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    style={{ width: '100%', height: '100%', objectFit: 'contain' }}
                   />
                 ) : (
                   <i className="fa-solid fa-image" style={{ color: 'var(--color-primary)' }} />

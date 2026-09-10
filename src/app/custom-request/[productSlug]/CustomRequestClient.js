@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import SiteFooter from '@/components/common/SiteFooter';
+import PremiumDatePicker from '@/components/common/PremiumDatePicker';
 import { createClient } from '@/lib/supabase/client';
 import { generateCustomRequestReference } from '@/lib/engine/reference';
 
@@ -159,7 +160,7 @@ export default function CustomRequestClient({ product }) {
             <img
               src={product.product_photos[0].url}
               alt={product.name}
-              style={{ width: 64, height: 64, borderRadius: 'var(--radius-lg)', objectFit: 'cover' }}
+              style={{ width: 64, height: 64, borderRadius: 'var(--radius-lg)', objectFit: 'contain', background: 'var(--color-surface-warm)' }}
             />
           )}
           <div>
@@ -172,16 +173,19 @@ export default function CustomRequestClient({ product }) {
 
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
         <div className="input-group">
-          <label className="input-label" htmlFor="req-name">Your Name *</label>
+          <label className="input-label" htmlFor="req-name">
+            Full Name <span className="required">*</span>
+          </label>
           <input
             id="req-name"
             name="name"
             className="input"
             type="text"
-            placeholder="e.g. Carlo Mendoza"
+            placeholder="Enter your full name"
             value={formData.name}
             onChange={handleChange}
             required
+            autoComplete="name"
           />
         </div>
 
@@ -214,17 +218,13 @@ export default function CustomRequestClient({ product }) {
           </div>
 
           <div className="input-group">
-            <label className="input-label" htmlFor="req-date">
-              Date Needed <span className="required">*</span>
-            </label>
-            <input
+            <PremiumDatePicker
               id="req-date"
               name="preferredDate"
-              className="input"
-              type="date"
-              min={new Date().toISOString().split('T')[0]}
+              label="Date Needed"
               value={formData.preferredDate}
-              onChange={handleChange}
+              onChange={(val) => setFormData((prev) => ({ ...prev, preferredDate: val }))}
+              minDate={new Date().toISOString().split('T')[0]}
               required
             />
           </div>

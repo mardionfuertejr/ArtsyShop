@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { CUSTOM_ORDER_MESSENGER_URL } from '@/lib/constants/customPrompts';
+import { CUSTOM_ORDER_MESSENGER_URL, MESSENGER_URL } from '@/lib/constants/customPrompts';
 import { useRouter } from 'next/navigation';
 import PhotoCarousel from '@/components/customer/PhotoCarousel';
 import OptionSelector from '@/components/customer/OptionSelector';
@@ -12,26 +12,111 @@ import SiteFooter from '@/components/common/SiteFooter';
 import BottomNav from '@/components/customer/BottomNav';
 import CartIconBtn from '@/components/customer/CartIconBtn';
 import HeaderSearchBar from '@/components/customer/HeaderSearchBar';
+import BrandLogo from '@/components/common/BrandLogo';
 import { useCart } from '@/lib/hooks/useCart';
 import { formatCurrency } from '@/lib/utils/formatCurrency';
-import { MESSENGER_URL } from '@/lib/constants/customPrompts';
 
-export default function ProductDetailClient({ product, photos }) {
+export default function ProductDetailClient({ product: initialProduct, photos: initialPhotos, slug }) {
   const router = useRouter();
-  const [currentProduct, setCurrentProduct] = useState(product);
+  const [currentProduct, setCurrentProduct] = useState(initialProduct || null);
+  const [loading, setLoading] = useState(!initialProduct);
+  const [photos, setPhotos] = useState(initialPhotos && initialPhotos.length > 0 ? initialPhotos : []);
 
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+
+  // Helper to build photo list
+  const buildPhotoList = (prod) => {
+    if (!prod) return [];
+    if (Array.isArray(prod.product_photos) && prod.product_photos.length > 0) {
+      return [...prod.product_photos]
+        .sort((a, b) => {
+          if (a.is_cover) return -1;
+          if (b.is_cover) return 1;
+          return (a.display_order || 0) - (b.display_order || 0);
+        })
+        .map((p) => ({
+          id: p.id || Math.random().toString(),
+          url: p.url || (
+            p.storage_path && supabaseUrl && supabaseUrl.startsWith('http') && !supabaseUrl.includes('placeholder')
+              ? `${supabaseUrl}/storage/v1/object/public/product-photos/${p.storage_path}`
+              : (p.storage_path || 'https://images.unsplash.com/photo-1561181286-d3fee7d55364?auto=format&fit=crop&w=800&q=80')
+          ),
+        }));
+    }
+    return [{
+      id: 'ph-default',
+      url: 'https://images.unsplash.com/photo-1561181286-d3fee7d55364?auto=format&fit=crop&w=800&q=80',
+    }];
+  };
+
+  // Client-side hydration and fallback resolution
   useEffect(() => {
+    const targetSlug = (slug || '').toLowerCase().trim();
+    const targetSlugClean = targetSlug.replace(/-/g, '');
+
+    // 1. Check localStorage first (instant response for custom added products)
     try {
       const local = localStorage.getItem('likha_custom_products');
       if (local) {
         const parsed = JSON.parse(local);
-        const match = parsed.find((p) => p.id === product.id || p.slug === product.slug);
-        if (match) {
-          setCurrentProduct((prev) => ({ ...prev, ...match }));
+        if (Array.isArray(parsed)) {
+          const match = parsed.find((p) => {
+            const pSlug = (p.slug || '').toLowerCase().trim();
+            const pId = (p.id || '').toLowerCase().trim();
+            return (
+              pSlug === targetSlug ||
+              pId === targetSlug ||
+              pSlug.replace(/-/g, '') === targetSlugClean ||
+              (initialProduct && (p.id === initialProduct.id || pSlug === (initialProduct.slug || '').toLowerCase()))
+            );
+          });
+
+          if (match) {
+            setCurrentProduct(match);
+            setPhotos(buildPhotoList(match));
+            setLoading(false);
+            return;
+          }
         }
       }
     } catch {}
-  }, [product]);
+
+    // 2. If initialProduct is already present from server, keep it
+    if (initialProduct) {
+      setCurrentProduct(initialProduct);
+      if (!photos || photos.length === 0) {
+        setPhotos(buildPhotoList(initialProduct));
+      }
+      setLoading(false);
+      return;
+    }
+
+    // 3. Fallback: Fetch /api/products from server
+    async function fetchFromApi() {
+      try {
+        const res = await fetch('/api/products');
+        if (res.ok) {
+          const data = await res.json();
+          if (data && Array.isArray(data.products)) {
+            const match = data.products.find((p) => {
+              const pSlug = (p.slug || '').toLowerCase().trim();
+              const pId = (p.id || '').toLowerCase().trim();
+              return pSlug === targetSlug || pId === targetSlug || pSlug.replace(/-/g, '') === targetSlugClean;
+            });
+            if (match) {
+              setCurrentProduct(match);
+              setPhotos(buildPhotoList(match));
+              setLoading(false);
+              return;
+            }
+          }
+        }
+      } catch {}
+      setLoading(false);
+    }
+
+    fetchFromApi();
+  }, [slug, initialProduct]);
 
   const defaultHandmadeOptions = [
     {
@@ -39,45 +124,187 @@ export default function ProductDetailClient({ product, photos }) {
       option_name: 'Color Theme',
       is_required: true,
       choices: [
-        { label: 'Blush Pink', extra_cost: 0 },
-        { label: 'Velvet Red', extra_cost: 0 },
-        { label: 'Lavender', extra_cost: 0 },
-        { label: 'Sky Blue', extra_cost: 0 },
-        { label: 'Sunflower', extra_cost: 0 },
-      ],
-    },
-    {
-      id: 'default-opt-addons',
-      option_name: 'Add-ons',
-      is_required: false,
-      choices: [
-        { label: 'None', extra_cost: 0 },
-        { label: 'Fairy Lights (+₱35)', extra_cost: 35 },
-        { label: 'Greeting Card (+₱20)', extra_cost: 20 },
-        { label: 'Lights + Card (+₱50)', extra_cost: 50 },
+        { label: 'Pastel Blush Pink', extra_cost: 0 },
+        { label: 'Crimson Velvet Red', extra_cost: 0 },
+        { label: 'Lilac Lavender', extra_cost: 0 },
+        { label: 'Sunflower Warm Yellow', extra_cost: 0 },
       ],
     },
   ];
 
-  const options = (currentProduct.product_options && currentProduct.product_options.length > 0)
+  const options = (currentProduct?.product_options && currentProduct.product_options.length > 0)
     ? currentProduct.product_options
     : defaultHandmadeOptions;
 
   // Blank/unselected options by default (displays '---')
   const [selectedOptions, setSelectedOptions] = useState({});
-  const { addItem, itemCount } = useCart();
+  const { addItem } = useCart();
   const [quantity, setQuantity] = useState(1);
   const [added, setAdded] = useState(false);
   const addBtnRef = useRef(null);
+
+  // Loading Screen
+  if (loading) {
+    return (
+      <div className="customer-shell" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+        <header className="top-bar">
+          <Link href="/shop" className="top-bar-action" aria-label="Back to collection">
+            <i className="fa-solid fa-arrow-left"></i>
+          </Link>
+          <span className="top-bar-title" style={{ flex: 1, textAlign: 'left', marginLeft: '6px', margin: 0 }}>
+            Loading Product...
+          </span>
+          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <CartIconBtn />
+          </div>
+        </header>
+
+        <main className="page-content" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flex: 1, padding: '40px 20px' }}>
+          <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '14px' }}>
+            <i className="fa-solid fa-spinner fa-spin" style={{ fontSize: '32px', color: 'var(--color-primary, #b45309)' }}></i>
+            <p style={{ fontSize: '14px', color: '#64748b', margin: 0, fontWeight: '500' }}>
+              Loading product details...
+            </p>
+          </div>
+        </main>
+        <BottomNav />
+      </div>
+    );
+  }
+
+  // Not Found Screen
+  if (!currentProduct) {
+    return (
+      <div className="customer-shell" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+        <header className="top-bar">
+          <Link href="/shop" className="top-bar-action" aria-label="Back to collection">
+            <i className="fa-solid fa-arrow-left"></i>
+          </Link>
+          <span className="top-bar-title" style={{ flex: 1, textAlign: 'left', marginLeft: '6px', margin: 0 }}>
+            Product Details
+          </span>
+          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <CartIconBtn />
+          </div>
+        </header>
+
+        <main className="page-content" style={{
+          flex: 1,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '24px',
+          background: 'var(--color-bg, #FAF6F0)',
+          textAlign: 'center',
+        }}>
+          <div style={{
+            background: '#ffffff',
+            padding: '36px 24px',
+            borderRadius: '24px',
+            maxWidth: '420px',
+            width: '100%',
+            boxShadow: '0 10px 30px rgba(0,0,0,0.06)',
+            border: '1px solid rgba(0,0,0,0.04)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '16px',
+          }}>
+            <BrandLogo size="small" />
+
+            <div style={{
+              width: '68px',
+              height: '68px',
+              borderRadius: '50%',
+              background: '#FEF2F2',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#DC2626',
+              fontSize: '26px',
+              marginTop: '4px',
+            }}>
+              <i className="fa-solid fa-bag-shopping"></i>
+            </div>
+
+            <h1 style={{
+              fontSize: '20px',
+              fontWeight: '800',
+              color: 'var(--color-text, #1E293B)',
+              margin: 0,
+              letterSpacing: '-0.02em',
+            }}>
+              Product Not Found
+            </h1>
+
+            <p style={{
+              fontSize: '13px',
+              color: '#64748b',
+              lineHeight: 1.5,
+              margin: 0,
+            }}>
+              Ang item o page na ito ay maaaring naalis na o wala pa sa catalog. Maaari kang mag-browse sa collection o pumunta sa home page.
+            </p>
+
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '10px',
+              width: '100%',
+              marginTop: '8px',
+            }}>
+              <Link
+                href="/shop"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  background: 'var(--color-primary, #b45309)',
+                  color: '#ffffff',
+                  fontWeight: '700',
+                  fontSize: '13.5px',
+                  padding: '12px 20px',
+                  borderRadius: '12px',
+                  textDecoration: 'none',
+                  boxShadow: '0 4px 12px rgba(180, 83, 9, 0.2)',
+                }}
+              >
+                <i className="fa-solid fa-store"></i>
+                <span>Browse Collection</span>
+              </Link>
+
+              <Link
+                href="/"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  background: '#f1f5f9',
+                  color: '#334155',
+                  fontWeight: '700',
+                  fontSize: '13px',
+                  padding: '10px 18px',
+                  borderRadius: '12px',
+                  textDecoration: 'none',
+                }}
+              >
+                <i className="fa-solid fa-house"></i>
+                <span>Back to Home</span>
+              </Link>
+            </div>
+          </div>
+        </main>
+        <BottomNav />
+      </div>
+    );
+  }
 
   const isSoldOut = Boolean(currentProduct.is_sold_out || (currentProduct.is_ready_made && currentProduct.ready_made_stock === 0));
   const isOnSale = Boolean(currentProduct.is_on_sale && currentProduct.sale_price && Number(currentProduct.base_price) > Number(currentProduct.sale_price));
   const originalBasePrice = parseFloat(currentProduct.base_price || 0);
   const effectiveBasePrice = isOnSale ? parseFloat(currentProduct.sale_price) : originalBasePrice;
-
-  const discountPercent = (isOnSale && originalBasePrice > 0)
-    ? Math.round(((originalBasePrice - parseFloat(currentProduct.sale_price)) / originalBasePrice) * 100)
-    : null;
 
   // Calculate live price (including options)
   const extraCost = Object.values(selectedOptions).reduce(
@@ -112,12 +339,12 @@ export default function ProductDetailClient({ product, photos }) {
   };
 
   const handleAddToCart = () => {
-    const photoUrl = photos[0]?.url || (photos[0]?.storage_path && process.env.NEXT_PUBLIC_SUPABASE_URL ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/product-photos/${photos[0].storage_path}` : null);
+    const photoUrl = photos[0]?.url || (photos[0]?.storage_path && supabaseUrl ? `${supabaseUrl}/storage/v1/object/public/product-photos/${photos[0].storage_path}` : null);
 
     addItem({
-      productId: product.id,
-      productSlug: product.slug,
-      productName: product.name,
+      productId: currentProduct.id,
+      productSlug: currentProduct.slug,
+      productName: currentProduct.name,
       photo: photoUrl,
       basePrice: effectiveBasePrice,
       unitPrice,
@@ -149,12 +376,12 @@ export default function ProductDetailClient({ product, photos }) {
   };
 
   const handleCheckoutNow = () => {
-    const photoUrl = photos[0]?.url || (photos[0]?.storage_path && process.env.NEXT_PUBLIC_SUPABASE_URL ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/product-photos/${photos[0].storage_path}` : null);
+    const photoUrl = photos[0]?.url || (photos[0]?.storage_path && supabaseUrl ? `${supabaseUrl}/storage/v1/object/public/product-photos/${photos[0].storage_path}` : null);
 
     addItem({
-      productId: product.id,
-      productSlug: product.slug,
-      productName: product.name,
+      productId: currentProduct.id,
+      productSlug: currentProduct.slug,
+      productName: currentProduct.name,
       photo: photoUrl,
       basePrice: effectiveBasePrice,
       unitPrice,
@@ -164,10 +391,6 @@ export default function ProductDetailClient({ product, photos }) {
 
     router.push('/checkout');
   };
-
-  const allRequiredSelected = options.every((opt) =>
-    !opt.is_required || selectedOptions[opt.option_name]
-  );
 
   return (
     <div className="customer-shell">
@@ -196,13 +419,13 @@ export default function ProductDetailClient({ product, photos }) {
         <div className="product-detail-layout">
           {/* Photos */}
           <div className="product-gallery">
-            <PhotoCarousel photos={photos} productName={product.name} />
+            <PhotoCarousel photos={photos} productName={currentProduct.name} />
           </div>
 
           {/* Details */}
           <div className="product-info-panel">
             {/* Title */}
-            <h1 className="product-detail-title">{product.name}</h1>
+            <h1 className="product-detail-title">{currentProduct.name}</h1>
 
             {/* Price Row */}
             <div className="product-price-row" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
@@ -218,8 +441,8 @@ export default function ProductDetailClient({ product, photos }) {
             </div>
 
             {/* Description */}
-            {product.description && (
-              <p className="product-detail-desc">{product.description}</p>
+            {currentProduct.description && (
+              <p className="product-detail-desc">{currentProduct.description}</p>
             )}
 
             {/* Options */}
@@ -241,14 +464,9 @@ export default function ProductDetailClient({ product, photos }) {
             {/* Quantity Control Card */}
             {!isSoldOut && (
               <div className="quantity-card">
-                <div className="quantity-card-label">
-                  <span className="quantity-card-title">
-                    <i className="fa-solid fa-layer-group"></i> Quantity
-                  </span>
-                  <span className="quantity-card-sub">
-                    {quantity > 1 ? `${formatCurrency(unitPrice)} each` : 'Number of items'}
-                  </span>
-                </div>
+                <span className="quantity-card-title">
+                  <i className="fa-solid fa-layer-group"></i> Quantity
+                </span>
                 <QuantityControl value={quantity} onChange={setQuantity} />
               </div>
             )}
@@ -273,7 +491,7 @@ export default function ProductDetailClient({ product, photos }) {
                     <span>Currently Sold Out</span>
                   </button>
                   <a
-                    href={`${MESSENGER_URL}?text=${encodeURIComponent(`Hi M&M Artsy! Inquire ko lang po kung kailan magkaka-stock ulit ng ${product.name}?`)}`}
+                    href={`${MESSENGER_URL}?text=${encodeURIComponent(`Hi M&M Artsy! Inquire ko lang po kung kailan magkaka-stock ulit ng ${currentProduct.name}?`)}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="btn btn-primary btn-full"
@@ -319,7 +537,7 @@ export default function ProductDetailClient({ product, photos }) {
         </div>
 
         {/* Customer Reviews Section */}
-        <ProductReviews product={product} />
+        <ProductReviews product={currentProduct} />
 
         {/* Unified Sticky-Bottom Site Footer */}
         <SiteFooter />

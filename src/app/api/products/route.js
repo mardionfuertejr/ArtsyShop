@@ -50,6 +50,8 @@ export async function GET(request) {
   return NextResponse.json({ success: true, products });
 }
 
+const isUUID = (str) => typeof str === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
+
 export async function POST(request) {
   try {
     const body = await request.json();
@@ -64,32 +66,47 @@ export async function POST(request) {
     try {
       const supabase = await createClient();
       if (supabase) {
-        await supabase.from('products').upsert({
-          id: saved.id,
+        const prodData = {
           name: saved.name,
           slug: saved.slug,
-          category_id: saved.category_id,
-          base_price: saved.base_price,
-          description: saved.description,
-          is_available: saved.is_available,
-          is_bestseller: saved.is_bestseller,
-          is_ready_made: saved.is_ready_made,
-          ready_made_stock: saved.ready_made_stock,
-          is_on_sale: saved.is_on_sale,
-          sale_price: saved.sale_price,
-          sale_tag: saved.sale_tag,
-          is_sold_out: saved.is_sold_out,
-        });
+          category_id: isUUID(saved.category_id) ? saved.category_id : null,
+          base_price: parseFloat(saved.base_price) || 0,
+          description: saved.description || '',
+          is_available: saved.is_available !== false,
+        };
 
-        if (Array.isArray(saved.product_options)) {
+        if (isUUID(saved.id)) {
+          prodData.id = saved.id;
+        }
+
+        const { data: upsertedProd } = await supabase
+          .from('products')
+          .upsert(prodData, { onConflict: 'slug' })
+          .select('id')
+          .single();
+
+        const actualProdId = upsertedProd?.id || (isUUID(saved.id) ? saved.id : null);
+
+        if (actualProdId && Array.isArray(saved.product_photos)) {
+          for (const photo of saved.product_photos) {
+            await supabase.from('product_photos').upsert({
+              product_id: actualProdId,
+              storage_path: photo.storage_path || photo.url || '',
+              is_cover: Boolean(photo.is_cover),
+              display_order: photo.display_order || 0,
+            });
+          }
+        }
+
+        if (actualProdId && Array.isArray(saved.product_options)) {
           for (const opt of saved.product_options) {
             await supabase.from('product_options').upsert({
-              id: opt.id && !opt.id.startsWith('opt-') ? opt.id : undefined,
-              product_id: saved.id,
+              id: isUUID(opt.id) ? opt.id : undefined,
+              product_id: actualProdId,
               option_name: opt.option_name,
               choices: opt.choices,
-              is_required: opt.is_required,
-              display_order: opt.display_order,
+              is_required: Boolean(opt.is_required),
+              display_order: opt.display_order || 0,
             });
           }
         }

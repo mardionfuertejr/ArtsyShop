@@ -10,6 +10,7 @@ import { generateCustomRequestReference } from '@/lib/engine/reference';
 import HeaderSearchBar from '@/components/customer/HeaderSearchBar';
 import CartIconBtn from '@/components/customer/CartIconBtn';
 import SiteFooter from '@/components/common/SiteFooter';
+import PremiumDatePicker from '@/components/common/PremiumDatePicker';
 
 export default function CustomRequestPage() {
   const [formData, setFormData] = useState({
@@ -205,16 +206,19 @@ export default function CustomRequestPage() {
 
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
             <div className="input-group">
-              <label className="input-label" htmlFor="custom-name">Your Name *</label>
+              <label className="input-label" htmlFor="custom-name">
+                Full Name <span className="required">*</span>
+              </label>
               <input
                 id="custom-name"
                 name="name"
                 className="input"
                 type="text"
-                placeholder="e.g. Maria Santos"
+                placeholder="Enter your full name"
                 value={formData.name}
                 onChange={handleChange}
                 required
+                autoComplete="name"
               />
             </div>
 
@@ -275,17 +279,13 @@ export default function CustomRequestPage() {
             </div>
 
             <div className="input-group">
-              <label className="input-label" htmlFor="custom-date">
-                Date Needed <span className="required">*</span>
-              </label>
-              <input
+              <PremiumDatePicker
                 id="custom-date"
                 name="preferredDate"
-                className="input"
-                type="date"
-                min={new Date().toISOString().split('T')[0]}
+                label="Date Needed"
                 value={formData.preferredDate}
-                onChange={handleChange}
+                onChange={(val) => setFormData((prev) => ({ ...prev, preferredDate: val }))}
+                minDate={new Date().toISOString().split('T')[0]}
                 required
               />
             </div>
@@ -297,7 +297,7 @@ export default function CustomRequestPage() {
                 name="notes"
                 className="input"
                 type="text"
-                placeholder="e.g. Add card message, ribbon color..."
+                placeholder="Special instructions or notes (optional)..."
                 value={formData.notes}
                 onChange={handleChange}
               />

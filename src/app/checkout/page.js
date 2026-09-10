@@ -3,12 +3,14 @@
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import SiteFooter from '@/components/common/SiteFooter';
+import PremiumDatePicker from '@/components/common/PremiumDatePicker';
 import { useRouter } from 'next/navigation';
 import { useCart } from '@/lib/hooks/useCart';
 import { createClient } from '@/lib/supabase/client';
 import { generateOrderReference } from '@/lib/engine/reference';
 import { formatCurrency } from '@/lib/utils/formatCurrency';
 import { addMockOrder } from '@/lib/mockData';
+import { resolveAccurateAddress, REAL_LANDMARKS, findClosestLandmark } from '@/lib/utils/landmarkResolver';
 
 const DEFAULT_DELIVERY_FEE = 45;
 const BARUGO_STUDIO_COORDS = { lat: 11.3256, lng: 124.7349 };
@@ -167,10 +169,39 @@ export default function CheckoutPage() {
           if (data) {
             setSettings(prev => ({ ...prev, ...data }));
           }
+
+          // Check if authenticated with Google / Supabase
+          const { data: { user } } = await supabase.auth.getUser();
+          if (user && user.user_metadata) {
+            const fullName = user.user_metadata.full_name || user.user_metadata.name || '';
+            const phone = user.user_metadata.phone || user.phone || '';
+            if (fullName) {
+              setFormData(prev => ({
+                ...prev,
+                name: prev.name || fullName,
+                phone: prev.phone || phone,
+              }));
+              return;
+            }
+          }
         }
       } catch {
         // Fallback default settings
       }
+
+      // Auto-fill from device memory (localStorage)
+      try {
+        const savedGuest = localStorage.getItem('likha_guest_info');
+        if (savedGuest) {
+          const parsed = JSON.parse(savedGuest);
+          setFormData(prev => ({
+            ...prev,
+            name: prev.name || parsed.name || '',
+            phone: prev.phone || parsed.phone || '',
+            facebookName: prev.facebookName || parsed.facebookName || '',
+          }));
+        }
+      } catch {}
     };
     loadSettings();
   }, []);
@@ -214,24 +245,29 @@ export default function CheckoutPage() {
       const BARUGO_PROPER_COORDS = [11.3256, 124.7349];
       const map = L.map(mapRef.current, {
         center: BARUGO_PROPER_COORDS,
-        zoom: 17,
+        zoom: 18,
+        minZoom: 12,
+        maxZoom: 21,
         zoomControl: true,
         attributionControl: false,
       });
 
-      // Crystal-clear high-res Google Maps Satellite + Streets Hybrid
-      L.tileLayer('https://mt{s}.google.com/vt/lyrs=y&hl=en&x={x}&y={y}&z={z}', {
-        maxZoom: 20,
+      // Ultra-HD 2x Retina Google Satellite + Street Labels Hybrid Layer (Default Crystal Clear)
+      L.tileLayer('https://mt{s}.google.com/vt/lyrs=y&hl=en&scale=2&x={x}&y={y}&z={z}', {
+        maxZoom: 21,
         maxNativeZoom: 20,
         subdomains: ['0', '1', '2', '3'],
+        tileSize: 512,
+        zoomOffset: -1,
+        detectRetina: true,
       }).addTo(map);
 
-      // Custom marker icon with white border & shadow for clear visibility on satellite terrain
+      // High-visibility pinpoint icon with vibrant orange-terracotta glow
       const icon = L.divIcon({
         className: 'custom-map-pin',
-        html: '<div style="color: #EA580C; font-size: 2.2rem; transform: translateY(-70%); filter: drop-shadow(0 3px 6px rgba(0,0,0,0.75)); display: flex; align-items: center; justify-content: center;"><i class="fa-solid fa-location-dot" style="-webkit-text-stroke: 1.5px #FFFFFF;"></i></div>',
-        iconSize: [36, 36],
-        iconAnchor: [18, 36],
+        html: '<div style="color: #EA580C; font-size: 2.4rem; transform: translateY(-75%); filter: drop-shadow(0 4px 8px rgba(0,0,0,0.85)); display: flex; align-items: center; justify-content: center;"><i class="fa-solid fa-location-dot" style="-webkit-text-stroke: 2px #FFFFFF;"></i></div>',
+        iconSize: [40, 40],
+        iconAnchor: [20, 40],
       });
 
       // Helper: handle marker dragend reverse geocode
@@ -288,19 +324,28 @@ export default function CheckoutPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orderType]);
 
+  const [addressLoading, setAddressLoading] = useState(false);
   const [locating, setLocating] = useState(false);
   const [locateStatus, setLocateStatus] = useState('');
 
-  // Reverse geocode helper
-  const reverseGeocode = (lat, lng) => {
-    fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`)
-      .then(r => r.json())
-      .then(d => {
-        if (d.display_name) {
-          setDeliveryAddress(d.display_name.split(',').slice(0, 3).join(',').trim());
-        }
-      })
-      .catch(() => {});
+  // High-accuracy reverse geocode & landmark resolver
+  const reverseGeocode = async (lat, lng) => {
+    setAddressLoading(true);
+    try {
+      const resolved = await resolveAccurateAddress(lat, lng);
+      if (resolved) {
+        setDeliveryAddress(resolved);
+      }
+    } catch {
+      const fallback = findClosestLandmark(lat, lng);
+      if (fallback && fallback.distanceMeters <= 45) {
+        setDeliveryAddress(`Near ${fallback.name}, ${fallback.area}`);
+      } else {
+        setDeliveryAddress('Poblacion, Barugo, Leyte');
+      }
+    } finally {
+      setAddressLoading(false);
+    }
   };
 
   const placePinAt = (lat, lng) => {
@@ -341,7 +386,7 @@ export default function CheckoutPage() {
       hasApplied = true;
       const map = mapInstanceRef.current;
       if (map) {
-        map.setView([lat, lng], 17, { animate: true });
+        map.setView([lat, lng], 18, { animate: true });
         // Refresh map size after panning
         setTimeout(() => map.invalidateSize(), 200);
       }
@@ -647,9 +692,28 @@ export default function CheckoutPage() {
         <form onSubmit={handleSubmit} style={{ maxWidth: '640px', margin: '0 auto' }}>
           {/* Customer Details */}
           <div className="section" style={{ paddingTop: 'var(--space-2)' }}>
-            <h2 className="section-title" style={{ fontSize: 'var(--text-base)', marginBottom: 'var(--space-3)' }}>
-              Customer Details
-            </h2>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-3)' }}>
+              <h2 className="section-title" style={{ fontSize: 'var(--text-base)', margin: 0 }}>
+                Customer Details
+              </h2>
+              {formData.name && (
+                <span style={{
+                  fontSize: '11px',
+                  color: 'var(--color-success)',
+                  fontWeight: 600,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  background: 'var(--color-success-bg, #F0FDF4)',
+                  padding: '2px 8px',
+                  borderRadius: '9999px',
+                  border: '1px solid rgba(21, 128, 61, 0.15)'
+                }}>
+                  <i className="fa-solid fa-bolt" style={{ fontSize: '10px' }}></i> Auto-filled
+                </span>
+              )}
+            </div>
+
             <div className="input-group">
               <label className="input-label" htmlFor="name">
                 Full Name <span className="required">*</span>
@@ -658,7 +722,7 @@ export default function CheckoutPage() {
                 id="name"
                 className="input"
                 type="text"
-                placeholder="Halimbawa: Maria Clara Santos"
+                placeholder="Enter your full name"
                 value={formData.name}
                 onChange={(e) => handleInputChange('name', e.target.value)}
                 required
@@ -667,16 +731,13 @@ export default function CheckoutPage() {
             </div>
 
             <div className="input-group" style={{ marginTop: 'var(--space-3)' }}>
-              <label className="input-label" htmlFor="preferred-date">
-                Date Needed <span className="required">*</span>
-              </label>
-              <input
+              <PremiumDatePicker
                 id="preferred-date"
-                className="input"
-                type="date"
-                min={new Date().toISOString().split('T')[0]}
+                name="preferredDate"
+                label="Date Needed"
                 value={formData.preferredDate}
-                onChange={(e) => handleInputChange('preferredDate', e.target.value)}
+                onChange={(val) => handleInputChange('preferredDate', val)}
+                minDate={new Date().toISOString().split('T')[0]}
                 required
               />
             </div>
@@ -749,7 +810,7 @@ export default function CheckoutPage() {
                   ref={mapRef}
                   className="map-container"
                   style={{
-                    height: '220px',
+                    height: '240px',
                     borderRadius: 'var(--radius-xl)',
                     overflow: 'hidden',
                     border: '1.5px solid var(--color-border)',
@@ -760,9 +821,16 @@ export default function CheckoutPage() {
                 />
 
                 <div className="input-group">
-                  <label className="input-label" htmlFor="landmark">
-                    Complete Address / Landmark <span className="required">*</span>
-                  </label>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <label className="input-label" htmlFor="landmark" style={{ margin: 0 }}>
+                      Complete Address / Landmark <span className="required">*</span>
+                    </label>
+                    {addressLoading && (
+                      <span style={{ fontSize: '11px', color: 'var(--color-primary)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                        <i className="fa-solid fa-spinner fa-spin"></i> Detecting landmark...
+                      </span>
+                    )}
+                  </div>
                   <input
                     id="landmark"
                     className="input"
@@ -771,7 +839,11 @@ export default function CheckoutPage() {
                     value={deliveryAddress}
                     onChange={(e) => setDeliveryAddress(e.target.value)}
                     required={orderType === 'delivery'}
+                    style={{ marginTop: 'var(--space-1)' }}
                   />
+                  <span style={{ fontSize: '11px', color: 'var(--color-text-muted)', marginTop: '4px', display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    💡 Tip: I-drag ang pin o magdagdag ng landmark (hal. kulay ng gate).
+                  </span>
                 </div>
               </div>
             )}
@@ -813,7 +885,7 @@ export default function CheckoutPage() {
               <textarea
                 id="notes"
                 className="input"
-                placeholder="Card message (e.g. 'Happy Birthday!'), kulay ng ribbon, o iba pang bilin..."
+                placeholder="Special instructions or notes for your order (optional)..."
                 value={formData.notes}
                 onChange={(e) => setFormData(p => ({ ...p, notes: e.target.value }))}
                 rows={2}
@@ -846,7 +918,7 @@ export default function CheckoutPage() {
                         <img
                           src={item.photo}
                           alt={item.productName}
-                          style={{ width: '46px', height: '46px', objectFit: 'cover', borderRadius: 'var(--radius-md, 8px)', border: '1px solid var(--color-border-light)', flexShrink: 0 }}
+                          style={{ width: '46px', height: '46px', objectFit: 'contain', background: '#FAF8F5', borderRadius: 'var(--radius-md, 8px)', border: '1px solid var(--color-border-light)', flexShrink: 0 }}
                         />
                       ) : (
                         <div style={{ width: '46px', height: '46px', borderRadius: 'var(--radius-md, 8px)', background: 'var(--color-surface-warm)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--color-primary)', flexShrink: 0 }}>

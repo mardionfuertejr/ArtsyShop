@@ -4,6 +4,7 @@ import '@/styles/admin.css';
 import '@/styles/animations.css';
 import FloatingFeedbackMenu from '@/components/customer/FloatingFeedbackMenu';
 import GlobalFlyingCart from '@/components/customer/GlobalFlyingCart';
+import GlobalLoadingScreen from '@/components/common/GlobalLoadingScreen';
 
 export const viewport = {
   width: 'device-width',
@@ -62,6 +63,7 @@ export default function RootLayout({ children }) {
         <meta name="mobile-web-app-capable" content="yes" />
       </head>
       <body>
+        <GlobalLoadingScreen />
         {children}
         <FloatingFeedbackMenu />
         <GlobalFlyingCart />

@@ -3289,7 +3289,145 @@ button:active, .btn:active, .product-card:active, .bottom-nav-item:active, [role
   transform: scale(1.02);
 }
 
+/* ── Global App Loading & Wake-Up Screen ───────────────────── */
+.app-loading-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 999999;
+  background: #FAF8F5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  transition: opacity 0.45s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.45s;
+  pointer-events: auto;
+  user-select: none;
+}
 
+.app-loading-screen.app-wakeup-screen {
+  background: rgba(250, 248, 245, 0.94);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
 
+.app-loading-screen.app-loading-fade-out {
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
 
+.app-loading-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  animation: appLoadingContentEnter 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
 
+@keyframes appLoadingContentEnter {
+  0% {
+    opacity: 0;
+    transform: scale(0.94) translateY(10px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.app-loading-logo-glow {
+  position: relative;
+  margin-bottom: 12px;
+  animation: appLogoGlowPulse 2.8s ease-in-out infinite;
+}
+
+@keyframes appLogoGlowPulse {
+  0%, 100% {
+    transform: scale(1);
+    filter: drop-shadow(0 4px 12px rgba(234, 88, 12, 0.12));
+  }
+  50% {
+    transform: scale(1.03);
+    filter: drop-shadow(0 6px 18px rgba(234, 88, 12, 0.22));
+  }
+}
+
+.app-loading-text-container {
+  margin-bottom: 20px;
+}
+
+.app-loading-subtitle {
+  font-family: var(--font-heading, 'Montserrat', sans-serif);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-secondary, #78716C);
+  letter-spacing: 0.5px;
+  margin: 0;
+}
+
+.app-wakeup-icon-wrapper {
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  background: var(--color-primary-lighter, #FFF5F2);
+  border: 1.5px solid rgba(234, 88, 12, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 14px;
+  animation: wakeupIconBounce 1.5s ease-in-out infinite;
+}
+
+@keyframes wakeupIconBounce {
+  0%, 100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-4px) rotate(6deg);
+  }
+}
+
+.app-wakeup-title {
+  font-family: var(--font-heading, 'Montserrat', sans-serif);
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--color-text, #292524);
+  margin: 0 0 4px;
+}
+
+/* ── Artisan Loading Progress Bar ─────────────────────────── */
+.app-loading-progress-track {
+  width: 150px;
+  height: 3.5px;
+  background: rgba(234, 88, 12, 0.12);
+  border-radius: 9999px;
+  overflow: hidden;
+  position: relative;
+}
+
+.app-loading-progress-fill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 50%;
+  background: linear-gradient(90deg, var(--color-primary-light, #FDBA74), var(--color-primary, #EA580C), var(--color-primary-dark, #C2410C));
+  border-radius: 9999px;
+  animation: appLoadingProgressFlow 1.3s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+}
+
+@keyframes appLoadingProgressFlow {
+  0% {
+    left: -50%;
+    width: 30%;
+  }
+  50% {
+    left: 30%;
+    width: 60%;
+  }
+  100% {
+    left: 100%;
+    width: 30%;
+  }
+}

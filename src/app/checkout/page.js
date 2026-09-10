@@ -448,7 +448,7 @@ export default function CheckoutPage() {
     e.preventDefault();
     if (checkoutCart.length === 0) return;
     if (!formData.preferredDate) {
-      setError('Paki-pili ang Date Needed bago mag-submit.');
+      setError(`Paki-pili ang ${orderType === 'pickup' ? 'Pickup Date' : 'Delivery Date'} bago mag-submit.`);
       return;
     }
     if (orderType === 'delivery' && !deliveryLocation) {
@@ -729,18 +729,6 @@ export default function CheckoutPage() {
                 autoComplete="name"
               />
             </div>
-
-            <div className="input-group" style={{ marginTop: 'var(--space-3)' }}>
-              <PremiumDatePicker
-                id="preferred-date"
-                name="preferredDate"
-                label="Date Needed"
-                value={formData.preferredDate}
-                onChange={(val) => handleInputChange('preferredDate', val)}
-                minDate={new Date().toISOString().split('T')[0]}
-                required
-              />
-            </div>
           </div>
 
           <hr className="divider" style={{ margin: 0 }} />
@@ -777,6 +765,20 @@ export default function CheckoutPage() {
                 </span>
                 <span className="fulfillment-option-label">Pickup</span>
               </button>
+            </div>
+
+            {/* Target Date Picker (Contextual to Delivery or Pickup) */}
+            <div className="input-group" style={{ marginTop: 'var(--space-3)' }}>
+              <PremiumDatePicker
+                id="preferred-date"
+                name="preferredDate"
+                label={orderType === 'pickup' ? 'Target Pickup Date' : 'Target Delivery Date'}
+                placeholder={orderType === 'pickup' ? 'Select pickup date...' : 'Select delivery date...'}
+                value={formData.preferredDate}
+                onChange={(val) => handleInputChange('preferredDate', val)}
+                minDate={new Date().toISOString().split('T')[0]}
+                required
+              />
             </div>
 
             {/* Delivery Details */}
@@ -886,7 +888,7 @@ export default function CheckoutPage() {
                   </p>
                   <p style={{ fontSize: '11px', color: 'var(--color-text-muted)', margin: '3px 0 0 0', display: 'flex', alignItems: 'center', gap: '4px' }}>
                     <i className="fa-regular fa-clock" style={{ fontSize: '10.5px', color: 'var(--color-primary)' }}></i>
-                    <span>Schedule will be coordinated via Messenger.</span>
+                    <span>Exact pickup time on your chosen date will be coordinated via Messenger.</span>
                   </p>
                 </div>
               </div>

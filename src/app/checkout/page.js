@@ -852,24 +852,43 @@ export default function CheckoutPage() {
             {orderType === 'pickup' && (
               <div style={{
                 background: 'var(--color-surface-warm)',
-                borderRadius: 'var(--radius-xl)',
-                padding: 'var(--space-4)',
+                borderRadius: 'var(--radius-lg)',
+                padding: '12px 14px',
                 marginTop: 'var(--space-3)',
                 border: '1px solid var(--color-border-light)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '4px',
               }}>
-                <p style={{ fontWeight: '600', fontSize: '13.5px', marginBottom: '4px', color: 'var(--color-text)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <i className="fa-solid fa-store" style={{ color: 'var(--color-primary)', fontSize: '14px' }}></i>
-                  <span>Store Pickup Location</span>
-                </p>
-                <p style={{ fontSize: '13px', color: 'var(--color-text-secondary)', lineHeight: 1.5, margin: 0 }}>
-                  {settings.pickup_address || 'Poblacion, Barugo, Leyte (Near Town Plaza)'}
-                </p>
-                {settings.pickup_notes && settings.pickup_notes.trim() !== (settings.pickup_address || '').trim() && (
-                  <p style={{ fontSize: '11.5px', color: 'var(--color-text-muted)', marginTop: '6px', margin: 0, display: 'flex', alignItems: 'center', gap: '5px' }}>
-                    <i className="fa-regular fa-clock" style={{ fontSize: '11px', color: 'var(--color-primary)' }}></i>
-                    <span>{settings.pickup_notes}</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: '24px',
+                    height: '24px',
+                    borderRadius: '6px',
+                    background: 'var(--color-primary-lighter)',
+                    color: 'var(--color-primary)',
+                    fontSize: '12px',
+                    flexShrink: 0,
+                  }}>
+                    <i className="fa-solid fa-store"></i>
+                  </span>
+                  <span style={{ fontWeight: '600', fontSize: '13px', color: 'var(--color-text)' }}>
+                    Pickup Location
+                  </span>
+                </div>
+
+                <div style={{ paddingLeft: '30px' }}>
+                  <p style={{ fontSize: '13px', color: 'var(--color-text)', fontWeight: '500', margin: 0, lineHeight: 1.4 }}>
+                    {settings.pickup_address || 'Poblacion, Barugo, Leyte (Near Town Plaza)'}
                   </p>
-                )}
+                  <p style={{ fontSize: '11px', color: 'var(--color-text-muted)', margin: '3px 0 0 0', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <i className="fa-regular fa-clock" style={{ fontSize: '10.5px', color: 'var(--color-primary)' }}></i>
+                    <span>Schedule will be coordinated via Messenger.</span>
+                  </p>
+                </div>
               </div>
             )}
           </div>

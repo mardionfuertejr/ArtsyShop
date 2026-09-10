@@ -767,60 +767,48 @@ export default function CheckoutPage() {
               </button>
             </div>
 
-            {/* Target Date Picker (Contextual to Delivery or Pickup) */}
-            <div className="input-group" style={{ marginTop: 'var(--space-3)' }}>
-              <PremiumDatePicker
-                id="preferred-date"
-                name="preferredDate"
-                label={orderType === 'pickup' ? 'Target Pickup Date' : 'Target Delivery Date'}
-                placeholder={orderType === 'pickup' ? 'Select pickup date...' : 'Select delivery date...'}
-                value={formData.preferredDate}
-                onChange={(val) => handleInputChange('preferredDate', val)}
-                minDate={new Date().toISOString().split('T')[0]}
-                required
-              />
-            </div>
-
-            {/* Delivery Details */}
+            {/* Delivery Flow: Pin -> Address -> Target Delivery Date */}
             {orderType === 'delivery' && (
-              <div style={{ marginTop: 'var(--space-4)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-2)' }}>
-                  <label className="input-label" style={{ margin: 0 }}>
-                    Pin Location <span className="required">*</span>
-                  </label>
-                  <button
-                    type="button"
-                    onClick={handleUseMyLocation}
-                    disabled={locating}
-                    className="btn btn-ghost btn-sm"
-                    id="use-location-btn"
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '5px',
-                      color: 'var(--color-primary)',
-                      fontSize: '12px',
-                      padding: '2px 8px',
-                    }}
-                  >
-                    <i className={locating ? 'fa-solid fa-spinner fa-spin' : 'fa-solid fa-location-crosshairs'}></i>
-                    <span>{locating ? 'Locating...' : locateStatus || 'Use My Location'}</span>
-                  </button>
-                </div>
+              <div style={{ marginTop: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-2)' }}>
+                    <label className="input-label" style={{ margin: 0 }}>
+                      Pin Location <span className="required">*</span>
+                    </label>
+                    <button
+                      type="button"
+                      onClick={handleUseMyLocation}
+                      disabled={locating}
+                      className="btn btn-ghost btn-sm"
+                      id="use-location-btn"
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '5px',
+                        color: 'var(--color-primary)',
+                        fontSize: '12px',
+                        padding: '2px 8px',
+                      }}
+                    >
+                      <i className={locating ? 'fa-solid fa-spinner fa-spin' : 'fa-solid fa-location-crosshairs'}></i>
+                      <span>{locating ? 'Locating...' : locateStatus || 'Use My Location'}</span>
+                    </button>
+                  </div>
 
-                <div
-                  ref={mapRef}
-                  className="map-container"
-                  style={{
-                    height: '240px',
-                    borderRadius: 'var(--radius-xl)',
-                    overflow: 'hidden',
-                    border: '1.5px solid var(--color-border)',
-                    boxShadow: '0 2px 10px rgba(0,0,0,0.08)',
-                    marginBottom: 'var(--space-3)',
-                    zIndex: 1,
-                  }}
-                />
+                  <div
+                    ref={mapRef}
+                    className="map-container"
+                    style={{
+                      height: '240px',
+                      borderRadius: 'var(--radius-xl)',
+                      overflow: 'hidden',
+                      border: '1.5px solid var(--color-border)',
+                      boxShadow: '0 2px 10px rgba(0,0,0,0.08)',
+                      marginBottom: 'var(--space-2)',
+                      zIndex: 1,
+                    }}
+                  />
+                </div>
 
                 <div className="input-group">
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -847,49 +835,87 @@ export default function CheckoutPage() {
                     💡 Tip: I-drag ang pin o magdagdag ng landmark (hal. kulay ng gate).
                   </span>
                 </div>
+
+                <div className="input-group">
+                  <PremiumDatePicker
+                    id="preferred-date"
+                    name="preferredDate"
+                    label="Target Delivery Date"
+                    placeholder="Select delivery date..."
+                    value={formData.preferredDate}
+                    onChange={(val) => handleInputChange('preferredDate', val)}
+                    minDate={new Date().toISOString().split('T')[0]}
+                    required
+                  />
+                </div>
               </div>
             )}
 
-            {/* Pickup Details */}
+            {/* Pickup Flow: Location Card -> Target Pickup Date -> Schedule Note */}
             {orderType === 'pickup' && (
-              <div style={{
-                background: 'var(--color-surface-warm)',
-                borderRadius: 'var(--radius-lg)',
-                padding: '12px 14px',
-                marginTop: 'var(--space-3)',
-                border: '1px solid var(--color-border-light)',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '4px',
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <span style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    width: '24px',
-                    height: '24px',
-                    borderRadius: '6px',
-                    background: 'var(--color-primary-lighter)',
-                    color: 'var(--color-primary)',
-                    fontSize: '12px',
-                    flexShrink: 0,
-                  }}>
-                    <i className="fa-solid fa-store"></i>
-                  </span>
-                  <span style={{ fontWeight: '600', fontSize: '13px', color: 'var(--color-text)' }}>
-                    Pickup Location
-                  </span>
+              <div style={{ marginTop: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
+                <div style={{
+                  background: 'var(--color-surface-warm)',
+                  borderRadius: 'var(--radius-lg)',
+                  padding: '12px 14px',
+                  border: '1px solid var(--color-border-light)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '4px',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      width: '24px',
+                      height: '24px',
+                      borderRadius: '6px',
+                      background: 'var(--color-primary-lighter)',
+                      color: 'var(--color-primary)',
+                      fontSize: '12px',
+                      flexShrink: 0,
+                    }}>
+                      <i className="fa-solid fa-store"></i>
+                    </span>
+                    <span style={{ fontWeight: '600', fontSize: '13px', color: 'var(--color-text)' }}>
+                      Pickup Location
+                    </span>
+                  </div>
+
+                  <div style={{ paddingLeft: '30px' }}>
+                    <p style={{ fontSize: '13px', color: 'var(--color-text)', fontWeight: '500', margin: 0, lineHeight: 1.4 }}>
+                      {settings.pickup_address || 'Poblacion, Barugo, Leyte (Near Town Plaza)'}
+                    </p>
+                  </div>
                 </div>
 
-                <div style={{ paddingLeft: '30px' }}>
-                  <p style={{ fontSize: '13px', color: 'var(--color-text)', fontWeight: '500', margin: 0, lineHeight: 1.4 }}>
-                    {settings.pickup_address || 'Poblacion, Barugo, Leyte (Near Town Plaza)'}
-                  </p>
-                  <p style={{ fontSize: '11px', color: 'var(--color-text-muted)', margin: '3px 0 0 0', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <i className="fa-regular fa-clock" style={{ fontSize: '10.5px', color: 'var(--color-primary)' }}></i>
-                    <span>Exact pickup time on your chosen date will be coordinated via Messenger.</span>
-                  </p>
+                <div className="input-group">
+                  <PremiumDatePicker
+                    id="preferred-date"
+                    name="preferredDate"
+                    label="Target Pickup Date"
+                    placeholder="Select pickup date..."
+                    value={formData.preferredDate}
+                    onChange={(val) => handleInputChange('preferredDate', val)}
+                    minDate={new Date().toISOString().split('T')[0]}
+                    required
+                  />
+                </div>
+
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  fontSize: '11.5px',
+                  color: 'var(--color-text-muted)',
+                  background: 'var(--color-surface-warm)',
+                  padding: '9px 12px',
+                  borderRadius: 'var(--radius-md)',
+                  border: '1px solid var(--color-border-light)'
+                }}>
+                  <i className="fa-regular fa-clock" style={{ fontSize: '12px', color: 'var(--color-primary)', flexShrink: 0 }}></i>
+                  <span>Exact pickup time on your chosen date will be coordinated via Messenger.</span>
                 </div>
               </div>
             )}

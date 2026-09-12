@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import SiteFooter from '@/components/common/SiteFooter';
 import { formatCurrency } from '@/lib/utils/formatCurrency';
 
 export default function ConfirmationClient({ order: serverOrder, referenceCode }) {
@@ -89,7 +88,7 @@ export default function ConfirmationClient({ order: serverOrder, referenceCode }
 ───────────────────────────
 Reference: ${order.reference_code}
 Name: ${order.customer_name}
-Method: ${fulfillmentType}
+Claim Method: ${fulfillmentType}
 
 Items:
 ${itemsListText || '• Handcrafted Bouquet / Crafts'}
@@ -106,23 +105,27 @@ Hi M&M's Artsy! I would like to confirm my order from the website. Thank you!`;
 
     // 1. Synchronous document.execCommand fallback (works 100% reliably during click events & on all mobile browsers)
     try {
-      const textarea = document.createElement('textarea');
-      textarea.value = text;
-      textarea.style.position = 'fixed';
-      textarea.style.top = '-9999px';
-      textarea.style.left = '-9999px';
-      textarea.style.opacity = '0';
-      textarea.setAttribute('readonly', '');
-      document.body.appendChild(textarea);
-      textarea.select();
-      textarea.setSelectionRange(0, 99999);
-      copied = document.execCommand('copy');
-      document.body.removeChild(textarea);
+      if (typeof document !== 'undefined' && document.body) {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.top = '-9999px';
+        textarea.style.left = '-9999px';
+        textarea.style.opacity = '0';
+        textarea.setAttribute('readonly', '');
+        document.body.appendChild(textarea);
+        textarea.select();
+        textarea.setSelectionRange(0, 99999);
+        copied = document.execCommand('copy');
+        if (textarea.parentNode === document.body) {
+          document.body.removeChild(textarea);
+        }
+      }
     } catch {}
 
     // 2. Modern navigator.clipboard API
     try {
-      if (navigator.clipboard && window.isSecureContext) {
+      if (typeof navigator !== 'undefined' && navigator.clipboard && window.isSecureContext) {
         navigator.clipboard.writeText(text).then(() => {
           copied = true;
         }).catch(() => {});
@@ -135,6 +138,20 @@ Hi M&M's Artsy! I would like to confirm my order from the website. Thank you!`;
   const handleCopyOnly = () => {
     copyToClipboard(prefilledMessage);
     setCopiedReceipt(true);
+    if (typeof window !== 'undefined') {
+      try {
+        window.dispatchEvent(
+          new CustomEvent('likha_toast', {
+            detail: {
+              type: 'success',
+              title: 'Order Details Copied! 📋',
+              message: 'Ready to paste in Messenger chat',
+              duration: 3000,
+            },
+          })
+        );
+      } catch {}
+    }
     setTimeout(() => setCopiedReceipt(false), 3500);
   };
 
@@ -338,15 +355,36 @@ Hi M&M's Artsy! I would like to confirm my order from the website. Thank you!`;
                   borderBottom: i < order.order_items.length - 1 ? '1px solid var(--color-border-light)' : 'none',
                 }}
               >
-                <div style={{ flex: 1, paddingRight: '12px' }}>
-                  <p style={{ fontWeight: '600', fontSize: '13.5px', color: 'var(--color-text)', margin: 0 }}>
+                <div style={{ flex: 1, paddingRight: '12px', minWidth: 0, overflow: 'hidden' }}>
+                  <p
+                    style={{
+                      fontWeight: '600',
+                      fontSize: '13.5px',
+                      color: 'var(--color-text)',
+                      margin: 0,
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                    }}
+                    title={item.product_name}
+                  >
                     {item.product_name}
                     {item.quantity > 1 && (
                       <span style={{ color: 'var(--color-primary)', fontWeight: '700' }}> ×{item.quantity}</span>
                     )}
                   </p>
                   {item.order_item_options?.length > 0 && (
-                    <p style={{ fontSize: '11.5px', color: 'var(--color-text-secondary)', margin: '3px 0 0' }}>
+                    <p
+                      style={{
+                        fontSize: '11.5px',
+                        color: 'var(--color-text-secondary)',
+                        margin: '3px 0 0',
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                      }}
+                      title={item.order_item_options.map(o => o.option_value).join(' · ')}
+                    >
                       {item.order_item_options.map(o => o.option_value).join(' · ')}
                     </p>
                   )}
@@ -430,8 +468,6 @@ Hi M&M's Artsy! I would like to confirm my order from the website. Thank you!`;
             <span>Shop More</span>
           </Link>
         </div>
-
-        <SiteFooter />
       </main>
     </div>
   );

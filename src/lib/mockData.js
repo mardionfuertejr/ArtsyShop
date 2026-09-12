@@ -1,5 +1,5 @@
 /**
- * LIKHA Mock Data Layer
+ * M&M Artsy Mock Data Layer
  * Clean baseline with 30 crafted products and 10 raw materials.
  * Categories are left empty/unassigned so the user can create and assign them.
  */

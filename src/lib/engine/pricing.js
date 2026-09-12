@@ -1,5 +1,5 @@
 /**
- * LIKHA Pricing Engine
+ * M&M Artsy Pricing Engine
  * Supports Manual, Markup, and Target Margin pricing methods.
  */
 

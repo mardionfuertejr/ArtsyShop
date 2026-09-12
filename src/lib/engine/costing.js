@@ -1,5 +1,5 @@
 /**
- * LIKHA Costing Engine
+ * M&M Artsy Costing Engine
  * Calculates Bill of Materials (BOM) cost for a product
  * based on materials and their current unit costs.
  */

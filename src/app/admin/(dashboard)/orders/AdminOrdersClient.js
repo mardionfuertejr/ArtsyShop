@@ -627,8 +627,19 @@ export default function AdminOrdersClient({ initialOrders }) {
                       </Link>
                       {renderNeededDate(ord)}
                     </td>
-                    <td style={{ padding: '14px 18px', borderBottom: '1px solid #E2E8F0' }}>
-                      <p style={{ fontWeight: '700', color: '#0f172a', margin: '0 0 3px', fontSize: '13.5px', whiteSpace: 'nowrap' }}>
+                    <td style={{ padding: '14px 18px', borderBottom: '1px solid #E2E8F0', maxWidth: '200px' }}>
+                      <p
+                        style={{
+                          fontWeight: '700',
+                          color: '#0f172a',
+                          margin: '0 0 3px',
+                          fontSize: '13.5px',
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                        }}
+                        title={ord.customer_name}
+                      >
                         {ord.customer_name}
                       </p>
                       <span style={{

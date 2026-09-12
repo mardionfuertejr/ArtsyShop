@@ -91,13 +91,15 @@ export default function LazyProductGrid({ products = [], initialCount = 10, batc
           >
             View All Products
           </Link>
-          <Link
-            href="/custom-request"
+          <a
+            href={CUSTOM_ORDER_MESSENGER_URL}
+            target="_blank"
+            rel="noopener noreferrer"
             className="btn btn-secondary btn-sm ripple"
             style={{ borderRadius: 'var(--radius-full)', padding: '8px 18px', fontSize: '12.5px', fontWeight: '600' }}
           >
             Custom Order
-          </Link>
+          </a>
         </div>
       </div>
     );
@@ -205,9 +207,9 @@ export default function LazyProductGrid({ products = [], initialCount = 10, batc
             </button>
           </>
         ) : (
-          /* Elegant End of Collection Signature Marker & Smart Custom Invite */
-          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', marginTop: '6px' }}>
-            {products.length > 3 && (
+          /* Elegant Minimal End of Collection Signature Marker */
+          products.length > 3 && (
+            <div style={{ width: '100%', display: 'flex', justifyContent: 'center', marginTop: '12px', marginBottom: '8px' }}>
               <div className="collection-end-marker">
                 <div className="end-marker-line" />
                 <div className="end-marker-content">
@@ -215,23 +217,8 @@ export default function LazyProductGrid({ products = [], initialCount = 10, batc
                 </div>
                 <div className="end-marker-line" />
               </div>
-            )}
-
-            <div className="smart-custom-invite">
-              <h4 className="smart-custom-invite-title">{prompt.title}</h4>
-              <p className="smart-custom-invite-subtitle">{prompt.subtitle}</p>
-              <a
-                href={getPromptMessengerUrl(prompt)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="smart-custom-invite-btn"
-                id="smart-custom-request-btn"
-              >
-                <span>{prompt.buttonText}</span>
-                <i className="fa-solid fa-arrow-right" style={{ fontSize: '10px' }}></i>
-              </a>
             </div>
-          </div>
+          )
         )}
       </div>
     </div>

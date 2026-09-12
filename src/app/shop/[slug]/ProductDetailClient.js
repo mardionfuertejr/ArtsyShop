@@ -8,7 +8,6 @@ import PhotoCarousel from '@/components/customer/PhotoCarousel';
 import OptionSelector from '@/components/customer/OptionSelector';
 import QuantityControl from '@/components/customer/QuantityControl';
 import ProductReviews from '@/components/customer/ProductReviews';
-import SiteFooter from '@/components/common/SiteFooter';
 import BottomNav from '@/components/customer/BottomNav';
 import CartIconBtn from '@/components/customer/CartIconBtn';
 import HeaderSearchBar from '@/components/customer/HeaderSearchBar';
@@ -339,6 +338,8 @@ export default function ProductDetailClient({ product: initialProduct, photos: i
   };
 
   const handleAddToCart = () => {
+    if (isSoldOut || added) return;
+
     const photoUrl = photos[0]?.url || (photos[0]?.storage_path && supabaseUrl ? `${supabaseUrl}/storage/v1/object/public/product-photos/${photos[0].storage_path}` : null);
 
     addItem({
@@ -352,7 +353,7 @@ export default function ProductDetailClient({ product: initialProduct, photos: i
       options: getFilteredSelectedOptions(),
     });
     setAdded(true);
-    setTimeout(() => setAdded(false), 2000);
+    setTimeout(() => setAdded(false), 1200);
 
     // Trigger Parabolic Fly-to-Cart Animation
     try {
@@ -405,7 +406,6 @@ export default function ProductDetailClient({ product: initialProduct, photos: i
         <nav className="top-bar-nav">
           <Link href="/" className="top-bar-link">Home</Link>
           <Link href="/shop" className="top-bar-link active">Collection</Link>
-          <Link href="/custom-request" className="top-bar-link">Custom Orders</Link>
           <Link href="/track" className="top-bar-link">Track Order</Link>
         </nav>
 
@@ -538,9 +538,6 @@ export default function ProductDetailClient({ product: initialProduct, photos: i
 
         {/* Customer Reviews Section */}
         <ProductReviews product={currentProduct} />
-
-        {/* Unified Sticky-Bottom Site Footer */}
-        <SiteFooter />
       </main>
 
       <BottomNav />

@@ -2,7 +2,6 @@ import Link from 'next/link';
 import { CUSTOM_ORDER_MESSENGER_URL } from '@/lib/constants/customPrompts';
 import BottomNav from '@/components/customer/BottomNav';
 import BrandLogo from '@/components/common/BrandLogo';
-import SiteFooter from '@/components/common/SiteFooter';
 import HomeShowcaseTabs from '@/components/customer/HomeShowcaseTabs';
 import CartIconBtn from '@/components/customer/CartIconBtn';
 import { createClient } from '@/lib/supabase/server';
@@ -99,7 +98,6 @@ export default async function HomePage() {
         <nav className="top-bar-nav">
           <Link href="/" className="top-bar-link active">Home</Link>
           <Link href="/shop" className="top-bar-link">Collection</Link>
-          <Link href="/custom-request" className="top-bar-link">Custom Orders</Link>
           <Link href="/track" className="top-bar-link">Track Order</Link>
         </nav>
 
@@ -112,9 +110,6 @@ export default async function HomePage() {
       <main className="page-content">
         {/* ── CURATED SHOWCASE TABS (Bestsellers | On-Hand | Promos) ──────────────── */}
         <HomeShowcaseTabs allProducts={products} />
-
-        {/* Unified Sticky-Bottom Site Footer */}
-        <SiteFooter />
       </main>
 
       <BottomNav />

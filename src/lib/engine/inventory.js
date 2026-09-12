@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/client';
 
 /**
- * LIKHA Inventory Engine
+ * M&M Artsy Inventory Engine
  * Handles automatic stock deductions, purchase additions,
  * and stock movement audit logging.
  */

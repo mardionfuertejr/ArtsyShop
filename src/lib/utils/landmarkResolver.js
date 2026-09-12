@@ -1,4 +1,4 @@
-// Utility: Accurate Address & Real Landmark Resolver for LIKHA / Barugo & Leyte
+// Utility: Accurate Address & Real Landmark Resolver for M&M Artsy / Barugo & Leyte
 
 // Real prominent physical POIs only (NOT entire barangays)
 export const REAL_LANDMARKS = [
@@ -78,7 +78,7 @@ export async function resolveAccurateAddress(lat, lng) {
   try {
     const res = await fetch(
       `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&addressdetails=1&zoom=18&accept-language=en,fil`,
-      { headers: { 'User-Agent': 'LikhaApp-Barugo/1.0' } }
+      { headers: { 'User-Agent': 'MMArtsyApp-Barugo/1.0' } }
     );
 
     if (res.ok) {

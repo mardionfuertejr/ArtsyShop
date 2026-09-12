@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import SiteFooter from '@/components/common/SiteFooter';
 import PremiumDatePicker from '@/components/common/PremiumDatePicker';
 import { useRouter } from 'next/navigation';
 import { useCart } from '@/lib/hooks/useCart';
@@ -11,6 +10,14 @@ import { generateOrderReference } from '@/lib/engine/reference';
 import { formatCurrency } from '@/lib/utils/formatCurrency';
 import { addMockOrder } from '@/lib/mockData';
 import { resolveAccurateAddress, REAL_LANDMARKS, findClosestLandmark } from '@/lib/utils/landmarkResolver';
+import {
+  getVoucherWallet,
+  getBestApplicableVoucher,
+  getActiveVoucher,
+  validateVoucherAgainstSubtotal,
+  markVoucherAsUsed,
+  isVoucherExpired,
+} from '@/lib/engine/voucherEngine';
 
 const DEFAULT_DELIVERY_FEE = 45;
 const BARUGO_STUDIO_COORDS = { lat: 11.3256, lng: 124.7349 };
@@ -59,7 +66,7 @@ function calculateDynamicDeliveryFee(settings, deliveryLocation, orderType) {
 
 export default function CheckoutPage() {
   const router = useRouter();
-  const { cart, removeItem } = useCart();
+  const { cart, removeItems } = useCart();
   const [selectedIds, setSelectedIds] = useState(null);
   const [orderType, setOrderType] = useState('delivery');
   const [formData, setFormData] = useState({ name: '', phone: '', facebookName: '', notes: '', preferredDate: '' });
@@ -104,7 +111,215 @@ export default function CheckoutPage() {
 
   const totalPieces = checkoutCart.reduce((sum, item) => sum + (item.quantity || 1), 0);
   const dynamicDeliveryFee = calculateDynamicDeliveryFee(settings, deliveryLocation, orderType);
-  const totalAmount = subtotal + dynamicDeliveryFee;
+
+  // Voucher / Promo Code State
+  const [voucherInput, setVoucherInput] = useState('');
+  const [appliedVoucher, setAppliedVoucher] = useState(null);
+  const [voucherError, setVoucherError] = useState('');
+  const [walletVouchers, setWalletVouchers] = useState([]);
+
+  // Load wallet and auto-apply best eligible voucher matching current subtotal
+  useEffect(() => {
+    try {
+      const wallet = getVoucherWallet();
+      setWalletVouchers(wallet);
+
+      const best = getBestApplicableVoucher(subtotal);
+      if (best) {
+        // If best is eligible for current subtotal, auto-apply it!
+        if (subtotal >= (best.minSpend || 0)) {
+          setAppliedVoucher(best);
+          setVoucherInput(best.code);
+        } else {
+          // Keep as selected reference
+          setVoucherInput(best.code);
+        }
+      }
+    } catch {}
+  }, [subtotal]);
+
+  const handleApplyVoucher = (e) => {
+    if (e) e.preventDefault();
+    setVoucherError('');
+    const cleanCode = (voucherInput || '').trim().toUpperCase();
+    if (!cleanCode) return;
+
+    // Check if code matches any voucher in customer's wallet
+    const wallet = getVoucherWallet();
+    const matched = wallet.find((v) => v.code === cleanCode);
+    if (matched) {
+      const validation = validateVoucherAgainstSubtotal(matched, subtotal);
+      if (!validation.valid) {
+        setVoucherError(validation.reason);
+        if (typeof window !== 'undefined') {
+          try {
+            window.dispatchEvent(
+              new CustomEvent('likha_toast', {
+                detail: {
+                  type: 'error',
+                  title: 'Voucher Requirement ⚠️',
+                  message: validation.reason,
+                  duration: 3500,
+                },
+              })
+            );
+          } catch {}
+        }
+        return;
+      }
+      setAppliedVoucher(matched);
+      if (typeof window !== 'undefined') {
+        try {
+          window.dispatchEvent(
+            new CustomEvent('likha_toast', {
+              detail: {
+                type: 'success',
+                title: 'Promo Applied! 🏷️',
+                message: `Discount of ₱${matched.discount} applied to your order`,
+                duration: 3000,
+              },
+            })
+          );
+        } catch {}
+      }
+      return;
+    }
+
+    // Check standard promo codes
+    let newVoucher = null;
+    if (cleanCode === 'ARTSYWINNER' || cleanCode.endsWith('-30')) {
+      if (subtotal < 499) {
+        const lacking = (499 - subtotal);
+        const errMsg = `Min. spend ₱499 · Add ₱${lacking % 1 === 0 ? lacking.toFixed(0) : lacking.toFixed(2)} more`;
+        setVoucherError(errMsg);
+        if (typeof window !== 'undefined') {
+          try {
+            window.dispatchEvent(new CustomEvent('likha_toast', { detail: { type: 'error', title: 'Min. Spend Required ⚠️', message: errMsg, duration: 3500 } }));
+          } catch {}
+        }
+        return;
+      }
+      newVoucher = {
+        code: cleanCode,
+        discount: 30,
+        minSpend: 499,
+        label: '₱30 OFF Mini-Game Champion Voucher',
+      };
+    } else if (cleanCode === 'MMARTSY20' || cleanCode.endsWith('-20')) {
+      if (subtotal < 349) {
+        const lacking = (349 - subtotal);
+        const errMsg = `Min. spend ₱349 · Add ₱${lacking % 1 === 0 ? lacking.toFixed(0) : lacking.toFixed(2)} more`;
+        setVoucherError(errMsg);
+        if (typeof window !== 'undefined') {
+          try {
+            window.dispatchEvent(new CustomEvent('likha_toast', { detail: { type: 'error', title: 'Min. Spend Required ⚠️', message: errMsg, duration: 3500 } }));
+          } catch {}
+        }
+        return;
+      }
+      newVoucher = {
+        code: cleanCode,
+        discount: 20,
+        minSpend: 349,
+        label: '₱20 OFF Gold Tier Voucher',
+      };
+    } else if (cleanCode === 'MMARTSY10' || cleanCode.endsWith('-10')) {
+      if (subtotal < 199) {
+        const lacking = (199 - subtotal);
+        const errMsg = `Min. spend ₱199 · Add ₱${lacking % 1 === 0 ? lacking.toFixed(0) : lacking.toFixed(2)} more`;
+        setVoucherError(errMsg);
+        if (typeof window !== 'undefined') {
+          try {
+            window.dispatchEvent(new CustomEvent('likha_toast', { detail: { type: 'error', title: 'Min. Spend Required ⚠️', message: errMsg, duration: 3500 } }));
+          } catch {}
+        }
+        return;
+      }
+      newVoucher = {
+        code: cleanCode,
+        discount: 10,
+        minSpend: 199,
+        label: '₱10 OFF Silver Tier Voucher',
+      };
+    } else if (cleanCode === 'MMARTSY5' || cleanCode.endsWith('-5') || cleanCode === 'ARTSYLOVE5') {
+      if (subtotal < 100) {
+        const lacking = (100 - subtotal);
+        const errMsg = `Min. spend ₱100 · Add ₱${lacking % 1 === 0 ? lacking.toFixed(0) : lacking.toFixed(2)} more`;
+        setVoucherError(errMsg);
+        if (typeof window !== 'undefined') {
+          try {
+            window.dispatchEvent(new CustomEvent('likha_toast', { detail: { type: 'error', title: 'Min. Spend Required ⚠️', message: errMsg, duration: 3500 } }));
+          } catch {}
+        }
+        return;
+      }
+      newVoucher = {
+        code: cleanCode,
+        discount: 5,
+        minSpend: 100,
+        label: '₱5 OFF Starter Voucher',
+      };
+    } else {
+      const errMsg = 'Invalid or expired promo code';
+      setVoucherError(errMsg);
+      if (typeof window !== 'undefined') {
+        try {
+          window.dispatchEvent(new CustomEvent('likha_toast', { detail: { type: 'error', title: 'Invalid Code ⚠️', message: errMsg, duration: 3000 } }));
+        } catch {}
+      }
+      return;
+    }
+
+    if (newVoucher) {
+      setAppliedVoucher(newVoucher);
+      if (typeof window !== 'undefined') {
+        try {
+          window.dispatchEvent(
+            new CustomEvent('likha_toast', {
+              detail: {
+                type: 'success',
+                title: 'Promo Applied! 🏷️',
+                message: `₱${newVoucher.discount} OFF successfully applied`,
+                duration: 3000,
+              },
+            })
+          );
+        } catch {}
+      }
+    }
+  };
+
+  const handleSelectVoucherFromWallet = (voucher) => {
+    setVoucherError('');
+    setVoucherInput(voucher.code);
+    const validation = validateVoucherAgainstSubtotal(voucher, subtotal);
+    if (!validation.valid) {
+      setVoucherError(validation.reason);
+      if (typeof window !== 'undefined') {
+        try {
+          window.dispatchEvent(new CustomEvent('likha_toast', { detail: { type: 'error', title: 'Requirement Not Met ⚠️', message: validation.reason, duration: 3500 } }));
+        } catch {}
+      }
+    } else {
+      setAppliedVoucher(voucher);
+      if (typeof window !== 'undefined') {
+        try {
+          window.dispatchEvent(new CustomEvent('likha_toast', { detail: { type: 'success', title: 'Voucher Applied! 🏷️', message: `₱${voucher.discount} OFF applied`, duration: 3000 } }));
+        } catch {}
+      }
+    }
+  };
+
+  const handleRemoveVoucher = () => {
+    setAppliedVoucher(null);
+    setVoucherInput('');
+    setVoucherError('');
+  };
+
+  // Re-validate applied voucher if cart changes
+  const isVoucherApplicable = appliedVoucher && subtotal >= (appliedVoucher.minSpend || 0);
+  const voucherDiscount = isVoucherApplicable ? (appliedVoucher.discount || 0) : 0;
+  const totalAmount = Math.max(0, subtotal + dynamicDeliveryFee - voucherDiscount);
 
   // Load business settings & saved customer info
   useEffect(() => {
@@ -531,7 +746,10 @@ export default function CheckoutPage() {
       };
       localStorage.setItem(`likha_last_order_${referenceCode}`, JSON.stringify(orderPayload));
 
-      const existingOrders = JSON.parse(localStorage.getItem('likha_my_orders') || '[]');
+      // Mark single-use voucher as used so it cannot be reused
+      if (appliedVoucher?.code) {
+        markVoucherAsUsed(appliedVoucher.code);
+      }
       const updatedOrders = [
         {
           referenceCode,
@@ -670,7 +888,7 @@ export default function CheckoutPage() {
     }
 
     // Remove only checked out items from cart
-    checkoutCart.forEach((item) => removeItem(item.cartItemId));
+    removeItems(checkoutCart.map((item) => item.cartItemId));
     try {
       localStorage.removeItem('likha_checkout_items');
     } catch {}
@@ -733,12 +951,12 @@ export default function CheckoutPage() {
 
           <hr className="divider" style={{ margin: 0 }} />
 
-          {/* Delivery Method */}
+          {/* Claim Method */}
           <div className="section">
             <h2 className="section-title" style={{ fontSize: 'var(--text-base)', marginBottom: 'var(--space-3)' }}>
-              Delivery / Pickup Method
+              Claim Method
             </h2>
-            <div className="fulfillment-toggle" role="radiogroup" aria-label="Order type">
+            <div className="fulfillment-toggle" role="radiogroup" aria-label="Claim method">
               <button
                 type="button"
                 className={`fulfillment-option${orderType === 'delivery' ? ' selected' : ''}`}
@@ -1023,6 +1241,172 @@ export default function CheckoutPage() {
                   {orderType === 'delivery' ? formatCurrency(dynamicDeliveryFee) : 'FREE (Pickup)'}
                 </span>
               </div>
+
+              {/* Promo / Game Voucher Line in Breakdown (No ticket icon, clean text) */}
+              {appliedVoucher && (
+                <div className="order-summary-row" style={{ padding: '3px 0', fontSize: '13px', color: '#EA580C' }}>
+                  <span style={{ fontWeight: '500' }}>Voucher Discount</span>
+                  <span style={{ fontWeight: '700' }}>-{formatCurrency(voucherDiscount)}</span>
+                </div>
+              )}
+
+              {/* Voucher / Promo Code Section */}
+              <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px dashed var(--color-border)' }}>
+                {appliedVoucher ? (
+                  /* Applied State: Clean, Minimalist Card (No icons, perfectly proportioned) */
+                  <div
+                    style={{
+                      background: '#FFF8F5',
+                      border: '1px solid #FED7AA',
+                      borderRadius: '8px',
+                      padding: '7px 11px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: '8px',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0, flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: '12.5px', fontWeight: '700', color: '#1E1E24' }}>
+                        ₱{appliedVoucher.discount} OFF Voucher
+                      </span>
+                      {appliedVoucher.minSpend && (
+                        <span style={{ fontSize: '11px', color: '#78716C', fontWeight: '500' }}>
+                          (Min. spend ₱{appliedVoucher.minSpend})
+                        </span>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleRemoveVoucher}
+                      style={{
+                        background: '#FFFFFF',
+                        border: '1px solid #E5E7EB',
+                        borderRadius: '6px',
+                        color: '#78716C',
+                        fontSize: '11px',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                        padding: '3px 8px',
+                        flexShrink: 0,
+                        transition: 'all 0.15s ease',
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.borderColor = '#FCA5A5';
+                        e.currentTarget.style.color = '#DC2626';
+                        e.currentTarget.style.background = '#FEF2F2';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.borderColor = '#E5E7EB';
+                        e.currentTarget.style.color = '#78716C';
+                        e.currentTarget.style.background = '#FFFFFF';
+                      }}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ) : (
+                  /* Unapplied State: Comfortable Input + Available Voucher */
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      <input
+                        type="text"
+                        placeholder="Enter promo code"
+                        value={voucherInput}
+                        onChange={(e) => {
+                          setVoucherInput(e.target.value.toUpperCase());
+                          if (voucherError) setVoucherError('');
+                        }}
+                        style={{
+                          flex: 1,
+                          padding: '7px 11px',
+                          borderRadius: '8px',
+                          border: '1px solid var(--color-border)',
+                          fontSize: '12px',
+                          textTransform: 'uppercase',
+                          fontWeight: '600',
+                          letterSpacing: '0.03em',
+                          height: '36px',
+                          background: '#FFFFFF',
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={handleApplyVoucher}
+                        disabled={!voucherInput.trim()}
+                        className="btn btn-sm"
+                        style={{
+                          background: voucherInput.trim() ? '#EA580C' : '#E5E7EB',
+                          color: voucherInput.trim() ? '#FFFFFF' : '#9CA3AF',
+                          border: 'none',
+                          borderRadius: '8px',
+                          padding: '0 14px',
+                          fontSize: '12px',
+                          fontWeight: '700',
+                          height: '36px',
+                          cursor: voucherInput.trim() ? 'pointer' : 'default',
+                          transition: 'all 0.15s ease',
+                        }}
+                      >
+                        Apply
+                      </button>
+                    </div>
+
+                    {/* Quick-Tap Single Available Voucher from Arcade Wallet */}
+                    {walletVouchers.length > 0 && (() => {
+                      const best = getBestApplicableVoucher(subtotal);
+                      if (!best) return null;
+                      const isEligible = subtotal >= (best.minSpend || 0);
+                      const lacking = Math.max(0, (best.minSpend || 0) - subtotal);
+                      return (
+                        <div
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            background: isEligible ? '#FFF8F5' : '#F9FAFB',
+                            border: `1px solid ${isEligible ? '#FED7AA' : '#E5E7EB'}`,
+                            borderRadius: '8px',
+                            padding: '6px 10px',
+                            fontSize: '11.5px',
+                          }}
+                        >
+                          <span style={{ color: isEligible ? '#C2410C' : '#6B7280', fontWeight: '600' }}>
+                            ₱{best.discount} OFF Voucher {isEligible ? `(Min. spend ₱${best.minSpend})` : `(Add ₱${lacking.toFixed(0)} more)`}
+                          </span>
+                          {isEligible ? (
+                            <button
+                              type="button"
+                              onClick={() => handleSelectVoucherFromWallet(best)}
+                              style={{
+                                background: '#EA580C',
+                                color: '#FFF',
+                                border: 'none',
+                                borderRadius: '5px',
+                                padding: '3px 10px',
+                                fontSize: '11px',
+                                fontWeight: '700',
+                                cursor: 'pointer',
+                              }}
+                            >
+                              Apply
+                            </button>
+                          ) : (
+                            <span style={{ fontSize: '10.5px', color: '#9CA3AF', fontWeight: '600' }}>Locked</span>
+                          )}
+                        </div>
+                      );
+                    })()}
+                  </div>
+                )}
+                {voucherError && (
+                  <div style={{ color: '#DC2626', fontSize: '11px', marginTop: '4px', fontWeight: '600' }}>
+                    <i className="fa-solid fa-circle-exclamation" style={{ marginRight: '4px' }}></i>
+                    {voucherError}
+                  </div>
+                )}
+              </div>
+
               <div className="order-summary-row total" style={{ marginTop: '8px', paddingTop: '10px', fontSize: '14px', borderTop: '1px solid var(--color-border)' }}>
                 <span style={{ fontWeight: '700' }}>Total Amount</span>
                 <span className="amount" style={{ fontSize: '17px', fontWeight: '800' }}>
@@ -1072,9 +1456,6 @@ export default function CheckoutPage() {
             </button>
           </div>
         </form>
-
-        {/* Unified Sticky-Bottom Site Footer */}
-        <SiteFooter />
       </main>
     </div>
   );

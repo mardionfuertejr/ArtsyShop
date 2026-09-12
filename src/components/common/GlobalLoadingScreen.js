@@ -5,54 +5,42 @@ import BrandLogo from './BrandLogo';
 
 const INACTIVITY_TIMEOUT_MS = 3 * 60 * 1000; // 3 minutes idle / hidden trigger
 const INITIAL_LOAD_MIN_MS = 1400; // Comfortable duration to view logo and read brand story
-const WAKEUP_LOAD_DURATION_MS = 1250; // Smooth duration on wake-up resume
+const WAKEUP_LOAD_DURATION_MS = 800; // Snappy duration on wake-up resume
 
-const STUDIO_TAGLINES = [
-  {
-    tagline: 'Stories shaped in every piece.',
-    category: 'Handcrafted Bouquets & Resin Keepsakes',
-  },
-  {
-    tagline: 'Crafted with care, given with love.',
-    category: 'Floral Arrangements & Custom Creations',
-  },
-  {
-    tagline: 'Turning precious memories into art.',
-    category: 'Everlasting Bouquets & Personalized Gifts',
-  },
-  {
-    tagline: 'Artisan blooms & bespoke keepsakes.',
-    category: 'M&M Artsy Studio · Barugo, Leyte',
-  },
-];
+const BRAND_TAGLINE = 'Turning sweet thoughts into timeless gifts.';
+const BRAND_SUBTITLE = 'HANDMADE BOUQUETS & PRODUCTS';
 
 export default function GlobalLoadingScreen() {
-  const [showInitialSplash, setShowInitialSplash] = useState(true);
+  const [showInitialSplash, setShowInitialSplash] = useState(false);
   const [isFadingOut, setIsFadingOut] = useState(false);
   const [showWakeupSplash, setShowWakeupSplash] = useState(false);
   const [wakeupFadingOut, setWakeupFadingOut] = useState(false);
 
-  // Rotate tagline
-  const [taglineIndex, setTaglineIndex] = useState(0);
-
   const lastActiveTimestamp = useRef(Date.now());
   const hiddenTimestamp = useRef(null);
 
-  // Initialize random tagline on mount
+  // 1. Initial Page Load Splash Screen (Once per Session)
   useEffect(() => {
-    setTaglineIndex(Math.floor(Math.random() * STUDIO_TAGLINES.length));
-  }, []);
+    try {
+      const alreadyShown = sessionStorage.getItem('mm_artsy_splash_shown');
+      if (!alreadyShown) {
+        setShowInitialSplash(true);
+        const timer = setTimeout(() => {
+          setIsFadingOut(true);
+          setTimeout(() => {
+            setShowInitialSplash(false);
+            try {
+              sessionStorage.setItem('mm_artsy_splash_shown', '1');
+            } catch {}
+          }, 500); // Match CSS fade-out transition
+        }, INITIAL_LOAD_MIN_MS);
 
-  // 1. Initial Page Load Splash Screen
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsFadingOut(true);
-      setTimeout(() => {
-        setShowInitialSplash(false);
-      }, 500); // Match CSS fade-out transition
-    }, INITIAL_LOAD_MIN_MS);
-
-    return () => clearTimeout(timer);
+        return () => clearTimeout(timer);
+      }
+    } catch {
+      // Fallback for strict browser privacy modes
+      setShowInitialSplash(false);
+    }
   }, []);
 
   // 2. Inactivity & Wake-up Detection
@@ -70,8 +58,6 @@ export default function GlobalLoadingScreen() {
         const wasIdleLong = (now - lastActiveTimestamp.current > INACTIVITY_TIMEOUT_MS);
 
         if (wasHiddenLong || wasIdleLong) {
-          // Rotate to next tagline on wake-up
-          setTaglineIndex((prev) => (prev + 1) % STUDIO_TAGLINES.length);
           setShowWakeupSplash(true);
           setWakeupFadingOut(false);
 
@@ -102,8 +88,6 @@ export default function GlobalLoadingScreen() {
 
   if (!showInitialSplash && !showWakeupSplash) return null;
 
-  const currentStory = STUDIO_TAGLINES[taglineIndex] || STUDIO_TAGLINES[0];
-
   return (
     <>
       {/* ── Initial App Loading Splash ── */}
@@ -117,15 +101,15 @@ export default function GlobalLoadingScreen() {
           <div className="app-loading-backdrop-glow" />
 
           <div className="app-loading-content">
-            {/* Logo Emblem (Hero size for impressive brand impact) */}
+            {/* Logo Emblem */}
             <div className="app-loading-logo-glow">
               <BrandLogo size="splash" />
             </div>
 
-            {/* Dynamic Handcrafted Story */}
+            {/* Constant Handcrafted Brand Story */}
             <div className="app-loading-text-container">
-              <h2 className="app-loading-tagline">{currentStory.tagline}</h2>
-              <p className="app-loading-subtitle">{currentStory.category}</p>
+              <h2 className="app-loading-tagline">{BRAND_TAGLINE}</h2>
+              <p className="app-loading-subtitle">{BRAND_SUBTITLE}</p>
             </div>
 
             {/* Luxury Hairline Progress Flow */}
@@ -148,14 +132,14 @@ export default function GlobalLoadingScreen() {
 
           <div className="app-loading-content">
             {/* Logo Emblem */}
-            <div className="app-loading-logo-glow" style={{ marginBottom: '12px' }}>
+            <div className="app-loading-logo-glow">
               <BrandLogo size="large" />
             </div>
 
-            {/* Rotating Story */}
+            {/* Constant Story */}
             <div className="app-loading-text-container">
-              <h2 className="app-loading-tagline">{currentStory.tagline}</h2>
-              <p className="app-loading-subtitle">{currentStory.category}</p>
+              <h2 className="app-loading-tagline">{BRAND_TAGLINE}</h2>
+              <p className="app-loading-subtitle">{BRAND_SUBTITLE}</p>
             </div>
 
             {/* Luxury Hairline Progress Flow */}

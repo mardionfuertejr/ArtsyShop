@@ -33,11 +33,16 @@ export default function ProductCard({ product, className = '', style = {} }) {
   const saleBadgeText = discountPercent ? `${discountPercent}% OFF` : (product.sale_tag || 'Sale');
 
   const [added, setAdded] = useState(false);
+  const [isCooldown, setIsCooldown] = useState(false);
 
   const handleQuickAdd = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    if (isSoldOut) return;
+    if (isSoldOut || isCooldown) return;
+
+    // Trigger cooldown immediately to prevent duplicate spam clicks
+    setIsCooldown(true);
+    setAdded(true);
 
     // Trigger visual parabolic flying animation to the top-right cart
     try {
@@ -60,21 +65,25 @@ export default function ProductCard({ product, className = '', style = {} }) {
     } catch {}
 
     const unitPrice = parseFloat(product.is_on_sale && product.sale_price ? product.sale_price : product.base_price) || 250;
-    const existingOptions = inCartItems[0]?.options || [];
+    const cleanId = product.id || product.productId || (product.slug ? `prod-${product.slug}` : `prod-${(product.name || 'item').toLowerCase().replace(/\s+/g, '-')}`);
+    const cleanSlug = product.slug || product.productSlug || (product.name ? product.name.toLowerCase().replace(/\s+/g, '-') : 'handmade-piece');
 
     addItem({
-      productId: product.id,
-      productSlug: product.slug,
-      productName: product.name,
+      productId: cleanId,
+      productSlug: cleanSlug,
+      productName: product.name || 'Handmade Piece',
       photo: photoUrl,
       basePrice: unitPrice,
       unitPrice: unitPrice,
       quantity: 1,
-      options: existingOptions,
+      options: [],
     });
 
-    setAdded(true);
-    setTimeout(() => setAdded(false), 900);
+    // Reset cooldown after 750ms
+    setTimeout(() => {
+      setAdded(false);
+      setIsCooldown(false);
+    }, 750);
   };
 
   return (
@@ -150,9 +159,10 @@ export default function ProductCard({ product, className = '', style = {} }) {
             <button
               type="button"
               onClick={handleQuickAdd}
+              disabled={isCooldown}
               aria-label={`Add ${product.name} to cart`}
-              title="Quick Add to Cart"
-              className={`product-card-quick-add ${added ? 'is-added' : ''}`}
+              title={isCooldown ? "Added! Wait a moment..." : "Quick Add to Cart"}
+              className={`product-card-quick-add ${added ? 'is-added' : ''} ${isCooldown ? 'is-cooldown' : ''}`}
             >
               <i className={added ? 'fa-solid fa-check' : 'fa-solid fa-plus'} />
             </button>

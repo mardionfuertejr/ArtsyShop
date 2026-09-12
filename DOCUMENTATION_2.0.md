@@ -1,6 +1,6 @@
-# 🌸 LIKHA — M&M Artsy Platform Documentation 2.0
+# 🌸 M&M Artsy — Platform Documentation 2.0
 
-> **LIKHA** is a modern, mobile-first eCommerce & artisan studio management platform built for **M&M Artsy** — specializing in handcrafted everlasting fuzzy wire bouquets, crochet art, resin keepsakes, and personalized gift boxes.
+> **M&M Artsy** is a modern, mobile-first eCommerce & artisan studio management platform specializing in handcrafted everlasting fuzzy wire bouquets, crochet art, resin keepsakes, and personalized gift boxes.
 
 ---
 
@@ -102,14 +102,20 @@
 - **Messenger Quick Action Templates**: Instant 1-tap template chips for following up status, asking for delivery ETA, or updating delivery notes.
 
 ### 8. Bespoke Custom Requests (`/custom-request`)
-- Dedicated form for customers wanting custom colorways, sizes, floral arrangements, or resin designs with reference photo attachments.
-- Instant pre-filled Messenger connection upon submission.
+### 9. Interactive Fun Zone & Smart Voucher Engine
+- **3-in-1 Mini-Games Hub**: Petal Bloom Rush (arcade catch), Mystery Blind Box (Pop Mart unbox), and Flower Memory Pair (card match).
+- **Anti-Bankruptcy Tiered Margins**:
+  - 🥉 **Bronze** (50+ pts): ₱5 OFF (No minimum spend)
+  - 🥈 **Silver** (100+ pts): ₱10 OFF (Min. spend ₱150)
+  - 🥇 **Gold** (150+ pts): ₱20 OFF (Min. spend ₱299)
+  - 💎 **Diamond** (200+ pts): ₱30 OFF (Min. spend ₱499)
+- **Randomized Unique Voucher Codes**: Instant generation (`ARTSY-XXXX-XX`), 24-hour expiration, auto-fill on checkout, and single-use redemption lock.
 
 ---
 
 ## 💬 Messenger Integration & Pre-Filled Templates
 
-Every Messenger link across LIKHA features automated pre-filled message templates encoded with URL parameters (`https://m.me/61587268312750?text=...`):
+Every Messenger link across M&M Artsy features automated pre-filled message templates encoded with URL parameters (`https://m.me/61587268312750?text=...`):
 
 | Page & Touchpoint | Pre-Filled Template Content |
 | :--- | :--- |
@@ -283,4 +289,4 @@ CREATE TABLE delivery_locations (
 
 ---
 
-*Generated for LIKHA — M&M Artsy Platform 2.0*
+*Generated for M&M Artsy Platform 2.0*

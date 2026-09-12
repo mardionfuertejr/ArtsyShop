@@ -1,13 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { CUSTOM_ORDER_MESSENGER_URL } from '@/lib/constants/customPrompts';
 import BottomNav from '@/components/customer/BottomNav';
 import BrandLogo from '@/components/common/BrandLogo';
-import SiteFooter from '@/components/common/SiteFooter';
 import EmptyState from '@/components/customer/EmptyState';
 import QuantityControl from '@/components/customer/QuantityControl';
 import OptionSelector from '@/components/customer/OptionSelector';
@@ -18,13 +17,14 @@ import { formatCurrency } from '@/lib/utils/formatCurrency';
 
 export default function CartPage() {
   const router = useRouter();
-  const { cart, itemCount, subtotal, removeItem, updateQty, updateItem, isLoaded } = useCart();
+  const { cart, itemCount, totalQuantity, subtotal, removeItem, removeItems, updateQty, updateItem, isLoaded } = useCart();
   const [mounted, setMounted] = useState(false);
 
   // Shopee-style Item Selection State
   const [selectedItemIds, setSelectedItemIds] = useState([]);
   const [batchDeleteModalOpen, setBatchDeleteModalOpen] = useState(false);
   const [deletingItemIds, setDeletingItemIds] = useState([]);
+  const prevCartLengthRef = useRef(0);
 
   // Dropdown & Modal States
   const [openMenuId, setOpenMenuId] = useState(null);
@@ -36,22 +36,38 @@ export default function CartPage() {
     setMounted(true);
   }, []);
 
-  // Initialize & sync selected items when cart items change
+  // Initialize & sync selected items when cart items change (auto-select all by default)
   useEffect(() => {
-    if (cart.length > 0) {
-      setSelectedItemIds((prev) => {
-        // If not initialized yet, select all by default
-        if (prev.length === 0) {
-          return cart.map((i) => i.cartItemId);
-        }
-        // Filter out IDs no longer in cart
-        const valid = prev.filter((id) => cart.some((c) => c.cartItemId === id));
-        return valid.length > 0 ? valid : cart.map((i) => i.cartItemId);
-      });
-    } else {
+    if (!isLoaded) return;
+    if (cart.length === 0) {
       setSelectedItemIds([]);
+      prevCartLengthRef.current = 0;
+      return;
     }
-  }, [cart]);
+
+    setSelectedItemIds((prev) => {
+      const allCartIds = cart.map((i) => i.cartItemId);
+      // Initial load or if previous selection was empty on initial load: select all
+      if (prevCartLengthRef.current === 0 || prev.length === 0) {
+        prevCartLengthRef.current = cart.length;
+        return allCartIds;
+      }
+
+      const existingIdsInCart = new Set(allCartIds);
+      const stillSelected = prev.filter((id) => existingIdsInCart.has(id));
+
+      if (cart.length > prevCartLengthRef.current) {
+        // Items were added: auto-select new item(s) as well
+        const previousSet = new Set(prev);
+        const newIds = allCartIds.filter((id) => !previousSet.has(id));
+        prevCartLengthRef.current = cart.length;
+        return [...stillSelected, ...newIds];
+      }
+
+      prevCartLengthRef.current = cart.length;
+      return stillSelected.length > 0 ? stillSelected : allCartIds;
+    });
+  }, [cart, isLoaded]);
 
   // Lock body scroll when any modal is open
   useEffect(() => {
@@ -107,7 +123,7 @@ export default function CartPage() {
     setSelectedItemIds([]);
 
     setTimeout(() => {
-      ids.forEach((id) => removeItem(id));
+      removeItems(ids);
       setDeletingItemIds((prev) => prev.filter((id) => !ids.includes(id)));
     }, 350);
   };
@@ -342,47 +358,75 @@ export default function CartPage() {
         <nav className="top-bar-nav">
           <Link href="/" className="top-bar-link">Home</Link>
           <Link href="/shop" className="top-bar-link">Collection</Link>
-          <Link href="/custom-request" className="top-bar-link">Custom Orders</Link>
           <Link href="/track" className="top-bar-link">Track Order</Link>
         </nav>
 
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px' }}>
           <span style={{ fontSize: 'var(--text-xs)', fontWeight: '600', color: 'var(--color-text-secondary)' }}>
-            {cart.length} {cart.length === 1 ? 'item' : 'items'}
+            {totalQuantity} {totalQuantity === 1 ? 'item' : 'items'}
           </span>
         </div>
       </header>
 
-      <main className="page-content page-enter">
+      <main
+        className="page-content page-enter"
+        style={{
+          flex: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          minHeight: cart.length === 0 ? 'calc(100dvh - 124px)' : 'auto',
+          justifyContent: cart.length === 0 ? 'center' : 'flex-start',
+          alignItems: 'center',
+          paddingBottom: cart.length === 0 ? 'calc(var(--bottom-nav-height, 72px) + 24px)' : '100px',
+          boxSizing: 'border-box',
+        }}
+      >
         {cart.length === 0 ? (
-          <EmptyState
-            icon={
-              <div className="empty-cart-icon-wrapper">
-                <i className="fa-solid fa-basket-shopping" style={{ fontSize: '2.4rem', color: 'var(--color-primary)' }}></i>
-              </div>
-            }
-            title="Your cart is empty"
-            message="Looks like you haven't added any handcrafted items to your cart yet."
-            action={
-              <Link
-                href="/shop"
-                className="btn btn-primary ripple"
-                id="cart-shop-btn"
-                style={{
-                  padding: '12px 28px',
-                  fontSize: '14px',
-                  fontWeight: '700',
-                  borderRadius: 'var(--radius-full)',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '8px'
-                }}
-              >
-                <i className="fa-solid fa-sparkles" style={{ fontSize: '13px' }}></i>
-                <span>Browse Collection</span>
-              </Link>
-            }
-          />
+          <div
+            style={{
+              width: '100%',
+              maxWidth: '380px',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              textAlign: 'center',
+              padding: '0 20px',
+              margin: 'auto 0',
+              transform: 'translateY(15px)',
+            }}
+          >
+            <EmptyState
+              icon={
+                <div className="empty-cart-icon-wrapper" style={{ margin: '0 auto 16px' }}>
+                  <i className="fa-solid fa-basket-shopping" style={{ fontSize: '2.4rem', color: 'var(--color-primary)' }}></i>
+                </div>
+              }
+              title="Your cart is empty"
+              message="Looks like you haven't added any handcrafted items to your cart yet."
+              action={
+                <Link
+                  href="/shop"
+                  className="btn btn-primary ripple btn-press"
+                  id="cart-shop-btn"
+                  style={{
+                    padding: '13px 32px',
+                    fontSize: '14px',
+                    fontWeight: '700',
+                    borderRadius: 'var(--radius-full)',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    boxShadow: '0 4px 14px rgba(160, 82, 45, 0.25)',
+                    marginTop: '8px',
+                  }}
+                >
+                  <i className="fa-solid fa-sparkles" style={{ fontSize: '13px' }}></i>
+                  <span>Browse Collection</span>
+                </Link>
+              }
+            />
+          </div>
         ) : (
           <>
             <div
@@ -401,7 +445,7 @@ export default function CartPage() {
                   {isAllSelected && <i className="fa-solid fa-check" style={{ fontSize: '11px' }}></i>}
                 </div>
                 <span className="cart-select-all-label" onClick={toggleSelectAll}>
-                  Select All ({cart.length} {cart.length === 1 ? 'item' : 'items'})
+                  Select All ({totalQuantity} {totalQuantity === 1 ? 'item' : 'items'})
                 </span>
                 {selectedItemIds.length > 0 && (
                   <button
@@ -575,8 +619,6 @@ export default function CartPage() {
           </>
         )}
 
-        {/* Unified Sticky-Bottom Site Footer */}
-        <SiteFooter />
       </main>
 
       {cart.length > 0 && (
@@ -1083,11 +1125,101 @@ export default function CartPage() {
 
             {/* Modal Heading & Subtext */}
             <h3 style={{ fontSize: '1.15rem', fontWeight: '700', margin: '0 0 6px', color: 'var(--color-text)' }}>
-              Delete {selectedItemIds.length} {selectedItemIds.length === 1 ? 'item' : 'items'}?
+              {selectedItems.length === 1 ? 'Remove from cart?' : `Delete ${selectedItems.length} items?`}
             </h3>
-            <p style={{ fontSize: '13px', color: 'var(--color-text-secondary)', margin: '0 0 20px', lineHeight: 1.4 }}>
-              Are you sure you want to remove all selected items from your cart?
+            <p style={{ fontSize: '13px', color: 'var(--color-text-secondary)', margin: '0 0 16px', lineHeight: 1.4 }}>
+              {selectedItems.length === 1
+                ? 'This item will be removed from your cart.'
+                : `Are you sure you want to remove all ${selectedItems.length} selected items from your cart?`}
             </p>
+
+            {/* Selected items preview list */}
+            {selectedItems.length === 1 && selectedItems[0] ? (
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                padding: '10px 12px',
+                background: 'var(--color-surface-warm, #FAF8F5)',
+                borderRadius: 'var(--radius-lg)',
+                border: '1px solid var(--color-border-light)',
+                marginBottom: '20px',
+                textAlign: 'left',
+              }}>
+                <div style={{
+                  width: '44px',
+                  height: '44px',
+                  borderRadius: 'var(--radius-md)',
+                  background: 'var(--color-primary-lighter)',
+                  overflow: 'hidden',
+                  flexShrink: 0,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}>
+                  {selectedItems[0].photo ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={selectedItems[0].photo}
+                      alt={selectedItems[0].productName || 'Product'}
+                      style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                    />
+                  ) : (
+                    <i className="fa-solid fa-image" style={{ color: 'var(--color-primary)' }} />
+                  )}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <p style={{ fontSize: '13px', fontWeight: '600', margin: '0 0 2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {selectedItems[0].productName || 'Item'}
+                  </p>
+                  {selectedItems[0].options?.length > 0 && (
+                    <p style={{ fontSize: '11px', color: 'var(--color-text-muted)', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {selectedItems[0].options.map((o) => o.optionValue).join(' · ')}
+                    </p>
+                  )}
+                </div>
+              </div>
+            ) : selectedItems.length > 1 ? (
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '6px',
+                maxHeight: '140px',
+                overflowY: 'auto',
+                padding: '8px 10px',
+                background: 'var(--color-surface-warm, #FAF8F5)',
+                borderRadius: 'var(--radius-lg)',
+                border: '1px solid var(--color-border-light)',
+                marginBottom: '20px',
+                textAlign: 'left',
+              }}>
+                {selectedItems.map((it) => (
+                  <div key={it.cartItemId} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div style={{
+                      width: '28px',
+                      height: '28px',
+                      borderRadius: '6px',
+                      background: 'var(--color-primary-lighter)',
+                      overflow: 'hidden',
+                      flexShrink: 0,
+                    }}>
+                      {it.photo ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={it.photo} alt={it.productName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      ) : (
+                        <i className="fa-solid fa-image" style={{ fontSize: '10px' }} />
+                      )}
+                    </div>
+                    <span style={{ fontSize: '12px', fontWeight: '600', flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {it.productName}
+                    </span>
+                    <span style={{ fontSize: '11px', color: 'var(--color-text-muted)' }}>
+                      x{it.quantity}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : null}
 
             {/* Action Buttons */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
@@ -1111,13 +1243,15 @@ export default function CartPage() {
                   color: '#FFFFFF',
                   border: 'none',
                   borderRadius: 'var(--radius-full)',
+                  cursor: 'pointer',
                 }}
               >
-                Delete Selected
+                {selectedItems.length === 1 ? 'Remove Item' : `Delete (${selectedItems.length})`}
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       <BottomNav />

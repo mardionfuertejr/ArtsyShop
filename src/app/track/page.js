@@ -1,31 +1,25 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 import BottomNav from '@/components/customer/BottomNav';
 import BrandLogo from '@/components/common/BrandLogo';
-import SiteFooter from '@/components/common/SiteFooter';
 import CartIconBtn from '@/components/customer/CartIconBtn';
 import HeaderSearchBar from '@/components/customer/HeaderSearchBar';
 import { useCart } from '@/lib/hooks/useCart';
 import { createClient } from '@/lib/supabase/client';
 import { formatCurrency } from '@/lib/utils/formatCurrency';
 import { formatDate, formatRelative } from '@/lib/utils/formatDate';
-import { getMockOrderByReference, addMockReview, MOCK_PRODUCTS } from '@/lib/mockData';
 import { MESSENGER_URL, CUSTOM_ORDER_MESSENGER_URL } from '@/lib/constants/customPrompts';
 
-function getTimelineSteps(orderType = 'delivery') {
+function getProcessSteps(orderType = 'delivery') {
   const isDelivery = orderType === 'delivery';
   return [
-    { key: 'confirmed', label: 'Confirmed',        desc: 'Details & payment verified' },
-    { key: 'preparing', label: 'Crafting',         desc: 'Handcrafting your order' },
-    { 
-      key: 'ready',     
-      label: isDelivery ? 'Out for Delivery' : 'Ready for Pickup', 
-      desc: isDelivery ? 'On the way to your address' : 'Ready at workshop location' 
-    },
-    { key: 'completed', label: 'Completed',        desc: 'Order successfully fulfilled' },
+    { key: 'pending', label: 'Submitted' },
+    { key: 'confirmed', label: 'Confirmed' },
+    { key: 'crafting', label: 'Crafting' },
+    { key: 'ready', label: isDelivery ? 'Delivery' : 'Pickup' },
   ];
 }
 
@@ -33,13 +27,14 @@ function getStatusIndex(status) {
   switch (status) {
     case 'pending':
     case 'for_confirmation':
-    case 'confirmed':
       return 0;
+    case 'confirmed':
+      return 1;
     case 'preparing':
     case 'crafting':
-      return 1;
-    case 'ready':
       return 2;
+    case 'ready':
+      return 3;
     case 'completed':
       return 3;
     default:
@@ -51,29 +46,63 @@ function getStatusHero(status, isDelivery) {
   switch (status) {
     case 'pending':
     case 'for_confirmation':
-      return { title: 'Order Received', subtitle: 'Your order has been submitted and is awaiting confirmation.' };
+      return {
+        badge: 'Submitted',
+        badgeClass: 'pending',
+        title: 'Order Submitted',
+        subtitle: 'Your order has been received and is pending confirmation.',
+      };
     case 'confirmed':
-      return { title: 'Order Confirmed', subtitle: 'Payment & details verified. Scheduled for crafting.' };
+      return {
+        badge: 'Confirmed',
+        badgeClass: 'confirmed',
+        title: 'Order Confirmed',
+        subtitle: 'Order details verified. Ready for crafting queue.',
+      };
     case 'preparing':
     case 'crafting':
-      return { title: "We're Handcrafting Your Order", subtitle: 'Our crafters are actively preparing your handmade pieces.' };
+      return {
+        badge: 'Crafting',
+        badgeClass: 'preparing',
+        title: 'Crafting in Progress',
+        subtitle: 'Artisans are currently creating your handcrafted items.',
+      };
     case 'ready':
       return {
+        badge: isDelivery ? 'Out for Delivery' : 'Ready for Pickup',
+        badgeClass: 'ready',
         title: isDelivery ? 'Out for Delivery' : 'Ready for Pickup',
-        subtitle: isDelivery ? 'Your package is on the way to your address.' : 'Your order is ready at the workshop.'
+        subtitle: isDelivery
+          ? 'Your order is packed and dispatched for delivery.'
+          : 'Your order is ready for collection at our Barugo studio.',
       };
     case 'completed':
-      return { title: 'Order Completed', subtitle: 'Your order has been successfully delivered and completed.' };
+      return {
+        badge: 'Completed',
+        badgeClass: 'completed',
+        title: 'Order Completed',
+        subtitle: 'Your order has been fulfilled. Thank you for your support!',
+      };
     case 'cancelled':
-      return { title: 'Order Cancelled', subtitle: 'This order was cancelled. Chat with us on Messenger for help.' };
+      return {
+        badge: 'Cancelled',
+        badgeClass: 'danger',
+        title: 'Order Cancelled',
+        subtitle: 'This order was cancelled. Please message us on Messenger for inquiries.',
+      };
     default:
-      return { title: 'Order Received', subtitle: 'Tracking your order progress.' };
+      return {
+        badge: 'Submitted',
+        badgeClass: 'pending',
+        title: 'Order Submitted',
+        subtitle: 'Tracking your order progress.',
+      };
   }
 }
 
 function TrackContent() {
   const router = useRouter();
-  const { addItem } = useCart();
+  const { addItems } = useCart();
   const searchParams = useSearchParams();
   const [refInput, setRefInput] = useState(searchParams?.get('ref') || '');
   const [order, setOrder] = useState(null);
@@ -81,6 +110,31 @@ function TrackContent() {
   const [error, setError] = useState('');
   const [copiedRef, setCopiedRef] = useState(false);
   const [reordering, setReordering] = useState(false);
+  const [showSearchDrawer, setShowSearchDrawer] = useState(false);
+  const [drawerInput, setDrawerInput] = useState('');
+  const drawerInputRef = useRef(null);
+
+  const handleToggleSearchDrawer = () => {
+    setShowSearchDrawer((prev) => {
+      const next = !prev;
+      if (next) {
+        setDrawerInput('');
+        setTimeout(() => {
+          drawerInputRef.current?.focus();
+        }, 100);
+      }
+      return next;
+    });
+  };
+
+  const handleDrawerSearchSubmit = (e) => {
+    if (e?.preventDefault) e.preventDefault();
+    const clean = drawerInput.trim().toUpperCase();
+    if (!clean) return;
+    setRefInput(clean);
+    handleSearch(clean);
+    setShowSearchDrawer(false);
+  };
 
   // Per-item review state
   const [itemRatings, setItemRatings] = useState({});
@@ -93,22 +147,15 @@ function TrackContent() {
     setReordering(true);
 
     try {
-      order.order_items.forEach((item, idx) => {
-        const productName = item.product_name || '';
-        const matched = MOCK_PRODUCTS.find((p) =>
-          p.name.toLowerCase() === productName.toLowerCase() ||
-          productName.toLowerCase().includes(p.name.toLowerCase()) ||
-          p.name.toLowerCase().includes(productName.toLowerCase())
-        );
+      const itemsToAdd = order.order_items.map((item, idx) => {
+        const itemUnitPrice = parseFloat(item.unit_price) || (parseFloat(item.total_price) / (item.quantity || 1)) || 250;
 
-        const itemUnitPrice = parseFloat(item.unit_price) || (parseFloat(item.total_price) / (item.quantity || 1)) || matched?.base_price || 250;
-
-        addItem({
-          productId: matched?.id || item.product_id || `item-${Date.now()}-${idx}-${Math.random().toString(36).slice(2, 6)}`,
-          productSlug: matched?.slug || 'fuzzy-wire-rose-bouquet',
-          productName: item.product_name || 'Handmade Flower Piece',
-          photo: matched?.photos?.[0] || matched?.product_photos?.[0]?.url || '/images/categories/flower-bouquets.png',
-          basePrice: matched?.base_price || itemUnitPrice,
+        return {
+          productId: item.product_id || `item-${Date.now()}-${idx}-${Math.random().toString(36).slice(2, 6)}`,
+          productSlug: item.product_slug || 'handmade-piece',
+          productName: item.product_name || 'Handmade Piece',
+          photo: item.photo || item.product_photo || '/images/categories/flower-bouquets.png',
+          basePrice: itemUnitPrice,
           unitPrice: itemUnitPrice,
           quantity: item.quantity || 1,
           options: (item.order_item_options || []).map((o) => {
@@ -119,8 +166,10 @@ function TrackContent() {
               additionalCost: parseFloat(o.additional_cost) || 0,
             };
           }),
-        });
+        };
       });
+
+      addItems(itemsToAdd);
 
       setTimeout(() => {
         router.push('/cart');
@@ -131,22 +180,39 @@ function TrackContent() {
     }
   };
 
-  const handleCopyRef = (text) => {
+  const handleCopyRef = async (text) => {
     if (!text) return;
     try {
-      const textarea = document.createElement('textarea');
-      textarea.value = text;
-      textarea.style.position = 'fixed';
-      textarea.style.opacity = '0';
-      document.body.appendChild(textarea);
-      textarea.focus();
-      textarea.select();
-      document.execCommand('copy');
-      document.body.removeChild(textarea);
-      if (navigator?.clipboard?.writeText) {
-        navigator.clipboard.writeText(text).catch(() => {});
+      if (typeof navigator !== 'undefined' && navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else if (typeof document !== 'undefined' && document.body) {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.focus();
+        textarea.select();
+        document.execCommand('copy');
+        if (textarea.parentNode === document.body) {
+          document.body.removeChild(textarea);
+        }
       }
       setCopiedRef(true);
+      if (typeof window !== 'undefined') {
+        try {
+          window.dispatchEvent(
+            new CustomEvent('likha_toast', {
+              detail: {
+                type: 'success',
+                title: 'Copied to Clipboard! 📋',
+                message: text,
+                duration: 2500,
+              },
+            })
+          );
+        } catch {}
+      }
       setTimeout(() => setCopiedRef(false), 2500);
     } catch {}
   };
@@ -229,34 +295,6 @@ function TrackContent() {
     }
 
     if (!foundOrder) {
-      foundOrder = getMockOrderByReference(lookupRef);
-    }
-
-    if (!foundOrder) {
-      const mockCR = (await import('@/lib/mockData')).MOCK_CUSTOM_REQUESTS?.find(
-        (r) => r.reference_code === lookupRef
-      );
-      if (mockCR) {
-        foundOrder = {
-          isCustomRequest: true,
-          reference_code: mockCR.reference_code,
-          customer_name: mockCR.customer_name,
-          status: mockCR.status === 'pending' ? 'pending' : 'confirmed',
-          order_type: 'custom_order',
-          total_amount: parseFloat(mockCR.quoted_price || mockCR.budget || 0),
-          preferred_date: mockCR.preferred_date,
-          created_at: mockCR.created_at,
-          order_items: [{
-            product_name: `Custom: ${mockCR.description?.slice(0, 50)}`,
-            quantity: 1,
-            total_price: parseFloat(mockCR.quoted_price || mockCR.budget || 0),
-            order_item_options: mockCR.preferred_color ? [{ option_value: `Color: ${mockCR.preferred_color}` }] : [],
-          }],
-        };
-      }
-    }
-
-    if (!foundOrder) {
       try {
         const localRaw = localStorage.getItem(`likha_last_order_${lookupRef}`);
         if (localRaw) {
@@ -287,7 +325,7 @@ function TrackContent() {
     }
 
     if (!foundOrder) {
-      setError('Order not found. Please verify your reference code (e.g. M&M-260908-001).');
+      setError('Order not found. Check your reference code.');
     } else {
       setOrder(foundOrder);
       // Auto-save to my orders list
@@ -319,35 +357,9 @@ function TrackContent() {
   useEffect(() => {
     try {
       const stored = JSON.parse(localStorage.getItem('likha_my_orders') || '[]');
-      const defaultActive = {
-        referenceCode: 'M&M-260908-001',
-        customerName: 'Maria Santos',
-        orderType: 'delivery',
-        totalAmount: 949,
-        itemsSummary: 'Fuzzy Wire Sunflower Bouquet ×1',
-        createdAt: new Date().toISOString(),
-        status: 'crafting',
-      };
-      const defaultCompleted = {
-        referenceCode: 'M&M-260906-006',
-        customerName: 'Janine Alcantara',
-        orderType: 'pickup',
-        totalAmount: 1250,
-        itemsSummary: 'Fuzzy Wire Tulip Garden Pot ×2',
-        createdAt: new Date(Date.now() - 2 * 86400000).toISOString(),
-        status: 'completed',
-      };
-
-      let merged = Array.isArray(stored) ? [...stored] : [];
-      if (!merged.some((o) => o.referenceCode === defaultActive.referenceCode)) {
-        merged.push(defaultActive);
+      if (Array.isArray(stored)) {
+        setSavedHistory(stored);
       }
-      if (!merged.some((o) => o.referenceCode === defaultCompleted.referenceCode)) {
-        merged.push(defaultCompleted);
-      }
-
-      setSavedHistory(merged);
-      localStorage.setItem('likha_my_orders', JSON.stringify(merged));
     } catch {}
   }, []);
 
@@ -387,23 +399,7 @@ function TrackContent() {
     setItemRatings((prev) => ({ ...prev, [itemIndex]: rating }));
     setItemSubmitting((prev) => ({ ...prev, [itemIndex]: true }));
 
-    const productName = item?.product_name || '';
-    const matchedProduct = MOCK_PRODUCTS.find((p) => 
-      p.name.toLowerCase() === productName.toLowerCase() ||
-      productName.toLowerCase().includes(p.name.toLowerCase()) ||
-      p.name.toLowerCase().includes(productName.toLowerCase())
-    );
-    const productSlug = matchedProduct ? matchedProduct.slug : 'fuzzy-wire-rose-bouquet';
-
     const cleanComment = (commentText || '').trim();
-    const newReview = {
-      productSlug,
-      customer_name: order?.customer_name || 'Verified Customer',
-      rating,
-      comment: cleanComment || 'Verified buyer review',
-      is_verified_buyer: true,
-      is_approved: true,
-    };
 
     // Permanently save to localStorage so the user can never re-rate or duplicate reviews
     try {
@@ -419,31 +415,37 @@ function TrackContent() {
 
     try {
       const supabase = createClient();
-      if (supabase && matchedProduct?.id) {
-        await supabase.from('product_reviews').insert([
-          {
-            product_id: matchedProduct.id,
-            customer_name: order?.customer_name || 'Verified Customer',
-            rating,
-            comment: cleanComment || 'Verified buyer review',
-            is_verified_buyer: true,
-            is_approved: true,
-          }
-        ]);
+      if (supabase) {
+        const productId = item?.product_id;
+        if (productId) {
+          await supabase.from('product_reviews').insert([
+            {
+              product_id: productId,
+              customer_name: order?.customer_name || 'Verified Customer',
+              rating,
+              comment: cleanComment || 'Verified buyer review',
+              is_verified_buyer: true,
+              is_approved: true,
+            }
+          ]);
+        }
       }
     } catch {}
 
-    addMockReview(newReview);
     setItemSubmitting((prev) => ({ ...prev, [itemIndex]: false }));
     setItemReviewed((prev) => ({ ...prev, [itemIndex]: true }));
+  };
+
+  const handleManualSearch = (e) => {
+    if (e?.preventDefault) e.preventDefault();
+    handleSearch();
   };
 
   const isCancelled = order?.status === 'cancelled';
   const isCompleted = order?.status === 'completed';
   const isDelivery = (order?.order_type || 'delivery') === 'delivery';
-  const timelineSteps = getTimelineSteps(order?.order_type || 'delivery');
+  const processSteps = getProcessSteps(order?.order_type || 'delivery');
   const currentStatusIdx = order ? getStatusIndex(order.status) : -1;
-  const currentStepInfo = timelineSteps[currentStatusIdx] || timelineSteps[0];
   const heroInfo = order ? getStatusHero(order.status, isDelivery) : null;
 
   return (
@@ -458,123 +460,115 @@ function TrackContent() {
         <nav className="top-bar-nav">
           <Link href="/" className="top-bar-link">Home</Link>
           <Link href="/shop" className="top-bar-link">Collection</Link>
-          <Link href="/custom-request" className="top-bar-link">Custom Orders</Link>
           <Link href="/track" className="top-bar-link active">Track Order</Link>
         </nav>
 
-        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px' }}>
+        {/* Action Controls */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <HeaderSearchBar />
           <CartIconBtn />
         </div>
       </header>
 
-      <main className="page-content page-enter" style={{ maxWidth: '560px', margin: '0 auto', width: '100%' }}>
-        {/* Search Header Section & My Orders List (Only when NO order is currently being viewed) */}
+      <main className="content-area" style={{ maxWidth: '540px', margin: '0 auto', width: '100%', paddingBottom: '100px' }}>
+        {/* Search / Track Input Bar (ONLY when NO order is currently being viewed) */}
         {!order && (
-          <div className="section" style={{ paddingTop: 'var(--space-2)' }}>
-            <div style={{ marginBottom: 'var(--space-3)' }}>
-              <h1 className="section-title" style={{ fontSize: '18px', fontWeight: '800', margin: 0, color: 'var(--color-text)' }}>
-                Track Your Order
-              </h1>
-            </div>
+          <div
+            style={{
+              minHeight: savedHistory.length === 0 ? 'calc(65vh - 70px)' : 'auto',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: savedHistory.length === 0 ? 'center' : 'flex-start',
+              paddingTop: savedHistory.length === 0 ? '0' : 'var(--space-3)',
+            }}
+          >
+            <div className="section" style={{ paddingBottom: savedHistory.length > 0 ? 'var(--space-2)' : '0' }}>
+              <div className="card" style={{ padding: '14px', boxShadow: '0 4px 20px rgba(0,0,0,0.04)' }}>
+                <form onSubmit={handleManualSearch} style={{ display: 'flex', gap: '8px' }}>
+                  <input
+                    type="text"
+                    className="input"
+                    placeholder="e.g. M&M-260909-001"
+                    value={refInput}
+                    onChange={(e) => setRefInput(e.target.value)}
+                    style={{
+                      flex: 1,
+                      fontFamily: refInput ? 'monospace' : 'inherit',
+                      fontWeight: '700',
+                      fontSize: '13.5px',
+                      textTransform: 'uppercase',
+                      height: '42px',
+                      minHeight: '42px',
+                      letterSpacing: refInput ? '0.04em' : 'normal',
+                      padding: '0 14px',
+                    }}
+                  />
+                  <button
+                    type="submit"
+                    className="btn btn-primary btn-press"
+                    disabled={loading || !refInput.trim()}
+                    style={{
+                      padding: '0 18px',
+                      height: '42px',
+                      minHeight: '42px',
+                      fontSize: '13px',
+                      fontWeight: '700',
+                      flexShrink: 0,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      borderRadius: 'var(--radius-md)',
+                      transition: 'all 0.18s ease',
+                    }}
+                  >
+                    {loading ? (
+                      <i className="fa-solid fa-spinner fa-spin"></i>
+                    ) : (
+                      <>
+                        <i className="fa-solid fa-magnifying-glass"></i>
+                        <span>Track</span>
+                      </>
+                    )}
+                  </button>
+                </form>
 
-            <div style={{ display: 'flex', gap: '8px', alignItems: 'stretch' }}>
-              <input
-                className="input"
-                type="text"
-                placeholder="e.g. M&M-260908-001"
-                value={refInput}
-                onChange={(e) => setRefInput(e.target.value.toUpperCase())}
-                onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                style={{
-                  flex: 1,
-                  fontFamily: 'monospace',
-                  letterSpacing: '0.05em',
-                  fontSize: '13.5px',
-                  height: '46px',
-                  minHeight: '46px',
-                  maxHeight: '46px',
-                  borderRadius: 'var(--radius-lg)',
-                  padding: '0 14px',
-                  boxSizing: 'border-box',
-                }}
-                id="track-ref-input"
-              />
-              <button
-                className="btn btn-primary"
-                onClick={() => handleSearch()}
-                disabled={loading || !refInput.trim()}
-                style={{
-                  height: '46px',
-                  minHeight: '46px',
-                  maxHeight: '46px',
-                  padding: '0 20px',
-                  fontSize: '13.5px',
-                  fontWeight: '700',
-                  borderRadius: 'var(--radius-lg)',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  boxSizing: 'border-box',
-                }}
-                id="track-search-btn"
-              >
-                {loading ? '...' : 'Track'}
-              </button>
-            </div>
-
-            {error && (
-              <div style={{
-                marginTop: 'var(--space-3)',
-                padding: '12px 14px',
-                background: 'var(--color-danger-bg)',
-                color: 'var(--color-danger)',
-                borderRadius: 'var(--radius-lg)',
-                fontSize: '12.5px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-              }}>
-                <i className="fa-solid fa-triangle-exclamation"></i>
-                <span>{error}</span>
+                {error && (
+                  <div style={{ marginTop: '12px', padding: '9px 12px', background: 'var(--color-danger-bg, #FEF2F2)', border: '1px solid var(--color-danger-border, #FCA5A5)', borderRadius: 'var(--radius-md)', color: 'var(--color-danger)', fontSize: '12px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <i className="fa-solid fa-circle-exclamation"></i>
+                    <span>{error}</span>
+                  </div>
+                )}
               </div>
-            )}
+            </div>
+          </div>
+        )}
 
-            {/* My Orders Section (Active on top, Past/Completed at bottom) */}
-            {savedHistory.length > 0 && (() => {
-              const activeList = savedHistory.filter(o => o.status !== 'completed' && o.status !== 'cancelled');
-              const pastList = savedHistory.filter(o => o.status === 'completed' || o.status === 'cancelled');
+        {/* If no order is currently selected: Show Order History */}
+        {!order && (
+          <div className="section" style={{ paddingTop: '0' }}>
+            {(() => {
+              const myOrders = savedHistory || [];
+              if (myOrders.length === 0) return null;
+
+              const activeList = myOrders.filter(o => o.status !== 'completed' && o.status !== 'cancelled');
+              const pastList = myOrders.filter(o => o.status === 'completed' || o.status === 'cancelled');
 
               return (
-                <div style={{ marginTop: 'var(--space-4)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                <div className="card" style={{ padding: '16px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <i className="fa-solid fa-receipt" style={{ color: 'var(--color-primary)', fontSize: '13.5px' }}></i>
+                      <i className="fa-solid fa-clock-rotate-left" style={{ color: 'var(--color-primary)', fontSize: '13px' }}></i>
                       <h2 style={{ fontSize: '14px', fontWeight: '800', margin: 0, color: 'var(--color-text)' }}>
-                        My Orders ({savedHistory.length})
+                        My Order History
                       </h2>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        localStorage.removeItem('likha_my_orders');
-                        setSavedHistory([]);
-                      }}
-                      style={{
-                        background: 'none',
-                        border: 'none',
-                        fontSize: '11px',
-                        color: 'var(--color-text-muted)',
-                        cursor: 'pointer',
-                        padding: '2px 4px',
-                      }}
-                    >
-                      Clear
-                    </button>
+                    <span style={{ fontSize: '11px', color: 'var(--color-text-muted)', fontWeight: '600' }}>
+                      {myOrders.length} {myOrders.length === 1 ? 'order' : 'orders'}
+                    </span>
                   </div>
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    {/* 1. Active Orders on TOP */}
+                    {/* 1. Active / Ongoing Orders at TOP */}
                     {activeList.map((item, idx) => (
                       <div
                         key={`active-${idx}`}
@@ -584,11 +578,10 @@ function TrackContent() {
                         }}
                         style={{
                           background: 'var(--color-surface)',
-                          border: '1px solid var(--color-border)',
+                          border: '1.5px solid var(--color-primary-light, #E2D9D2)',
                           borderRadius: 'var(--radius-lg)',
                           padding: '12px 14px',
                           cursor: 'pointer',
-                          boxShadow: 'var(--shadow-sm)',
                           transition: 'all 0.15s ease',
                           display: 'flex',
                           flexDirection: 'column',
@@ -596,10 +589,10 @@ function TrackContent() {
                         }}
                       >
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span style={{ fontFamily: 'monospace', fontWeight: '800', fontSize: '13.5px', color: 'var(--color-primary)' }}>
+                          <span style={{ fontFamily: 'monospace', fontWeight: '800', fontSize: '14px', color: 'var(--color-primary)' }}>
                             {item.referenceCode}
                           </span>
-                          <span className="badge badge-pending" style={{ fontSize: '10.5px', fontWeight: '700', padding: '2px 8px' }}>
+                          <span className={`badge badge-${item.status === 'ready' ? 'ready' : item.status === 'crafting' ? 'preparing' : 'pending'}`} style={{ fontSize: '10.5px', fontWeight: '700', textTransform: 'capitalize' }}>
                             {item.status === 'ready' ? (item.orderType === 'delivery' ? 'Out for Delivery' : 'Ready for Pickup') : item.status === 'crafting' ? 'Crafting' : item.status === 'confirmed' ? 'Confirmed' : 'Submitted'}
                           </span>
                         </div>
@@ -607,7 +600,7 @@ function TrackContent() {
                         {item.itemsSummary && (
                           <p style={{
                             fontSize: '12px',
-                            color: 'var(--color-text)',
+                            color: 'var(--color-text-secondary)',
                             fontWeight: '500',
                             margin: 0,
                             whiteSpace: 'nowrap',
@@ -625,7 +618,7 @@ function TrackContent() {
                       </div>
                     ))}
 
-                    {/* 2. Past / Completed Orders at BOTTOM (Pinakahuli) */}
+                    {/* 2. Past / Completed Orders at BOTTOM */}
                     {pastList.length > 0 && (
                       <div style={{ marginTop: activeList.length > 0 ? '8px' : '0' }}>
                         {activeList.length > 0 && (
@@ -720,75 +713,343 @@ function TrackContent() {
         {/* Order Details & Stepper (When an order is being viewed) */}
         {order && (
           <div className="section" style={{ paddingTop: 'var(--space-2)' }}>
-            {/* Back to Search & My Orders */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
+            {/* Top Navigation Bar: Back Button & Smooth Search Another Toggle */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px', gap: '8px' }}>
               <button
                 type="button"
-                onClick={() => { setOrder(null); setRefInput(''); }}
+                className="btn-press"
+                onClick={() => {
+                  setOrder(null);
+                  setRefInput('');
+                  setShowSearchDrawer(false);
+                }}
                 style={{
-                  background: 'none',
-                  border: 'none',
-                  color: 'var(--color-primary)',
-                  fontSize: '13px',
+                  background: 'var(--color-surface)',
+                  border: '1px solid var(--color-border)',
+                  color: 'var(--color-text)',
+                  fontSize: '12px',
                   fontWeight: '700',
                   cursor: 'pointer',
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: '6px',
-                  padding: '4px 0',
+                  padding: '7px 13px',
+                  borderRadius: 'var(--radius-full)',
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
+                  transition: 'all 0.18s ease',
                 }}
               >
-                <i className="fa-solid fa-arrow-left"></i>
-                <span>Back to My Orders</span>
+                <i className="fa-solid fa-arrow-left" style={{ color: 'var(--color-primary)', fontSize: '11px' }}></i>
+                <span>All Orders</span>
               </button>
 
-              <span style={{ fontFamily: 'monospace', fontWeight: '800', color: 'var(--color-text-secondary)', fontSize: '12px' }}>
-                {order.reference_code}
-              </span>
+              <button
+                type="button"
+                className="btn-press"
+                onClick={handleToggleSearchDrawer}
+                style={{
+                  background: showSearchDrawer ? 'var(--color-primary)' : 'var(--color-surface)',
+                  border: `1.5px solid ${showSearchDrawer ? 'var(--color-primary)' : 'var(--color-border)'}`,
+                  color: showSearchDrawer ? '#ffffff' : 'var(--color-text)',
+                  fontSize: '12px',
+                  fontWeight: '700',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  padding: '7px 13px',
+                  borderRadius: 'var(--radius-full)',
+                  boxShadow: showSearchDrawer ? '0 3px 10px rgba(160, 82, 45, 0.22)' : '0 1px 2px rgba(0,0,0,0.03)',
+                  transition: 'all 0.22s cubic-bezier(0.16, 1, 0.3, 1)',
+                  transform: showSearchDrawer ? 'scale(1.02)' : 'scale(1)',
+                }}
+              >
+                <i
+                  className={`fa-solid ${showSearchDrawer ? 'fa-xmark' : 'fa-magnifying-glass'}`}
+                  style={{
+                    fontSize: '11px',
+                    transition: 'transform 0.22s ease',
+                    transform: showSearchDrawer ? 'rotate(90deg)' : 'rotate(0deg)',
+                  }}
+                ></i>
+                <span>{showSearchDrawer ? 'Close Search' : 'Search Another'}</span>
+              </button>
             </div>
 
-            {/* Card 1: Order Status & Details (Only for Active / Ongoing Orders) */}
-            {!isCompleted && (
+            {/* Smooth Expanding Inline Search Drawer */}
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateRows: showSearchDrawer ? '1fr' : '0fr',
+                transition: 'grid-template-rows 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.22s ease, margin-bottom 0.3s ease',
+                opacity: showSearchDrawer ? 1 : 0,
+                marginBottom: showSearchDrawer ? '14px' : '0',
+                overflow: 'hidden',
+                pointerEvents: showSearchDrawer ? 'auto' : 'none',
+              }}
+            >
+              <div style={{ minHeight: 0, paddingBottom: '2px' }}>
+                <div
+                  style={{
+                    background: 'var(--color-surface)',
+                    border: '1.5px solid var(--color-primary)',
+                    borderRadius: 'var(--radius-xl)',
+                    padding: '12px 14px',
+                    boxShadow: '0 8px 24px rgba(160, 82, 45, 0.08)',
+                    transform: showSearchDrawer ? 'translateY(0)' : 'translateY(-6px)',
+                    transition: 'transform 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+                  }}
+                >
+                  <form onSubmit={handleDrawerSearchSubmit} style={{ display: 'flex', gap: '8px' }}>
+                    <div style={{ position: 'relative', flex: 1, display: 'flex', alignItems: 'center' }}>
+                      <i
+                        className="fa-solid fa-magnifying-glass"
+                        style={{
+                          position: 'absolute',
+                          left: '12px',
+                          fontSize: '12px',
+                          color: 'var(--color-text-muted)',
+                          pointerEvents: 'none',
+                        }}
+                      ></i>
+                      <input
+                        ref={drawerInputRef}
+                        type="text"
+                        className="input"
+                        placeholder="e.g. M&M-260909-001"
+                        value={drawerInput}
+                        onChange={(e) => setDrawerInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Escape') {
+                            setShowSearchDrawer(false);
+                          }
+                        }}
+                        style={{
+                          width: '100%',
+                          fontFamily: drawerInput ? 'monospace' : 'inherit',
+                          fontWeight: '700',
+                          fontSize: '13px',
+                          textTransform: 'uppercase',
+                          height: '40px',
+                          minHeight: '40px',
+                          padding: '0 32px 0 32px',
+                          letterSpacing: drawerInput ? '0.04em' : 'normal',
+                        }}
+                      />
+                      {drawerInput.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setDrawerInput('');
+                            drawerInputRef.current?.focus();
+                          }}
+                          style={{
+                            position: 'absolute',
+                            right: '10px',
+                            background: 'none',
+                            border: 'none',
+                            color: 'var(--color-text-muted)',
+                            cursor: 'pointer',
+                            padding: '4px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '12px',
+                          }}
+                          aria-label="Clear input"
+                        >
+                          <i className="fa-solid fa-circle-xmark"></i>
+                        </button>
+                      )}
+                    </div>
+                    <button
+                      type="submit"
+                      className="btn btn-primary"
+                      disabled={loading || !drawerInput.trim()}
+                      style={{
+                        padding: '0 16px',
+                        height: '40px',
+                        minHeight: '40px',
+                        fontSize: '12.5px',
+                        fontWeight: '700',
+                        flexShrink: 0,
+                        borderRadius: 'var(--radius-md)',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        transition: 'all 0.18s ease',
+                      }}
+                    >
+                      {loading ? (
+                        <i className="fa-solid fa-spinner fa-spin"></i>
+                      ) : (
+                        <>
+                          <span>Track</span>
+                          <i className="fa-solid fa-arrow-right" style={{ fontSize: '10.5px' }}></i>
+                        </>
+                      )}
+                    </button>
+                  </form>
+
+                  {/* Quick recent orders chips if available */}
+                  {(() => {
+                    const otherOrders = (savedHistory || []).filter(
+                      (o) => o.referenceCode && o.referenceCode.toUpperCase() !== order?.reference_code?.toUpperCase()
+                    );
+                    if (otherOrders.length === 0) return null;
+
+                    return (
+                      <div style={{ marginTop: '10px', paddingTop: '8px', borderTop: '1px dashed var(--color-border-light)', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: '11px', color: 'var(--color-text-muted)', fontWeight: '600' }}>Recent:</span>
+                        {otherOrders.slice(0, 3).map((hist, hIdx) => (
+                          <button
+                            key={`drawer-rec-${hIdx}`}
+                            type="button"
+                            className="btn-press"
+                            onClick={() => {
+                              setRefInput(hist.referenceCode);
+                              handleSearch(hist.referenceCode);
+                              setShowSearchDrawer(false);
+                            }}
+                            style={{
+                              background: 'var(--color-surface-warm, #FAF8F5)',
+                              border: '1px solid var(--color-border-light)',
+                              borderRadius: 'var(--radius-full)',
+                              padding: '3px 9px',
+                              fontSize: '11px',
+                              fontFamily: 'monospace',
+                              fontWeight: '700',
+                              color: 'var(--color-primary)',
+                              cursor: 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              transition: 'all 0.15s ease',
+                            }}
+                          >
+                            <i className="fa-solid fa-clock-rotate-left" style={{ fontSize: '9px', opacity: 0.7 }}></i>
+                            <span>{hist.referenceCode}</span>
+                          </button>
+                        ))}
+                      </div>
+                    );
+                  })()}
+                </div>
+              </div>
+            </div>
+
+            {/* Unified Master Status & Progress Card */}
+            {!isCancelled ? (
               <div className="card" style={{ marginBottom: 'var(--space-3)', background: 'var(--color-surface)', padding: '16px' }}>
-                {/* Header: Reference + Status Badge */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ fontFamily: 'monospace', fontWeight: '800', color: 'var(--color-primary)', fontSize: '15px' }}>
+                {/* Header: Title on Left, Reference Code on Right */}
+                <div style={{ marginBottom: isCompleted ? '12px' : '14px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
+                    <h2 style={{ fontSize: '18px', fontWeight: '800', margin: 0, color: 'var(--color-text)' }}>
+                      {heroInfo?.title}
+                    </h2>
+                    <span style={{
+                      fontFamily: 'monospace',
+                      fontWeight: '800',
+                      fontSize: '12.5px',
+                      color: 'var(--color-primary)',
+                      letterSpacing: '0.02em',
+                      flexShrink: 0,
+                    }}>
                       {order.reference_code}
                     </span>
-                    <button
-                      type="button"
-                      onClick={() => handleCopyRef(order.reference_code)}
-                      style={{
-                        background: copiedRef ? 'var(--color-success-bg, #ECFDF5)' : 'var(--color-surface-warm, #FAF8F5)',
-                        border: `1px solid ${copiedRef ? 'var(--color-success, #10B981)' : 'var(--color-border)'}`,
-                        color: copiedRef ? 'var(--color-success, #10B981)' : 'var(--color-text-secondary)',
-                        padding: '2px 8px',
-                        borderRadius: 'var(--radius-sm)',
-                        fontSize: '11px',
-                        cursor: 'pointer',
-                        fontWeight: '600',
-                      }}
-                      title="Copy Reference Code"
-                    >
-                      {copiedRef ? 'Copied ✓' : 'Copy'}
-                    </button>
                   </div>
-
-                  <span className={`badge badge-${isCancelled ? 'danger' : order.status === 'completed' ? 'completed' : 'pending'}`} style={{ fontSize: '11.5px', textTransform: 'capitalize', fontWeight: '700' }}>
-                    {isCancelled ? 'Cancelled' : currentStepInfo.label}
-                  </span>
                 </div>
 
-                {/* Status Headline */}
-                <div style={{ marginBottom: '14px' }}>
-                  <h2 style={{ fontSize: '16px', fontWeight: '800', margin: '0 0 2px 0', color: 'var(--color-text)' }}>
-                    {heroInfo?.title}
-                  </h2>
-                  <p style={{ fontSize: '12px', color: 'var(--color-text-secondary)', margin: 0 }}>
-                    {heroInfo?.subtitle}
-                  </p>
-                </div>
+                {/* Compact Horizontal Stepper (4 steps) */}
+                {!isCompleted && (
+                  <div style={{ marginBottom: '18px', padding: '8px 4px 4px' }}>
+                    <div style={{ position: 'relative', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                      {/* Connecting Background Line */}
+                      <div
+                        style={{
+                          position: 'absolute',
+                          top: '13px',
+                          left: '12.5%',
+                          right: '12.5%',
+                          height: '3px',
+                          background: 'var(--color-border-light)',
+                          borderRadius: '999px',
+                          zIndex: 0,
+                        }}
+                      />
+                      {/* Connecting Active Fill Line */}
+                      <div
+                        style={{
+                          position: 'absolute',
+                          top: '13px',
+                          left: '12.5%',
+                          width: `${(Math.min(3, Math.max(0, currentStatusIdx)) / 3) * 75}%`,
+                          height: '3px',
+                          background: 'var(--color-primary)',
+                          borderRadius: '999px',
+                          zIndex: 0,
+                          transition: 'width 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                        }}
+                      />
+
+                      {/* 4 Process Step Points */}
+                      {processSteps.map((step, idx) => {
+                        const isStepCompleted = idx < currentStatusIdx;
+                        const isCurrent = idx === currentStatusIdx;
+
+                        return (
+                          <div
+                            key={step.key}
+                            style={{
+                              position: 'relative',
+                              zIndex: 1,
+                              display: 'flex',
+                              flexDirection: 'column',
+                              alignItems: 'center',
+                              width: '25%',
+                              textAlign: 'center',
+                            }}
+                          >
+                            <div
+                              style={{
+                                width: '26px',
+                                height: '26px',
+                                borderRadius: '50%',
+                                background: isStepCompleted || isCurrent ? 'var(--color-primary)' : 'var(--color-surface)',
+                                border: `2px solid ${isStepCompleted || isCurrent ? 'var(--color-primary)' : 'var(--color-border)'}`,
+                                color: isStepCompleted || isCurrent ? '#fff' : 'var(--color-text-muted)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontSize: '10.5px',
+                                fontWeight: '800',
+                                boxShadow: isCurrent ? '0 0 0 3.5px rgba(160, 82, 45, 0.18)' : 'none',
+                                transition: 'all 0.2s ease',
+                                marginBottom: '6px',
+                              }}
+                            >
+                              {isStepCompleted ? (
+                                <i className="fa-solid fa-check" style={{ fontSize: '10px' }}></i>
+                              ) : (
+                                <span>{idx + 1}</span>
+                              )}
+                            </div>
+                            <span
+                              style={{
+                                fontSize: '11px',
+                                fontWeight: isCurrent ? '800' : isStepCompleted ? '700' : '500',
+                                color: isCurrent ? 'var(--color-primary)' : isStepCompleted ? 'var(--color-text)' : 'var(--color-text-muted)',
+                                lineHeight: 1.2,
+                              }}
+                            >
+                              {step.label}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
 
                 {/* Key Metadata Box */}
                 <div
@@ -803,75 +1064,122 @@ function TrackContent() {
                     fontSize: '12px',
                   }}
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ color: 'var(--color-text-muted)', fontSize: '11.5px' }}>Customer</span>
-                    <span style={{ fontWeight: '700', color: 'var(--color-text)' }}>{order.customer_name}</span>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                    <div style={{ minWidth: 0, overflow: 'hidden' }}>
+                      <span style={{ color: 'var(--color-text-muted)', fontSize: '11px', display: 'block', marginBottom: '1px' }}>Customer</span>
+                      <span
+                        style={{
+                          fontWeight: '700',
+                          color: 'var(--color-text)',
+                          display: 'block',
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                        }}
+                        title={order.customer_name}
+                      >
+                        {order.customer_name}
+                      </span>
+                    </div>
+                    <div style={{ minWidth: 0, overflow: 'hidden' }}>
+                      <span style={{ color: 'var(--color-text-muted)', fontSize: '11px', display: 'block', marginBottom: '1px' }}>Claim Method</span>
+                      <span
+                        style={{
+                          fontWeight: '700',
+                          color: 'var(--color-text)',
+                          display: 'block',
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                        }}
+                        title={isDelivery ? 'Delivery' : 'Pickup'}
+                      >
+                        {isDelivery ? 'Delivery' : 'Pickup'}
+                      </span>
+                    </div>
                   </div>
 
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ color: 'var(--color-text-muted)', fontSize: '11.5px' }}>Delivery Method</span>
-                    <span style={{ fontWeight: '700', color: 'var(--color-text)' }}>{isDelivery ? 'Delivery' : 'Store Pickup'}</span>
-                  </div>
-
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ color: 'var(--color-text-muted)', fontSize: '11.5px' }}>Placed On</span>
-                    <span style={{ fontWeight: '600', color: 'var(--color-text)' }}>
-                      {formatDate(order.created_at) || formatRelative(order.created_at)}
-                    </span>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', borderTop: '1px solid var(--color-border-light)', paddingTop: '8px' }}>
+                    <div style={{ minWidth: 0, overflow: 'hidden' }}>
+                      <span style={{ color: 'var(--color-text-muted)', fontSize: '11px', display: 'block', marginBottom: '1px' }}>Placed On</span>
+                      <span
+                        style={{
+                          fontWeight: '600',
+                          color: 'var(--color-text)',
+                          display: 'block',
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                        }}
+                        title={formatDate(order.created_at) || formatRelative(order.created_at)}
+                      >
+                        {formatDate(order.created_at) || formatRelative(order.created_at)}
+                      </span>
+                    </div>
+                    <div style={{ minWidth: 0, overflow: 'hidden' }}>
+                      <span style={{ color: 'var(--color-text-muted)', fontSize: '11px', display: 'block', marginBottom: '1px' }}>
+                        {order.target_date || order.preferred_date ? 'Target Date' : isDelivery ? 'Delivery Type' : 'Pickup Location'}
+                      </span>
+                      <span
+                        style={{
+                          fontWeight: '600',
+                          color: 'var(--color-text)',
+                          display: 'block',
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                        }}
+                        title={
+                          order.target_date || order.preferred_date
+                            ? formatDate(order.target_date || order.preferred_date)
+                            : isDelivery
+                            ? 'Standard Delivery'
+                            : 'Barugo Studio'
+                        }
+                      >
+                        {order.target_date || order.preferred_date
+                          ? formatDate(order.target_date || order.preferred_date)
+                          : isDelivery
+                          ? 'Standard Delivery'
+                          : 'Barugo Studio'}
+                      </span>
+                    </div>
                   </div>
 
                   {order.delivery_address && isDelivery && (
-                    <div style={{ borderTop: '1px solid var(--color-border-light)', paddingTop: '6px', display: 'flex', justifyContent: 'space-between', gap: '12px' }}>
-                      <span style={{ color: 'var(--color-text-muted)', fontSize: '11.5px', flexShrink: 0 }}>Address</span>
-                      <span style={{ fontWeight: '500', color: 'var(--color-text)', textAlign: 'right', wordBreak: 'break-word' }}>
+                    <div style={{ borderTop: '1px solid var(--color-border-light)', paddingTop: '8px', minWidth: 0, overflow: 'hidden' }}>
+                      <span style={{ color: 'var(--color-text-muted)', fontSize: '11px', display: 'block', marginBottom: '1px' }}>Delivery Address</span>
+                      <span
+                        style={{
+                          fontWeight: '500',
+                          color: 'var(--color-text)',
+                          display: '-webkit-box',
+                          WebkitLineClamp: 2,
+                          WebkitBoxOrient: 'vertical',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          lineHeight: 1.35,
+                        }}
+                        title={order.delivery_address}
+                      >
                         {order.delivery_address}
                       </span>
                     </div>
                   )}
                 </div>
               </div>
-            )}
-
-            {/* Card 2: Order Progress Stepper (Only for Active / Ongoing Orders) */}
-            {!isCancelled && !isCompleted ? (
-              <div className="card" style={{ marginBottom: 'var(--space-3)', padding: '16px' }}>
-                <h3 style={{ fontFamily: 'var(--font-heading)', fontSize: '14px', fontWeight: '800', marginBottom: '14px', color: 'var(--color-text)' }}>
-                  Order Progress
-                </h3>
-
-                <div className="order-timeline" style={{ padding: '0 4px' }}>
-                  {timelineSteps.map((step, idx) => {
-                    const isStepCompleted = idx < currentStatusIdx;
-                    const isActive = idx === currentStatusIdx;
-                    return (
-                      <div key={step.key} className={`timeline-step${isStepCompleted ? ' completed' : ''}${isActive ? ' active' : ''}`}>
-                        <div className="timeline-dot" style={{ fontWeight: '700', fontSize: '12px' }}>
-                          {isStepCompleted ? (
-                            <i className="fa-solid fa-check" style={{ fontSize: '11px' }}></i>
-                          ) : (
-                            <span>{idx + 1}</span>
-                          )}
-                        </div>
-                        <div className="timeline-content">
-                          <p className="timeline-label" style={{ fontSize: '13.5px', fontWeight: '700' }}>{step.label}</p>
-                          {(isActive || isStepCompleted) && (
-                            <p className="timeline-desc" style={{ fontSize: '11.5px' }}>{step.desc}</p>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            ) : isCancelled ? (
+            ) : (
               <div className="card" style={{ textAlign: 'center', padding: 'var(--space-4)', marginBottom: 'var(--space-3)' }}>
                 <i className="fa-solid fa-circle-xmark" style={{ fontSize: '2rem', color: 'var(--color-danger)', marginBottom: 'var(--space-2)' }}></i>
                 <p style={{ fontWeight: 'var(--weight-bold)', color: 'var(--color-danger)', margin: 0 }}>Order Cancelled</p>
+                <p style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginTop: '4px' }}>
+                  Reference: <span style={{ fontFamily: 'monospace', fontWeight: '700' }}>{order.reference_code}</span>
+                </p>
                 <p style={{ fontSize: 'var(--text-xs)', color: 'var(--color-text-secondary)', marginTop: 'var(--space-1)' }}>
                   Please contact us via Messenger for any questions.
                 </p>
               </div>
-            ) : null}
+            )}
 
             {/* Card 3: Completed Rating & Feedback (Only when Completed) */}
             {isCompleted && !order.isCustomRequest && order.order_items?.length > 0 && (
@@ -1050,19 +1358,53 @@ function TrackContent() {
                 Ordered Items
               </h3>
               {order.order_items?.map((item, i) => (
-                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid var(--color-border-light)', fontSize: '13px' }}>
-                  <div style={{ paddingRight: '12px' }}>
-                    <p style={{ fontWeight: '700', margin: 0 }}>
+                <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '9px 0', borderBottom: '1px solid var(--color-border-light)', fontSize: '13px' }}>
+                  <div style={{ paddingRight: '12px', minWidth: 0, flex: 1, overflow: 'hidden' }}>
+                    <p
+                      style={{
+                        fontWeight: '700',
+                        margin: 0,
+                        color: 'var(--color-text)',
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                      }}
+                      title={item.product_name}
+                    >
                       {item.product_name}
-                      {item.quantity > 1 && <span style={{ color: 'var(--color-text-muted)' }}> ×{item.quantity}</span>}
+                      {item.quantity > 1 && (
+                        <span style={{
+                          display: 'inline-block',
+                          marginLeft: '6px',
+                          padding: '1px 6px',
+                          borderRadius: 'var(--radius-full)',
+                          background: 'var(--color-surface-warm, #FAF8F5)',
+                          border: '1px solid var(--color-border-light)',
+                          fontSize: '11px',
+                          fontWeight: '700',
+                          color: 'var(--color-primary)',
+                        }}>
+                          ×{item.quantity}
+                        </span>
+                      )}
                     </p>
                     {item.order_item_options?.length > 0 && (
-                      <p style={{ fontSize: '11.5px', color: 'var(--color-text-secondary)', margin: '2px 0 0' }}>
+                      <p
+                        style={{
+                          fontSize: '11.5px',
+                          color: 'var(--color-text-secondary)',
+                          margin: '2px 0 0',
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                        }}
+                        title={item.order_item_options.map(o => o.option_value).join(' · ')}
+                      >
                         {item.order_item_options.map(o => o.option_value).join(' · ')}
                       </p>
                     )}
                   </div>
-                  <p style={{ fontWeight: '700', margin: 0, whiteSpace: 'nowrap' }}>{formatCurrency(item.total_price)}</p>
+                  <p style={{ fontWeight: '700', margin: 0, whiteSpace: 'nowrap', color: 'var(--color-text)', flexShrink: 0 }}>{formatCurrency(item.total_price)}</p>
                 </div>
               ))}
 
@@ -1080,7 +1422,7 @@ function TrackContent() {
                     </div>
                   </>
                 )}
-                <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '6px', borderTop: parseFloat(order.delivery_fee) > 0 ? '1px solid var(--color-border-light)' : 'none', fontWeight: '800', fontSize: '14.5px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '8px', borderTop: parseFloat(order.delivery_fee) > 0 ? '1px solid var(--color-border-light)' : 'none', fontWeight: '800', fontSize: '15px' }}>
                   <span>Total</span>
                   <span style={{ color: 'var(--color-primary)' }}>{formatCurrency(order.total_amount)}</span>
                 </div>
@@ -1096,7 +1438,7 @@ function TrackContent() {
                     Need Help with this Order?
                   </h3>
                 </div>
-                <p style={{ fontSize: '12px', color: 'var(--color-text-secondary)', margin: '0 0 10px 0' }}>
+                <p style={{ fontSize: '12px', color: 'var(--color-text-secondary)', margin: '0 0 10px 0', lineHeight: 1.4 }}>
                   Pumili ng template sa ibaba para kusa itong makopya at direktang magbukas sa chatbox:
                 </p>
 
@@ -1118,7 +1460,7 @@ function TrackContent() {
                         background: 'var(--color-surface-warm, #FAF8F5)',
                         border: '1px solid var(--color-border-light)',
                         borderRadius: 'var(--radius-md)',
-                        padding: '8px 12px',
+                        padding: '9px 12px',
                         textAlign: 'left',
                         fontSize: '12px',
                         fontWeight: '600',
@@ -1186,9 +1528,6 @@ function TrackContent() {
             </div>
           </div>
         )}
-
-        {/* Unified Sticky-Bottom Site Footer */}
-        <SiteFooter />
       </main>
 
       <BottomNav />

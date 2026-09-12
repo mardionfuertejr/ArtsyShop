@@ -108,22 +108,6 @@ export default function HomeShowcaseTabs({ allProducts = [] }) {
               />
             ))}
           </div>
-
-          {/* Smart End-of-Showcase Custom Invite */}
-          <div className="smart-custom-invite">
-            <h4 className="smart-custom-invite-title">{prompt.title}</h4>
-            <p className="smart-custom-invite-subtitle">{prompt.subtitle}</p>
-            <a
-              href={getPromptMessengerUrl(prompt)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="smart-custom-invite-btn"
-              id="home-smart-custom-btn"
-            >
-              <span>{prompt.buttonText}</span>
-              <i className="fa-solid fa-arrow-right" style={{ fontSize: '10px' }}></i>
-            </a>
-          </div>
         </>
       ) : (
         <div style={{ textAlign: 'center', padding: 'var(--space-8) 0' }}>

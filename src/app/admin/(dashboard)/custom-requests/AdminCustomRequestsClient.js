@@ -254,11 +254,32 @@ export default function AdminCustomRequestsClient() {
                         {formatRelative(req.created_at)}
                       </span>
                     </td>
-                    <td style={{ padding: '13px 16px', verticalAlign: 'top' }}>
-                      <p style={{ fontWeight: '700', color: '#0f172a', margin: '0 0 2px', fontSize: '13px' }}>
+                    <td style={{ padding: '13px 16px', verticalAlign: 'top', maxWidth: '180px' }}>
+                      <p
+                        style={{
+                          fontWeight: '700',
+                          color: '#0f172a',
+                          margin: '0 0 2px',
+                          fontSize: '13px',
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                        }}
+                        title={req.customer_name}
+                      >
                         {req.customer_name}
                       </p>
-                      <p style={{ fontSize: '11.5px', color: '#64748b', margin: 0 }}>
+                      <p
+                        style={{
+                          fontSize: '11.5px',
+                          color: '#64748b',
+                          margin: 0,
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                        }}
+                        title={req.customer_phone}
+                      >
                         {req.customer_phone}
                       </p>
                     </td>

@@ -25,20 +25,41 @@ export default function OptionSelector({
   onSelect,
 }) {
   const [isOpen, setIsOpen] = useState(false);
+  const [isClosing, setIsClosing] = useState(false);
+  const [highlightedChoice, setHighlightedChoice] = useState(null);
   const containerRef = useRef(null);
+  const closeTimerRef = useRef(null);
 
   const name = optionName || option?.option_name || '';
   const rawChoices = choices || option?.choices || [];
   const activeSelected = selected ?? selectedValue ?? '';
 
+  const handleClose = () => {
+    if (!isOpen || isClosing) return;
+    setIsClosing(true);
+    setTimeout(() => {
+      setIsOpen(false);
+      setIsClosing(false);
+    }, 180);
+  };
+
+  const handleToggle = () => {
+    if (isOpen) {
+      handleClose();
+    } else {
+      setIsClosing(false);
+      setIsOpen(true);
+    }
+  };
+
   // Close dropdown on outside click
   useEffect(() => {
     function handleClickOutside(event) {
       if (containerRef.current && !containerRef.current.contains(event.target)) {
-        setIsOpen(false);
+        handleClose();
       }
     }
-    if (isOpen) {
+    if (isOpen && !isClosing) {
       document.addEventListener('mousedown', handleClickOutside);
       document.addEventListener('touchstart', handleClickOutside);
     }
@@ -46,7 +67,13 @@ export default function OptionSelector({
       document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('touchstart', handleClickOutside);
     };
-  }, [isOpen]);
+  }, [isOpen, isClosing]);
+
+  useEffect(() => {
+    return () => {
+      if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
+    };
+  }, []);
 
   if (!rawChoices || rawChoices.length === 0) {
     return null;
@@ -87,8 +114,87 @@ export default function OptionSelector({
     }
   }
 
+  const handleSelectOption = (cleanLabel, extraCost) => {
+    setHighlightedChoice(cleanLabel);
+    onSelect(cleanLabel, extraCost);
+
+    // Micro-delay gives instant visual touch feedback before smooth exit
+    closeTimerRef.current = setTimeout(() => {
+      handleClose();
+      setHighlightedChoice(null);
+    }, 120);
+  };
+
   return (
     <div ref={containerRef} style={{ position: 'relative', marginBottom: '8px' }}>
+      {/* Dynamic Keyframes for smooth animations */}
+      <style>{`
+        @keyframes optionMenuEnter {
+          0% {
+            opacity: 0;
+            transform: translateY(-8px) scale(0.97);
+            filter: blur(2px);
+          }
+          70% {
+            transform: translateY(1px) scale(1.005);
+          }
+          100% {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+            filter: blur(0);
+          }
+        }
+        @keyframes optionMenuExit {
+          0% {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+          }
+          100% {
+            opacity: 0;
+            transform: translateY(-6px) scale(0.97);
+          }
+        }
+        @keyframes checkmarkPop {
+          0% {
+            opacity: 0;
+            transform: scale(0.4) rotate(-15deg);
+          }
+          70% {
+            transform: scale(1.25) rotate(4deg);
+          }
+          100% {
+            opacity: 1;
+            transform: scale(1) rotate(0deg);
+          }
+        }
+        @keyframes swatchGlow {
+          0% { transform: scale(0.8); }
+          50% { transform: scale(1.15); }
+          100% { transform: scale(1); }
+        }
+        .option-selector-trigger {
+          transition: border-color 0.22s ease, box-shadow 0.22s ease, background-color 0.2s ease, transform 0.15s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .option-selector-trigger:active {
+          transform: scale(0.99);
+        }
+        .option-choice-item {
+          transition: background-color 0.16s ease, color 0.16s ease, transform 0.16s cubic-bezier(0.16, 1, 0.3, 1), padding-left 0.16s ease;
+        }
+        .option-choice-item:hover {
+          background-color: var(--color-surface-warm, #F8FAFC);
+          padding-left: 13px !important;
+        }
+        .option-choice-item:active {
+          transform: scale(0.985);
+        }
+        .option-choice-item.is-active {
+          background-color: var(--color-primary-lighter, #FFF5F2) !important;
+          color: var(--color-primary, #EA580C) !important;
+          font-weight: 700 !important;
+        }
+      `}</style>
+
       {/* Label */}
       <label
         style={{
@@ -96,34 +202,38 @@ export default function OptionSelector({
           fontSize: '12px',
           fontWeight: '700',
           color: 'var(--color-text)',
-          marginBottom: '4px',
+          marginBottom: '5px',
+          letterSpacing: '0.01em',
         }}
       >
         {name}
       </label>
 
-      {/* Trigger Button - Sleek Single Line */}
+      {/* Trigger Button - Sleek Single Line with smooth focus state */}
       <button
         type="button"
-        onClick={() => setIsOpen((prev) => !prev)}
+        onClick={handleToggle}
+        className="option-selector-trigger"
         style={{
           width: '100%',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
           gap: '8px',
-          padding: '8px 12px',
-          minHeight: '38px',
-          borderRadius: '10px',
+          padding: '8.5px 12px',
+          minHeight: '40px',
+          borderRadius: '12px',
           border: isOpen
-            ? '1.5px solid var(--color-primary, #C2410C)'
+            ? '1.5px solid var(--color-primary, #EA580C)'
             : '1.5px solid var(--color-border-light, #E2E8F0)',
+          boxShadow: isOpen
+            ? '0 0 0 3.5px rgba(234, 88, 12, 0.12), 0 2px 8px rgba(0,0,0,0.04)'
+            : '0 1px 2px rgba(0,0,0,0.02)',
           background: 'var(--color-surface, #FFFFFF)',
           color: 'var(--color-text)',
           fontSize: '12.5px',
           cursor: 'pointer',
           textAlign: 'left',
-          transition: 'all 0.18s ease',
           boxSizing: 'border-box',
           outline: 'none',
         }}
@@ -132,23 +242,26 @@ export default function OptionSelector({
           {selectedSwatch && (
             <span
               style={{
-                width: '11px',
-                height: '11px',
+                width: '12px',
+                height: '12px',
                 borderRadius: '50%',
                 backgroundColor: selectedSwatch,
-                border: '1px solid rgba(0,0,0,0.15)',
+                border: '1.5px solid rgba(255,255,255,0.9)',
+                boxShadow: '0 0 0 1px rgba(0,0,0,0.15)',
                 flexShrink: 0,
                 display: 'inline-block',
+                animation: 'swatchGlow 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
               }}
             />
           )}
           <span
             style={{
-              fontWeight: hasSelection ? '600' : '500',
+              fontWeight: hasSelection ? '700' : '500',
               color: hasSelection ? 'var(--color-text)' : 'var(--color-text-muted, #94A3B8)',
               overflow: 'hidden',
               textOverflow: 'ellipsis',
               whiteSpace: 'nowrap',
+              transition: 'color 0.2s ease',
             }}
           >
             {hasSelection ? activeSelected : '— Select —'}
@@ -156,13 +269,14 @@ export default function OptionSelector({
           {selectedExtraCost > 0 && (
             <span
               style={{
-                fontSize: '10px',
+                fontSize: '10.5px',
                 fontWeight: '700',
-                color: 'var(--color-primary)',
-                background: 'rgba(194, 65, 12, 0.08)',
-                padding: '1px 5px',
-                borderRadius: '4px',
+                color: 'var(--color-primary, #EA580C)',
+                background: 'rgba(234, 88, 12, 0.1)',
+                padding: '2px 6px',
+                borderRadius: '6px',
                 flexShrink: 0,
+                transition: 'all 0.2s ease',
               }}
             >
               +₱{selectedExtraCost}
@@ -174,67 +288,78 @@ export default function OptionSelector({
           className="fa-solid fa-chevron-down"
           style={{
             fontSize: '11px',
-            color: 'var(--color-text-muted)',
-            transition: 'transform 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+            color: isOpen ? 'var(--color-primary, #EA580C)' : 'var(--color-text-muted)',
+            transition: 'transform 0.26s cubic-bezier(0.34, 1.56, 0.64, 1), color 0.2s ease',
             transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)',
             flexShrink: 0,
           }}
         />
       </button>
 
-      {/* Floating Dropdown Options Panel */}
-      {isOpen && (
+      {/* Floating Dropdown Options Panel with Smooth Animation */}
+      {(isOpen || isClosing) && (
         <div
           style={{
             position: 'absolute',
-            top: 'calc(100% + 4px)',
+            top: 'calc(100% + 5px)',
             left: 0,
             right: 0,
-            zIndex: 60,
+            zIndex: 70,
             background: 'var(--color-surface, #FFFFFF)',
-            border: '1px solid var(--color-border-light, #E5E7EB)',
-            borderRadius: '12px',
-            boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
-            padding: '4px',
+            border: '1px solid var(--color-border-light, #E2E8F0)',
+            borderRadius: '14px',
+            boxShadow: '0 10px 28px -4px rgba(0,0,0,0.12), 0 4px 10px -2px rgba(0,0,0,0.06)',
+            padding: '5px',
             display: 'flex',
             flexDirection: 'column',
-            gap: '2px',
-            maxHeight: '220px',
+            gap: '3px',
+            maxHeight: '230px',
             overflowY: 'auto',
+            transformOrigin: 'top center',
+            animation: isClosing
+              ? 'optionMenuExit 0.18s cubic-bezier(0.4, 0, 0.2, 1) forwards'
+              : 'optionMenuEnter 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards',
+            backdropFilter: 'blur(8px)',
           }}
         >
           {/* Default Unselected / Reset Item */}
           <button
             type="button"
-            onClick={() => {
-              onSelect('', 0);
-              setIsOpen(false);
-            }}
+            onClick={() => handleSelectOption('', 0)}
+            className={`option-choice-item ${!hasSelection ? 'is-active' : ''}`}
             style={{
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
               gap: '8px',
               padding: '8px 10px',
-              borderRadius: '8px',
+              borderRadius: '9px',
               border: 'none',
               background: !hasSelection ? 'var(--color-primary-lighter, #FFF5F2)' : 'transparent',
-              color: !hasSelection ? 'var(--color-primary)' : 'var(--color-text-muted, #94A3B8)',
+              color: !hasSelection ? 'var(--color-primary, #EA580C)' : 'var(--color-text-muted, #94A3B8)',
               fontSize: '12px',
               fontWeight: !hasSelection ? '700' : '500',
               cursor: 'pointer',
               textAlign: 'left',
               width: '100%',
+              outline: 'none',
             }}
           >
             <span>— Select —</span>
             {!hasSelection && (
-              <i className="fa-solid fa-check" style={{ fontSize: '10px', color: 'var(--color-primary)' }} />
+              <i
+                className="fa-solid fa-check"
+                style={{
+                  fontSize: '11px',
+                  color: 'var(--color-primary, #EA580C)',
+                  animation: 'checkmarkPop 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards',
+                }}
+              />
             )}
           </button>
 
           {/* Configured Choices */}
-          {rawChoices.map((choice) => {
+          {rawChoices.map((choice, idx) => {
             const originalLabel = typeof choice === 'string' ? choice : choice.label || '';
             let extraCost = typeof choice === 'object' ? choice.extra_cost || 0 : 0;
 
@@ -248,48 +373,51 @@ export default function OptionSelector({
               .replace(/\s*\+?₱[\d,.]+/gi, '')
               .trim();
 
-            const isSelected = activeSelected === cleanLabel;
+            const isSelected = activeSelected === cleanLabel || highlightedChoice === cleanLabel;
             const swatchColor = isColorTheme ? getColorSwatch(cleanLabel) : null;
 
             return (
               <button
-                key={cleanLabel}
+                key={`${cleanLabel}-${idx}`}
                 type="button"
-                onClick={() => {
-                  onSelect(cleanLabel, extraCost);
-                  setIsOpen(false);
-                }}
+                onClick={() => handleSelectOption(cleanLabel, extraCost)}
+                className={`option-choice-item ${isSelected ? 'is-active' : ''}`}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
                   gap: '8px',
-                  padding: '8px 10px',
-                  borderRadius: '8px',
+                  padding: '8.5px 10px',
+                  borderRadius: '9px',
                   border: 'none',
                   background: isSelected
                     ? 'var(--color-primary-lighter, #FFF5F2)'
                     : 'transparent',
-                  color: isSelected ? 'var(--color-primary)' : 'var(--color-text)',
-                  fontSize: '12px',
-                  fontWeight: isSelected ? '600' : '500',
+                  color: isSelected ? 'var(--color-primary, #EA580C)' : 'var(--color-text)',
+                  fontSize: '12.5px',
+                  fontWeight: isSelected ? '700' : '500',
                   cursor: 'pointer',
                   textAlign: 'left',
-                  transition: 'background-color 0.12s ease',
                   width: '100%',
+                  outline: 'none',
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flex: 1 }}>
                   {swatchColor && (
                     <span
                       style={{
-                        width: '11px',
-                        height: '11px',
+                        width: '12px',
+                        height: '12px',
                         borderRadius: '50%',
                         backgroundColor: swatchColor,
-                        border: '1px solid rgba(0,0,0,0.15)',
+                        border: '1.5px solid rgba(255,255,255,0.9)',
+                        boxShadow: isSelected
+                          ? '0 0 0 1.5px var(--color-primary, #EA580C)'
+                          : '0 0 0 1px rgba(0,0,0,0.15)',
                         flexShrink: 0,
                         display: 'inline-block',
+                        transition: 'box-shadow 0.2s ease, transform 0.2s ease',
+                        transform: isSelected ? 'scale(1.1)' : 'scale(1)',
                       }}
                     />
                   )}
@@ -302,12 +430,13 @@ export default function OptionSelector({
                   {extraCost > 0 && (
                     <span
                       style={{
-                        fontSize: '10px',
+                        fontSize: '10.5px',
                         fontWeight: '700',
-                        color: isSelected ? 'var(--color-primary)' : 'var(--color-text-secondary)',
-                        background: isSelected ? 'rgba(194, 65, 12, 0.15)' : 'var(--color-surface-warm, #F3F4F6)',
-                        padding: '1px 5px',
-                        borderRadius: '4px',
+                        color: isSelected ? 'var(--color-primary, #EA580C)' : 'var(--color-text-secondary)',
+                        background: isSelected ? 'rgba(234, 88, 12, 0.15)' : 'var(--color-surface-warm, #F3F4F6)',
+                        padding: '1.5px 5.5px',
+                        borderRadius: '5px',
+                        transition: 'all 0.2s ease',
                       }}
                     >
                       +₱{extraCost}
@@ -316,7 +445,11 @@ export default function OptionSelector({
                   {isSelected && (
                     <i
                       className="fa-solid fa-check"
-                      style={{ fontSize: '10px', color: 'var(--color-primary)' }}
+                      style={{
+                        fontSize: '11px',
+                        color: 'var(--color-primary, #EA580C)',
+                        animation: 'checkmarkPop 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards',
+                      }}
                     />
                   )}
                 </div>

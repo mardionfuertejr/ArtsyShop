@@ -2,7 +2,6 @@ import Link from 'next/link';
 import { CUSTOM_ORDER_MESSENGER_URL } from '@/lib/constants/customPrompts';
 import BottomNav from '@/components/customer/BottomNav';
 import BrandLogo from '@/components/common/BrandLogo';
-import SiteFooter from '@/components/common/SiteFooter';
 import LazyProductGrid from '@/components/customer/LazyProductGrid';
 import CartIconBtn from '@/components/customer/CartIconBtn';
 import { createClient } from '@/lib/supabase/server';
@@ -109,7 +108,6 @@ export default async function ShopPage({ searchParams }) {
         <nav className="top-bar-nav">
           <Link href="/" className="top-bar-link">Home</Link>
           <Link href="/shop" className="top-bar-link active">Collection</Link>
-          <Link href="/custom-request" className="top-bar-link">Custom Orders</Link>
           <Link href="/track" className="top-bar-link">Track Order</Link>
         </nav>
 
@@ -145,9 +143,6 @@ export default async function ShopPage({ searchParams }) {
         <section className="section" aria-label="Products">
           <LazyProductGrid products={products} initialCount={10} batchSize={10} />
         </section>
-
-        {/* Unified Sticky-Bottom Site Footer */}
-        <SiteFooter />
       </main>
 
       <BottomNav />

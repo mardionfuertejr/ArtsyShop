@@ -2,9 +2,10 @@ import '@/styles/design-system.css';
 import '@/styles/mobile-app.css';
 import '@/styles/admin.css';
 import '@/styles/animations.css';
-import FloatingFeedbackMenu from '@/components/customer/FloatingFeedbackMenu';
 import GlobalFlyingCart from '@/components/customer/GlobalFlyingCart';
 import GlobalLoadingScreen from '@/components/common/GlobalLoadingScreen';
+import GameFloatingBadge from '@/components/customer/GameFloatingBadge';
+import GlobalToast from '@/components/common/GlobalToast';
 
 export const viewport = {
   width: 'device-width',
@@ -17,8 +18,8 @@ export const viewport = {
 
 export const metadata = {
   title: 'M&M Artsy — Handmade & Custom Creations',
-  description: 'Order handcrafted bouquets, custom resin art, floral arrangements and personalized gifts from M&M Artsy. Made just for you.',
-  keywords: ['m&m artsy', 'handmade', 'custom bouquet', 'resin art', 'floral arrangement', 'artisan gifts'],
+  description: 'Turning sweet thoughts into timeless gifts. Order handcrafted bouquets and handmade artisan products from M&M Artsy.',
+  keywords: ['m&m artsy', 'handmade', 'custom bouquet', 'handmade products', 'floral arrangement', 'artisan gifts', 'everlasting bouquets'],
   manifest: '/manifest.json',
   icons: {
     icon: [
@@ -34,7 +35,7 @@ export const metadata = {
   },
   openGraph: {
     title: 'M&M Artsy — Handmade & Custom Creations',
-    description: 'Order handcrafted bouquets, custom resin art, floral arrangements and personalized gifts from M&M Artsy.',
+    description: 'Turning sweet thoughts into timeless gifts. Order handcrafted bouquets and handmade artisan products from M&M Artsy.',
     type: 'website',
     images: ['/images/m&m_favicon.png'],
   },
@@ -42,7 +43,7 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en" data-scroll-behavior="smooth">
+    <html lang="en" data-scroll-behavior="smooth" suppressHydrationWarning>
       <head>
         <link rel="icon" type="image/png" href="/images/m&m_favicon.png" />
         <link rel="shortcut icon" href="/images/m&m_favicon.png" />
@@ -62,11 +63,12 @@ export default function RootLayout({ children }) {
         <meta name="format-detection" content="telephone=no" />
         <meta name="mobile-web-app-capable" content="yes" />
       </head>
-      <body>
+      <body suppressHydrationWarning>
         <GlobalLoadingScreen />
         {children}
-        <FloatingFeedbackMenu />
+        <GameFloatingBadge />
         <GlobalFlyingCart />
+        <GlobalToast />
       </body>
     </html>
   );

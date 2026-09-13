@@ -619,6 +619,25 @@
   80% { transform: translateX(3px) rotate(2deg); }
 }
 
+@keyframes arcadeShake {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  20%, 60% { transform: translate3d(-6px, 3px, 0); }
+  40%, 80% { transform: translate3d(6px, -3px, 0); }
+}
+
+.arcade-shake {
+  animation: arcadeShake 0.3s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+
+@keyframes arcadeHitFlash {
+  0% { background: rgba(239, 68, 68, 0.28); }
+  100% { background: transparent; }
+}
+
+.arcade-hit-flash {
+  animation: arcadeHitFlash 0.32s ease-out forwards;
+}
+
 /* ── Universal Smooth Interactive & Spring Transitions ── */
 button, 
 .btn, 

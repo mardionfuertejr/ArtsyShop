@@ -58,7 +58,11 @@ class FunZoneAudio {
     setTimeout(() => this.playTone(880, 'triangle', 0.08, 0.22), 50);
     setTimeout(() => this.playTone(1174.66, 'triangle', 0.12, 0.25), 100);
   }
-  playMiss() { this.playTone(160, 'sawtooth', 0.12, 0.12); }
+  playMiss() { this.playTone(160, 'sawtooth', 0.14, 0.16); }
+  playBomb() {
+    this.playTone(110, 'sawtooth', 0.22, 0.28);
+    setTimeout(() => this.playTone(70, 'sawtooth', 0.28, 0.32), 45);
+  }
   playWin() {
     const notes = [523.25, 659.25, 783.99, 1046.5];
     notes.forEach((note, i) => {
@@ -119,13 +123,17 @@ function saveGameHighScore(gameKey, score) {
 }
 
 // ─────────────────────────────────────────────────────────────
-// GAME 1: PETAL RUSH (Catching Arcade - Instant Touch & LERP)
+// GAME 1: PETAL RUSH (Catching Arcade - Fast Pacing & Tricky Hazards)
 // ─────────────────────────────────────────────────────────────
 const RUSH_ITEMS = [
-  { id: 'tulip', emoji: '🌷', points: 5, speed: 2.2, size: 32, weight: 45 },
-  { id: 'sunflower', emoji: '🌻', points: 10, speed: 2.7, size: 36, weight: 32 },
-  { id: 'bouquet', emoji: '💐', points: 15, speed: 3.2, size: 32, weight: 12 },
-  { id: 'thorn', emoji: '🥀', points: -10, speed: 2.5, size: 30, weight: 16, isHarmful: true },
+  { id: 'tulip', emoji: '🌷', points: 5, speed: 2.7, size: 30, weight: 28, isHarmful: false },
+  { id: 'sunflower', emoji: '🌻', points: 10, speed: 3.1, size: 34, weight: 24, isHarmful: false },
+  { id: 'bouquet', emoji: '💐', points: 20, speed: 3.6, size: 32, weight: 14, isHarmful: false },
+  { id: 'star', emoji: '⭐', points: 30, speed: 4.2, size: 30, weight: 8, isHarmful: false, isSpecial: true },
+  { id: 'thorn', emoji: '🥀', points: -10, speed: 2.9, size: 28, weight: 12, isHarmful: true },
+  { id: 'bomb', emoji: '💣', points: -25, speed: 3.5, size: 32, weight: 12, isHarmful: true, isBomb: true },
+  { id: 'bee', emoji: '🐝', points: -15, speed: 3.3, size: 28, weight: 12, isHarmful: true, isZigzag: true },
+  { id: 'rock', emoji: '🪨', points: -15, speed: 4.1, size: 28, weight: 10, isHarmful: true },
 ];
 
 function PetalRushGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
@@ -137,6 +145,8 @@ function PetalRushGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
   const [resultData, setResultData] = useState(null);
   const [playsLeft, setPlaysLeft] = useState(3);
   const [highScore, setHighScore] = useState(0);
+  const [isShaking, setIsShaking] = useState(false);
+  const [isHitFlashing, setIsHitFlashing] = useState(false);
 
   const gameAreaRef = useRef(null);
   const animFrameRef = useRef(null);
@@ -165,8 +175,8 @@ function PetalRushGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (gameState !== 'playing') return;
-      if (e.key === 'ArrowLeft' || e.key === 'a') targetBasketXRef.current = Math.max(12, targetBasketXRef.current - 12);
-      else if (e.key === 'ArrowRight' || e.key === 'd') targetBasketXRef.current = Math.min(88, targetBasketXRef.current + 12);
+      if (e.key === 'ArrowLeft' || e.key === 'a') targetBasketXRef.current = Math.max(12, targetBasketXRef.current - 14);
+      else if (e.key === 'ArrowRight' || e.key === 'd') targetBasketXRef.current = Math.min(88, targetBasketXRef.current + 14);
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
@@ -174,8 +184,15 @@ function PetalRushGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
 
   const addFloatingText = (text, x, y, color = '#EA580C') => {
     const id = Date.now() + Math.random();
-    setFloatingTexts((prev) => [...prev.slice(-2), { id, text, x, y, color }]);
+    setFloatingTexts((prev) => [...prev.slice(-3), { id, text, x, y, color }]);
     setTimeout(() => setFloatingTexts((prev) => prev.filter((item) => item.id !== id)), 650);
+  };
+
+  const triggerHazardFeedback = (isBomb = false) => {
+    setIsShaking(true);
+    setIsHitFlashing(true);
+    setTimeout(() => setIsShaking(false), 320);
+    setTimeout(() => setIsHitFlashing(false), 320);
   };
 
   const spawnItem = (now) => {
@@ -186,13 +203,20 @@ function PetalRushGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
       if (random < item.weight) { selected = item; break; }
       random -= item.weight;
     }
+
+    // Dynamic speed ramp as game progresses
+    const timeProgress = (20 - timeLeftRef.current) / 20; // 0 to 1
+    const speedBoost = 1 + timeProgress * 0.45;
+
     return {
       id: `${now}_${Math.random().toString(36).substr(2, 5)}`,
       type: selected,
       x: Math.floor(Math.random() * 74) + 13,
       y: -6,
-      speed: selected.speed * (0.92 + Math.random() * 0.25),
+      speed: selected.speed * (0.92 + Math.random() * 0.25) * speedBoost,
       wobble: Math.random() * Math.PI * 2,
+      wobbleSpeed: selected.isZigzag ? 0.12 : 0.05,
+      wobbleAmp: selected.isZigzag ? 3.5 : 1.5,
     };
   };
 
@@ -236,10 +260,12 @@ function PetalRushGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
       lastFrame = ts;
 
       // Ultra responsive LERP with smooth dampening
-      currentBasketXRef.current += (targetBasketXRef.current - currentBasketXRef.current) * 0.32 * delta;
+      currentBasketXRef.current += (targetBasketXRef.current - currentBasketXRef.current) * 0.35 * delta;
       setBasketX(currentBasketXRef.current);
 
-      if (ts - lastSpawnRef.current > 500) {
+      // Dynamic spawn rate: accelerates from 420ms down to 260ms in late game!
+      const currentSpawnDelay = Math.max(260, 420 - (20 - timeLeftRef.current) * 8);
+      if (ts - lastSpawnRef.current > currentSpawnDelay) {
         itemsRef.current.push(spawnItem(ts));
         lastSpawnRef.current = ts;
       }
@@ -251,21 +277,26 @@ function PetalRushGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
       for (let i = 0; i < currentItems.length; i++) {
         const item = currentItems[i];
         item.y += item.speed * delta;
-        item.wobble += 0.05 * delta;
-        const currentX = item.x + Math.sin(item.wobble) * 1.5;
+        item.wobble += item.wobbleSpeed * delta;
+        const currentX = item.x + Math.sin(item.wobble) * item.wobbleAmp;
 
         if (item.y >= 78 && item.y <= 90) {
           if (Math.abs(currentX - basketPos) <= 15) {
             if (item.type.isHarmful) {
               scoreRef.current = Math.max(0, scoreRef.current + item.type.points);
               setScore(scoreRef.current);
-              addFloatingText('-10', basketPos, 72, '#DC2626');
-              if (audio) audio.playMiss();
+              addFloatingText(`${item.type.points}`, basketPos, 72, '#DC2626');
+              triggerHazardFeedback(item.type.isBomb);
+              if (item.type.isBomb) {
+                if (audio) audio.playBomb();
+              } else {
+                if (audio) audio.playMiss();
+              }
             } else {
               const gained = item.type.points;
               scoreRef.current += gained;
               setScore(scoreRef.current);
-              addFloatingText(`+${gained}`, basketPos, 72, '#16A34A');
+              addFloatingText(`+${gained}`, basketPos, 72, item.type.isSpecial ? '#D97706' : '#16A34A');
               if (audio) audio.playCatch();
             }
             continue;
@@ -288,10 +319,10 @@ function PetalRushGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
     setHighScore(hsResult.highScore);
 
     let tierKey = null;
-    if (finalScore >= 250) tierKey = 'DIAMOND';      // ₱30 OFF
-    else if (finalScore >= 200) tierKey = 'GOLD';     // ₱20 OFF
-    else if (finalScore >= 140) tierKey = 'SILVER';   // ₱10 OFF
-    else if (finalScore >= 80) tierKey = 'BRONZE';    // ₱5 OFF
+    if (finalScore >= 220) tierKey = 'DIAMOND';      // ₱30 OFF
+    else if (finalScore >= 160) tierKey = 'GOLD';     // ₱20 OFF
+    else if (finalScore >= 100) tierKey = 'SILVER';   // ₱10 OFF
+    else if (finalScore >= 50) tierKey = 'BRONZE';    // ₱5 OFF
 
     if (hadVoucherChanceRef.current && tierKey) {
       const res = issueVoucherForTier(tierKey);
@@ -314,7 +345,7 @@ function PetalRushGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
         highScore: hsResult.highScore,
       });
       if (audio) {
-        if (finalScore >= 80) audio.playWin();
+        if (finalScore >= 50) audio.playWin();
         else audio.playMiss();
       }
     }
@@ -341,6 +372,7 @@ function PetalRushGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
 
       <div
         ref={gameAreaRef}
+        className={`${isShaking ? 'arcade-shake' : ''} ${isHitFlashing ? 'arcade-hit-flash' : ''}`}
         onPointerDown={(e) => {
           if (gameState === 'playing') handlePointerMove(e.clientX);
         }}
@@ -386,7 +418,7 @@ function PetalRushGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
                 Petal Rush
               </h4>
               <p style={{ margin: '4px 0 0', fontSize: '0.82rem', color: '#64748B', fontWeight: 500 }}>
-                Catch blooms & dodge thorns!
+                Catch blooms & dodge bombs 💣, bees 🐝 & thorns 🥀!
               </p>
             </div>
 
@@ -431,6 +463,7 @@ function PetalRushGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
                   lineHeight: 1,
                   pointerEvents: 'none',
                   willChange: 'transform',
+                  filter: item.type.isBomb ? 'drop-shadow(0 0 6px rgba(239, 68, 68, 0.6))' : item.type.isSpecial ? 'drop-shadow(0 0 8px rgba(251, 191, 36, 0.8))' : 'none',
                 }}
               >
                 {item.type.emoji}
@@ -524,18 +557,20 @@ function PetalRushGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
           </div>
         )}
       </div>
-    </div>
-  );
 }
 
 // ─────────────────────────────────────────────────────────────
-// GAME 2: RIBBON NINJA (Slash & Slice Action)
+// GAME 2: RIBBON NINJA (Slash & Slice Action - Multi-Target Volleys & Bombs)
 // ─────────────────────────────────────────────────────────────
 const NINJA_TARGETS = [
-  { id: 'ribbon', emoji: '🎀', points: 5, radius: 24, isHarmful: false },
-  { id: 'flower', emoji: '🌸', points: 10, radius: 26, isHarmful: false },
-  { id: 'bouquet', emoji: '💐', points: 15, radius: 28, isHarmful: false },
-  { id: 'thorn', emoji: '🥀', points: -10, radius: 24, isHarmful: true },
+  { id: 'ribbon', emoji: '🎀', points: 8, radius: 24, isHarmful: false },
+  { id: 'flower', emoji: '🌸', points: 12, radius: 26, isHarmful: false },
+  { id: 'bouquet', emoji: '💐', points: 20, radius: 28, isHarmful: false },
+  { id: 'crown', emoji: '👑', points: 35, radius: 30, isHarmful: false, isSpecial: true },
+  { id: 'thorn', emoji: '🥀', points: -15, radius: 24, isHarmful: true },
+  { id: 'bomb', emoji: '💣', points: -30, radius: 27, isHarmful: true, isBomb: true },
+  { id: 'wasp', emoji: '🐝', points: -20, radius: 24, isHarmful: true },
+  { id: 'spider', emoji: '🕷️', points: -15, radius: 24, isHarmful: true },
 ];
 
 function RibbonNinjaGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
@@ -545,11 +580,14 @@ function RibbonNinjaGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
   const [playsLeft, setPlaysLeft] = useState(3);
   const [resultData, setResultData] = useState(null);
   const [highScore, setHighScore] = useState(0);
+  const [isShaking, setIsShaking] = useState(false);
+  const [isHitFlashing, setIsHitFlashing] = useState(false);
 
   const canvasRef = useRef(null);
   const animRef = useRef(null);
   const targetsRef = useRef([]);
   const slashTrailRef = useRef([]);
+  const particlesRef = useRef([]);
   const isDraggingRef = useRef(false);
   const lastSpawnRef = useRef(0);
   const scoreRef = useRef(0);
@@ -562,16 +600,49 @@ function RibbonNinjaGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
     setHighScore(getGameHighScore('ninja'));
   }, []);
 
+  const triggerHazardFeedback = () => {
+    setIsShaking(true);
+    setIsHitFlashing(true);
+    setTimeout(() => setIsShaking(false), 320);
+    setTimeout(() => setIsHitFlashing(false), 320);
+  };
+
+  const createSliceParticles = (x, y, isHarmful, isBomb) => {
+    const colors = isBomb
+      ? ['#EF4444', '#DC2626', '#991B1B', '#F59E0B']
+      : isHarmful
+      ? ['#DC2626', '#991B1B', '#78716C']
+      : ['#FB7185', '#F43F5E', '#FDA4AF', '#FCD34D'];
+
+    const count = isBomb ? 18 : 10;
+    for (let i = 0; i < count; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const speed = isBomb ? 3.5 + Math.random() * 4.5 : 2.0 + Math.random() * 3.0;
+      particlesRef.current.push({
+        x,
+        y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        size: isBomb ? 3 + Math.random() * 4 : 2 + Math.random() * 3,
+        alpha: 1,
+        decay: isBomb ? 0.035 : 0.05,
+      });
+    }
+  };
+
   const spawnTarget = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const isHarmful = Math.random() < 0.20;
+
+    // 35% chance of spawning hazards / bombs in the mix
+    const isHarmful = Math.random() < 0.35;
     const pool = NINJA_TARGETS.filter((t) => t.isHarmful === isHarmful);
     const item = pool[Math.floor(Math.random() * pool.length)];
 
     const x = 40 + Math.random() * (canvas.width - 80);
-    const vx = (Math.random() - 0.5) * 2.8;
-    const vy = -(8.5 + Math.random() * 3.0);
+    const vx = (Math.random() - 0.5) * 3.6;
+    const vy = -(9.2 + Math.random() * 3.4);
 
     targetsRef.current.push({
       id: Math.random().toString(),
@@ -581,7 +652,7 @@ function RibbonNinjaGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
       vx,
       vy,
       rotation: Math.random() * Math.PI,
-      vRot: (Math.random() - 0.5) * 0.08,
+      vRot: (Math.random() - 0.5) * 0.12,
       sliced: false,
       sliceAlpha: 1,
     });
@@ -603,6 +674,7 @@ function RibbonNinjaGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
     timeLeftRef.current = 20;
     targetsRef.current = [];
     slashTrailRef.current = [];
+    particlesRef.current = [];
     setResultData(null);
     setGameState('playing');
     lastSpawnRef.current = performance.now();
@@ -628,17 +700,27 @@ function RibbonNinjaGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
       const ctx = canvas.getContext('2d');
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      if (ts - lastSpawnRef.current > 620) {
+      // Dynamic multi-item volley spawn
+      const spawnDelay = Math.max(380, 560 - (20 - timeLeftRef.current) * 10);
+      if (ts - lastSpawnRef.current > spawnDelay) {
         spawnTarget();
-        if (Math.random() > 0.45) setTimeout(spawnTarget, 220);
+        // 45% chance of rapid second throw (cluster throw)
+        if (Math.random() < 0.45) {
+          setTimeout(spawnTarget, 160);
+        }
+        // 25% chance of third volley in late game
+        if (timeLeftRef.current <= 10 && Math.random() < 0.35) {
+          setTimeout(spawnTarget, 280);
+        }
         lastSpawnRef.current = ts;
       }
 
+      // Update & render targets
       const remaining = [];
       for (const t of targetsRef.current) {
         t.x += t.vx * dt;
         t.y += t.vy * dt;
-        t.vy += 0.24 * dt;
+        t.vy += 0.28 * dt; // gravity
         t.rotation += t.vRot * dt;
 
         ctx.save();
@@ -646,26 +728,54 @@ function RibbonNinjaGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
         ctx.rotate(t.rotation);
 
         if (t.sliced) {
-          t.sliceAlpha -= 0.06 * dt;
+          t.sliceAlpha -= 0.08 * dt;
           ctx.globalAlpha = Math.max(0, t.sliceAlpha);
           ctx.font = '24px sans-serif';
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
-          ctx.fillText('✨', 0, 0);
+          ctx.fillText(t.type.isBomb ? '💥' : '✨', 0, 0);
         } else {
-          ctx.font = '30px sans-serif';
+          // Add menacing glow for bombs
+          if (t.type.isBomb) {
+            ctx.shadowColor = 'rgba(239, 68, 68, 0.7)';
+            ctx.shadowBlur = 10;
+          } else if (t.type.isSpecial) {
+            ctx.shadowColor = 'rgba(251, 191, 36, 0.8)';
+            ctx.shadowBlur = 12;
+          }
+          ctx.font = `${t.type.radius * 1.2}px sans-serif`;
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
           ctx.fillText(t.type.emoji, 0, 0);
         }
         ctx.restore();
 
-        if (t.y < canvas.height + 30 && (!t.sliced || t.sliceAlpha > 0)) {
+        if (t.y < canvas.height + 40 && (!t.sliced || t.sliceAlpha > 0)) {
           remaining.push(t);
         }
       }
       targetsRef.current = remaining;
 
+      // Update & render slice particles
+      const nextParticles = [];
+      for (const p of particlesRef.current) {
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+        p.alpha -= p.decay * dt;
+        if (p.alpha > 0) {
+          ctx.save();
+          ctx.globalAlpha = Math.max(0, p.alpha);
+          ctx.fillStyle = p.color;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+          nextParticles.push(p);
+        }
+      }
+      particlesRef.current = nextParticles;
+
+      // Render blade trail
       const trail = slashTrailRef.current;
       if (trail.length > 1) {
         ctx.beginPath();
@@ -677,9 +787,11 @@ function RibbonNinjaGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
         }
         ctx.lineTo(trail[trail.length - 1].x, trail[trail.length - 1].y);
         ctx.strokeStyle = '#F43F5E';
-        ctx.lineWidth = 3.5;
+        ctx.lineWidth = 4;
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
+        ctx.shadowColor = 'rgba(244, 63, 94, 0.6)';
+        ctx.shadowBlur = 8;
         ctx.stroke();
       }
 
@@ -702,12 +814,19 @@ function RibbonNinjaGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
     for (const t of targetsRef.current) {
       if (t.sliced) continue;
       const dist = Math.hypot(t.x - x, t.y - y);
-      if (dist <= t.type.radius + 12) {
+      if (dist <= t.type.radius + 14) {
         t.sliced = true;
+        createSliceParticles(t.x, t.y, t.type.isHarmful, t.type.isBomb);
+
         if (t.type.isHarmful) {
           scoreRef.current = Math.max(0, scoreRef.current + t.type.points);
           setScore(scoreRef.current);
-          if (audio) audio.playMiss();
+          triggerHazardFeedback();
+          if (t.type.isBomb) {
+            if (audio) audio.playBomb();
+          } else {
+            if (audio) audio.playMiss();
+          }
         } else {
           const gained = t.type.points;
           scoreRef.current += gained;
@@ -725,10 +844,10 @@ function RibbonNinjaGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
     setHighScore(hsResult.highScore);
 
     let tierKey = null;
-    if (finalScore >= 250) tierKey = 'DIAMOND';
-    else if (finalScore >= 200) tierKey = 'GOLD';
-    else if (finalScore >= 140) tierKey = 'SILVER';
-    else if (finalScore >= 80) tierKey = 'BRONZE';
+    if (finalScore >= 220) tierKey = 'DIAMOND';
+    else if (finalScore >= 160) tierKey = 'GOLD';
+    else if (finalScore >= 100) tierKey = 'SILVER';
+    else if (finalScore >= 50) tierKey = 'BRONZE';
 
     if (hadVoucherChanceRef.current && tierKey) {
       const res = issueVoucherForTier(tierKey);
@@ -751,7 +870,7 @@ function RibbonNinjaGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
         highScore: hsResult.highScore,
       });
       if (audio) {
-        if (finalScore >= 80) audio.playWin();
+        if (finalScore >= 50) audio.playWin();
         else audio.playMiss();
       }
     }
@@ -776,7 +895,10 @@ function RibbonNinjaGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
         </div>
       )}
 
-      <div style={{ position: 'relative', height: '310px', background: 'radial-gradient(circle at center, #FFFDFD 0%, #FFE4E6 100%)', overflow: 'hidden' }}>
+      <div
+        className={`${isShaking ? 'arcade-shake' : ''} ${isHitFlashing ? 'arcade-hit-flash' : ''}`}
+        style={{ position: 'relative', height: '310px', background: 'radial-gradient(circle at center, #FFFDFD 0%, #FFE4E6 100%)', overflow: 'hidden' }}
+      >
         {gameState === 'ready' && (
           <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px 20px', textAlign: 'center', gap: '10px' }}>
             <div
@@ -800,7 +922,7 @@ function RibbonNinjaGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
                 Ribbon Ninja
               </h4>
               <p style={{ margin: '4px 0 0', fontSize: '0.82rem', color: '#64748B', fontWeight: 500 }}>
-                Swipe & slice flying ribbons!
+                Slice ribbons 🎀 & avoid bombs 💣, wasps 🐝 & thorns 🥀!
               </p>
             </div>
 
@@ -917,12 +1039,14 @@ function BloomStackerGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
   const [highScore, setHighScore] = useState(0);
   const [stack, setStack] = useState([{ x: 95, width: 130, color: '#A855F7' }]);
   const [movingBlock, setMovingBlock] = useState({ width: 130, color: '#C084FC' });
+  const [combo, setCombo] = useState(0);
 
   const stackRef = useRef([{ x: 95, width: 130, color: '#A855F7' }]);
-  const movingBlockRef = useRef({ x: 95, width: 130, speed: 0.0028, color: '#C084FC' });
+  const movingBlockRef = useRef({ x: 95, width: 130, speed: 0.0032, color: '#C084FC' });
   const movingBlockDomRef = useRef(null);
   const animRef = useRef(null);
   const scoreRef = useRef(0);
+  const comboRef = useRef(0);
   const hadVoucherChanceRef = useRef(true);
 
   useEffect(() => {
@@ -943,6 +1067,8 @@ function BloomStackerGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
 
     setScore(0);
     scoreRef.current = 0;
+    setCombo(0);
+    comboRef.current = 0;
     setTowerHeight(1);
     setResultData(null);
 
@@ -950,7 +1076,7 @@ function BloomStackerGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
     stackRef.current = initialStack;
     setStack(initialStack);
 
-    const initialMoving = { x: 95, width: 130, speed: 0.0028, color: '#C084FC' };
+    const initialMoving = { x: 95, width: 130, speed: 0.0032, color: '#C084FC' };
     movingBlockRef.current = initialMoving;
     setMovingBlock({ width: initialMoving.width, color: initialMoving.color });
     setGameState('playing');
@@ -985,12 +1111,17 @@ function BloomStackerGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
     let newWidth = mb.width;
     let newX = mb.x;
 
-    if (Math.abs(overhangLeft) <= 6 && Math.abs(overhangRight) <= 6) {
+    if (Math.abs(overhangLeft) <= 5 && Math.abs(overhangRight) <= 5) {
       newX = topBlock.x;
       newWidth = topBlock.width;
-      scoreRef.current += 15;
+      comboRef.current += 1;
+      setCombo(comboRef.current);
+      const perfectBonus = 15 + Math.min(20, comboRef.current * 5);
+      scoreRef.current += perfectBonus;
       if (audio) audio.playPerfect();
     } else if (mb.x + mb.width > topBlock.x && mb.x < topBlock.x + topBlock.width) {
+      comboRef.current = 0;
+      setCombo(0);
       if (mb.x < topBlock.x) {
         newWidth = mb.width - (topBlock.x - mb.x);
         newX = topBlock.x;
@@ -1014,12 +1145,13 @@ function BloomStackerGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
     setStack([...stackRef.current]);
     setTowerHeight(stackRef.current.length);
 
-    if (stackRef.current.length >= 15 || newWidth < 18) {
+    if (stackRef.current.length >= 15 || newWidth < 16) {
       finishStacker();
       return;
     }
 
-    const nextSpeed = Math.min(0.0055, 0.0028 + stackRef.current.length * 0.00022);
+    // Faster speed acceleration per floor
+    const nextSpeed = Math.min(0.0068, 0.0032 + stackRef.current.length * 0.00028);
     movingBlockRef.current = {
       x: newX,
       width: newWidth,
@@ -1079,9 +1211,14 @@ function BloomStackerGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       {gameState === 'playing' && (
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 16px', background: '#FAF5FF', borderBottom: '1px solid #E9D5FF' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#7E22CE' }}>Score:</span>
             <span style={{ fontSize: '1.2rem', fontWeight: 900, color: '#9333EA' }}>{score}</span>
+            {combo > 1 && (
+              <span style={{ fontSize: '0.7rem', fontWeight: 900, color: '#D97706', background: '#FEF3C7', padding: '1px 6px', borderRadius: '6px' }}>
+                🔥 x{combo}
+              </span>
+            )}
           </div>
           <div style={{ background: '#FFF', color: '#1E1E24', padding: '3px 10px', borderRadius: '8px', fontWeight: 800, fontSize: '0.8rem', border: '1px solid rgba(0,0,0,0.08)' }}>
             Stack: {stack.length}/15
@@ -1123,7 +1260,7 @@ function BloomStackerGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
                 Bloom Stacker
               </h4>
               <p style={{ margin: '4px 0 0', fontSize: '0.82rem', color: '#64748B', fontWeight: 500 }}>
-                Tap to stack & build your tower!
+                Tap to stack! Get perfect drops for streak multipliers!
               </p>
             </div>
 
@@ -1263,13 +1400,17 @@ function BloomStackerGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
 }
 
 // ─────────────────────────────────────────────────────────────
-// GAME 4: PETAL POP (Bubble Reflex Action)
+// GAME 4: PETAL POP (Bubble Reflex Action - Bomb Bubbles & Sparks)
 // ─────────────────────────────────────────────────────────────
 const POP_BUBBLES = [
-  { id: 'rose', emoji: '🌹', points: 5, radius: 26, speed: 2.2, isHarmful: false },
-  { id: 'sunflower', emoji: '🌻', points: 10, radius: 28, speed: 2.6, isHarmful: false },
-  { id: 'orchid', emoji: '🪻', points: 15, radius: 25, speed: 3.0, isHarmful: false },
-  { id: 'thorn', emoji: '🥀', points: -10, radius: 26, speed: 2.4, isHarmful: true },
+  { id: 'rose', emoji: '🌹', points: 5, radius: 25, speed: 2.5, isHarmful: false },
+  { id: 'cherry', emoji: '🌸', points: 10, radius: 27, speed: 2.9, isHarmful: false },
+  { id: 'sunflower', emoji: '🌻', points: 15, radius: 29, speed: 3.3, isHarmful: false },
+  { id: 'diamond', emoji: '💎', points: 30, radius: 25, speed: 3.9, isHarmful: false, isSpecial: true },
+  { id: 'thorn', emoji: '🥀', points: -15, radius: 25, speed: 2.7, isHarmful: true },
+  { id: 'bomb', emoji: '💣', points: -30, radius: 27, speed: 3.1, isHarmful: true, isBomb: true },
+  { id: 'bee', emoji: '🐝', points: -20, radius: 24, speed: 3.5, isHarmful: true, isZigzag: true },
+  { id: 'spark', emoji: '⚡', points: -20, radius: 25, speed: 3.3, isHarmful: true },
 ];
 
 function PetalPopGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
@@ -1279,6 +1420,8 @@ function PetalPopGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
   const [playsLeft, setPlaysLeft] = useState(3);
   const [resultData, setResultData] = useState(null);
   const [highScore, setHighScore] = useState(0);
+  const [isShaking, setIsShaking] = useState(false);
+  const [isHitFlashing, setIsHitFlashing] = useState(false);
 
   const canvasRef = useRef(null);
   const animRef = useRef(null);
@@ -1297,18 +1440,26 @@ function PetalPopGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
     setHighScore(getGameHighScore('pop'));
   }, []);
 
+  const triggerHazardFeedback = () => {
+    setIsShaking(true);
+    setIsHitFlashing(true);
+    setTimeout(() => setIsShaking(false), 320);
+    setTimeout(() => setIsHitFlashing(false), 320);
+  };
+
   const spawnBubble = (startY = null) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const isHarmful = Math.random() < 0.20;
+    // 35% chance of spawning tricky hazard/bomb bubble
+    const isHarmful = Math.random() < 0.35;
     const pool = POP_BUBBLES.filter((b) => b.isHarmful === isHarmful);
     const item = pool[Math.floor(Math.random() * pool.length)];
 
     const radius = item.radius;
     const x = radius + 15 + Math.random() * (canvas.width - radius * 2 - 30);
     const y = startY !== null ? startY : canvas.height + radius + 10;
-    const speed = item.speed * (0.9 + Math.random() * 0.25);
+    const speed = item.speed * (0.92 + Math.random() * 0.25);
 
     bubblesRef.current.push({
       id: Math.random().toString(),
@@ -1319,29 +1470,32 @@ function PetalPopGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
       radius,
       speed,
       wobble: Math.random() * Math.PI * 2,
-      wobbleSpeed: 0.03 + Math.random() * 0.02,
-      wobbleAmp: 12 + Math.random() * 8,
+      wobbleSpeed: item.isZigzag ? 0.08 : 0.035 + Math.random() * 0.02,
+      wobbleAmp: item.isZigzag ? 24 : 12 + Math.random() * 8,
       popped: false,
     });
   };
 
-  const createBurst = (x, y, isHarmful) => {
-    const colors = isHarmful
+  const createBurst = (x, y, isHarmful, isBomb) => {
+    const colors = isBomb
+      ? ['#EF4444', '#DC2626', '#991B1B', '#F59E0B']
+      : isHarmful
       ? ['#EF4444', '#F87171', '#B91C1C', '#991B1B']
       : ['#10B981', '#34D399', '#F472B6', '#FBBF24', '#60A5FA'];
 
-    for (let i = 0; i < 12; i++) {
-      const angle = (Math.PI * 2 * i) / 12 + (Math.random() - 0.5) * 0.3;
-      const speed = 2.5 + Math.random() * 3.5;
+    const count = isBomb ? 20 : 12;
+    for (let i = 0; i < count; i++) {
+      const angle = (Math.PI * 2 * i) / count + (Math.random() - 0.5) * 0.4;
+      const speed = isBomb ? 3.5 + Math.random() * 4.5 : 2.5 + Math.random() * 3.5;
       particlesRef.current.push({
         x,
         y,
         vx: Math.cos(angle) * speed,
         vy: Math.sin(angle) * speed,
         color: colors[Math.floor(Math.random() * colors.length)],
-        size: 3 + Math.random() * 3,
+        size: isBomb ? 3 + Math.random() * 4 : 3 + Math.random() * 3,
         alpha: 1,
-        decay: 0.04 + Math.random() * 0.03,
+        decay: isBomb ? 0.035 : 0.04 + Math.random() * 0.03,
       });
     }
   };
@@ -1349,21 +1503,20 @@ function PetalPopGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
   const popAt = (canvasX, canvasY) => {
     if (gameState !== 'playing') return;
 
-    let hit = false;
     for (let i = bubblesRef.current.length - 1; i >= 0; i--) {
       const b = bubblesRef.current[i];
       if (b.popped) continue;
 
       const dist = Math.hypot(canvasX - b.x, canvasY - b.y);
-      if (dist <= b.radius + 16) {
+      if (dist <= b.radius + 18) {
         b.popped = true;
-        hit = true;
 
-        createBurst(b.x, b.y, b.type.isHarmful);
+        createBurst(b.x, b.y, b.type.isHarmful, b.type.isBomb);
 
         if (b.type.isHarmful) {
           scoreRef.current = Math.max(0, scoreRef.current + b.type.points);
           setScore(scoreRef.current);
+          triggerHazardFeedback();
           floatersRef.current.push({
             x: b.x,
             y: b.y,
@@ -1371,7 +1524,11 @@ function PetalPopGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
             color: '#DC2626',
             alpha: 1,
           });
-          if (audio) audio.playMiss();
+          if (b.type.isBomb) {
+            if (audio) audio.playBomb();
+          } else {
+            if (audio) audio.playMiss();
+          }
         } else {
           scoreRef.current += b.type.points;
           setScore(scoreRef.current);
@@ -1379,7 +1536,7 @@ function PetalPopGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
             x: b.x,
             y: b.y,
             text: `+${b.type.points}`,
-            color: '#059669',
+            color: b.type.isSpecial ? '#D97706' : '#059669',
             alpha: 1,
           });
           if (audio) audio.playPop();
@@ -1421,9 +1578,9 @@ function PetalPopGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
 
     // Initial bubbles so screen is ready instantly
     setTimeout(() => {
-      spawnBubble(100);
-      spawnBubble(190);
-      spawnBubble(270);
+      spawnBubble(80);
+      spawnBubble(160);
+      spawnBubble(240);
     }, 30);
 
     if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
@@ -1446,8 +1603,8 @@ function PetalPopGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
       const ctx = canvas.getContext('2d');
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // Periodic spawn
-      if (ts - lastSpawnRef.current > 420) {
+      // Fast periodic bubble flow
+      if (ts - lastSpawnRef.current > 260) {
         spawnBubble();
         lastSpawnRef.current = ts;
       }
@@ -1467,10 +1624,28 @@ function PetalPopGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
           // Bubble glow / background
           ctx.beginPath();
           ctx.arc(0, 0, b.radius, 0, Math.PI * 2);
-          if (b.type.isHarmful) {
+          if (b.type.isBomb) {
+            ctx.fillStyle = 'rgba(254, 202, 202, 0.9)';
+            ctx.strokeStyle = '#DC2626';
+            ctx.lineWidth = 3;
+            ctx.shadowColor = 'rgba(220, 38, 38, 0.6)';
+            ctx.shadowBlur = 10;
+          } else if (b.type.isHarmful) {
             ctx.fillStyle = 'rgba(254, 226, 226, 0.85)';
             ctx.strokeStyle = '#EF4444';
             ctx.lineWidth = 2.5;
+            ctx.shadowColor = 'rgba(239, 68, 68, 0.35)';
+            ctx.shadowBlur = 8;
+          } else if (b.type.isSpecial) {
+            const grad = ctx.createRadialGradient(-b.radius * 0.3, -b.radius * 0.3, 2, 0, 0, b.radius);
+            grad.addColorStop(0, 'rgba(255, 255, 255, 0.95)');
+            grad.addColorStop(0.7, 'rgba(254, 243, 199, 0.9)');
+            grad.addColorStop(1, 'rgba(245, 158, 11, 0.5)');
+            ctx.fillStyle = grad;
+            ctx.strokeStyle = '#F59E0B';
+            ctx.lineWidth = 2.5;
+            ctx.shadowColor = 'rgba(245, 158, 11, 0.4)';
+            ctx.shadowBlur = 10;
           } else {
             const grad = ctx.createRadialGradient(-b.radius * 0.3, -b.radius * 0.3, 2, 0, 0, b.radius);
             grad.addColorStop(0, 'rgba(255, 255, 255, 0.95)');
@@ -1479,9 +1654,9 @@ function PetalPopGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
             ctx.fillStyle = grad;
             ctx.strokeStyle = '#10B981';
             ctx.lineWidth = 2;
+            ctx.shadowColor = 'rgba(16, 185, 129, 0.25)';
+            ctx.shadowBlur = 8;
           }
-          ctx.shadowColor = b.type.isHarmful ? 'rgba(239, 68, 68, 0.3)' : 'rgba(16, 185, 129, 0.25)';
-          ctx.shadowBlur = 8;
           ctx.fill();
           ctx.stroke();
 
@@ -1561,8 +1736,8 @@ function PetalPopGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
     setHighScore(hsResult.highScore);
 
     let tierKey = null;
-    if (finalScore >= 140) tierKey = 'DIAMOND';
-    else if (finalScore >= 100) tierKey = 'GOLD';
+    if (finalScore >= 160) tierKey = 'DIAMOND';
+    else if (finalScore >= 110) tierKey = 'GOLD';
     else if (finalScore >= 70) tierKey = 'SILVER';
     else if (finalScore >= 40) tierKey = 'BRONZE';
 
@@ -1615,7 +1790,10 @@ function PetalPopGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
         </div>
       )}
 
-      <div style={{ position: 'relative', height: '310px', background: 'radial-gradient(circle at center, #F0FDF4 0%, #DCFCE7 100%)', overflow: 'hidden', userSelect: 'none' }}>
+      <div
+        className={`${isShaking ? 'arcade-shake' : ''} ${isHitFlashing ? 'arcade-hit-flash' : ''}`}
+        style={{ position: 'relative', height: '310px', background: 'radial-gradient(circle at center, #F0FDF4 0%, #DCFCE7 100%)', overflow: 'hidden', userSelect: 'none' }}
+      >
         {gameState === 'ready' && (
           <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px 20px', textAlign: 'center', gap: '10px' }}>
             <div
@@ -1639,7 +1817,7 @@ function PetalPopGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
                 Petal Pop
               </h4>
               <p style={{ margin: '4px 0 0', fontSize: '0.82rem', color: '#64748B', fontWeight: 500 }}>
-                Tap floating bubbles to pop them!
+                Pop floating bubbles & dodge bomb bubbles 💣, hornets 🐝 & sparks ⚡!
               </p>
             </div>
 

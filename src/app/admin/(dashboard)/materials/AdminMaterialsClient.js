@@ -747,12 +747,12 @@ export default function AdminMaterialsClient() {
 
             <form onSubmit={handleSave} style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#334155', marginBottom: '4px' }}>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#334155', marginBottom: '6px' }}>
                   Material Name <span style={{ color: '#dc2626' }}>*</span>
                 </label>
                 <input
                   type="text"
-                  style={{ width: '100%', height: '36px', padding: '0 10px', borderRadius: '8px', border: 'none', background: '#f8fafc', fontSize: '12.5px', boxSizing: 'border-box' }}
+                  style={{ width: '100%', height: '38px', padding: '0 12px', borderRadius: '9px', border: '1.5px solid #E2E8F0', background: '#F8FAFC', fontSize: '13px', fontWeight: '600', color: '#0F172A', boxSizing: 'border-box' }}
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   placeholder="e.g. Chenille Fuzzy Wire (Blush Pink)"
@@ -760,13 +760,13 @@ export default function AdminMaterialsClient() {
                 />
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#334155', marginBottom: '4px' }}>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#334155', marginBottom: '6px' }}>
                     Category
                   </label>
                   <select
-                    style={{ width: '100%', height: '36px', padding: '0 10px', borderRadius: '8px', border: 'none', background: '#f8fafc', fontSize: '12px', boxSizing: 'border-box' }}
+                    style={{ width: '100%', height: '38px', padding: '0 10px', borderRadius: '9px', border: '1.5px solid #E2E8F0', background: '#F8FAFC', fontSize: '12.5px', fontWeight: '600', color: '#0F172A', boxSizing: 'border-box' }}
                     value={formData.category}
                     onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                   >
@@ -779,12 +779,12 @@ export default function AdminMaterialsClient() {
                 </div>
 
                 <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#334155', marginBottom: '4px' }}>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#334155', marginBottom: '6px' }}>
                     Unit of Measure <span style={{ color: '#dc2626' }}>*</span>
                   </label>
                   <input
                     type="text"
-                    style={{ width: '100%', height: '36px', padding: '0 10px', borderRadius: '8px', border: 'none', background: '#f8fafc', fontSize: '12px', boxSizing: 'border-box' }}
+                    style={{ width: '100%', height: '38px', padding: '0 12px', borderRadius: '9px', border: '1.5px solid #E2E8F0', background: '#F8FAFC', fontSize: '13px', fontWeight: '600', color: '#0F172A', boxSizing: 'border-box' }}
                     value={formData.unit}
                     onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
                     placeholder="pcs, sheets, grams, rolls"
@@ -795,12 +795,12 @@ export default function AdminMaterialsClient() {
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px' }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: '11.5px', fontWeight: '700', color: '#334155', marginBottom: '4px' }}>
+                  <label style={{ display: 'block', fontSize: '11.5px', fontWeight: '700', color: '#334155', marginBottom: '6px' }}>
                     Current Stock
                   </label>
                   <input
                     type="number"
-                    style={{ width: '100%', height: '36px', padding: '0 8px', borderRadius: '8px', border: 'none', background: '#f8fafc', fontSize: '12.5px', boxSizing: 'border-box' }}
+                    style={{ width: '100%', height: '38px', padding: '0 10px', borderRadius: '9px', border: '1.5px solid #E2E8F0', background: '#F8FAFC', fontSize: '13px', fontWeight: '700', color: '#0F172A', boxSizing: 'border-box' }}
                     value={formData.current_stock}
                     onChange={(e) => setFormData({ ...formData, current_stock: parseFloat(e.target.value) || 0 })}
                     required
@@ -808,13 +808,13 @@ export default function AdminMaterialsClient() {
                 </div>
 
                 <div>
-                  <label style={{ display: 'block', fontSize: '11.5px', fontWeight: '700', color: '#334155', marginBottom: '4px' }}>
+                  <label style={{ display: 'block', fontSize: '11.5px', fontWeight: '700', color: '#334155', marginBottom: '6px' }}>
                     Unit Cost (₱)
                   </label>
                   <input
                     type="number"
                     step="0.01"
-                    style={{ width: '100%', height: '36px', padding: '0 8px', borderRadius: '8px', border: 'none', background: '#f8fafc', fontSize: '12.5px', boxSizing: 'border-box' }}
+                    style={{ width: '100%', height: '38px', padding: '0 10px', borderRadius: '9px', border: '1.5px solid #E2E8F0', background: '#F8FAFC', fontSize: '13px', fontWeight: '700', color: '#0F172A', boxSizing: 'border-box' }}
                     value={formData.cost_per_unit}
                     onChange={(e) => setFormData({ ...formData, cost_per_unit: parseFloat(e.target.value) || 0 })}
                     required
@@ -822,12 +822,12 @@ export default function AdminMaterialsClient() {
                 </div>
 
                 <div>
-                  <label style={{ display: 'block', fontSize: '11.5px', fontWeight: '700', color: '#334155', marginBottom: '4px' }}>
+                  <label style={{ display: 'block', fontSize: '11.5px', fontWeight: '700', color: '#334155', marginBottom: '6px' }}>
                     Min. Alert
                   </label>
                   <input
                     type="number"
-                    style={{ width: '100%', height: '36px', padding: '0 8px', borderRadius: '8px', border: 'none', background: '#f8fafc', fontSize: '12.5px', boxSizing: 'border-box' }}
+                    style={{ width: '100%', height: '38px', padding: '0 10px', borderRadius: '9px', border: '1.5px solid #E2E8F0', background: '#F8FAFC', fontSize: '13px', fontWeight: '700', color: '#0F172A', boxSizing: 'border-box' }}
                     value={formData.minimum_stock}
                     onChange={(e) => setFormData({ ...formData, minimum_stock: parseFloat(e.target.value) || 0 })}
                     required
@@ -835,19 +835,58 @@ export default function AdminMaterialsClient() {
                 </div>
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '6px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginTop: '6px', width: '100%' }}>
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="btn btn-secondary btn-sm"
-                  style={{ borderRadius: '8px', padding: '0 14px', height: '34px', fontSize: '12px', border: 'none', background: '#f1f5f9' }}
+                  style={{
+                    height: '38px',
+                    boxSizing: 'border-box',
+                    background: '#F1F5F9',
+                    border: '1px solid #E2E8F0',
+                    borderRadius: '999px',
+                    padding: '0 16px',
+                    fontSize: '12.5px',
+                    fontWeight: '700',
+                    color: '#475569',
+                    cursor: 'pointer',
+                    width: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    lineHeight: 1,
+                    margin: 0,
+                    transition: 'all 0.15s ease',
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = '#E2E8F0'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = '#F1F5F9'; }}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="btn btn-primary btn-sm"
-                  style={{ borderRadius: '8px', padding: '0 18px', height: '34px', fontSize: '12px', fontWeight: '800', border: 'none' }}
+                  style={{
+                    height: '38px',
+                    boxSizing: 'border-box',
+                    background: 'var(--color-primary, #b45309)',
+                    border: '1px solid var(--color-primary, #b45309)',
+                    borderRadius: '999px',
+                    padding: '0 16px',
+                    fontSize: '12.5px',
+                    fontWeight: '800',
+                    color: '#FFFFFF',
+                    cursor: 'pointer',
+                    width: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    lineHeight: 1,
+                    margin: 0,
+                    boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                    transition: 'opacity 0.15s ease',
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.9'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.opacity = '1'; }}
                 >
                   {editingMaterial ? 'Save Changes' : 'Add Material'}
                 </button>
@@ -913,23 +952,30 @@ export default function AdminMaterialsClient() {
             <p style={{ margin: '0 0 20px', fontSize: '13px', color: '#64748b', lineHeight: 1.5 }}>
               Are you sure you want to remove <strong style={{ color: '#0f172a' }}>{materialToDelete.name}</strong> from inventory?
             </p>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', width: '100%' }}>
               <button
                 type="button"
                 onClick={() => setMaterialToDelete(null)}
                 style={{
-                  padding: '9px 16px',
+                  height: '38px',
+                  boxSizing: 'border-box',
+                  padding: '0 16px',
                   fontSize: '12.5px',
                   fontWeight: '700',
-                  borderRadius: '8px',
+                  borderRadius: '999px',
                   border: '1px solid #e2e8f0',
-                  background: '#ffffff',
-                  color: '#334155',
+                  background: '#f1f5f9',
+                  color: '#475569',
                   cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  lineHeight: 1,
+                  margin: 0,
                   transition: 'background 0.12s ease',
                 }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = '#f8fafc')}
-                onMouseLeave={(e) => (e.currentTarget.style.background = '#ffffff')}
+                onMouseEnter={(e) => (e.currentTarget.style.background = '#e2e8f0')}
+                onMouseLeave={(e) => (e.currentTarget.style.background = '#f1f5f9')}
               >
                 Cancel
               </button>
@@ -937,20 +983,27 @@ export default function AdminMaterialsClient() {
                 type="button"
                 onClick={handleConfirmDelete}
                 style={{
-                  padding: '9px 16px',
+                  height: '38px',
+                  boxSizing: 'border-box',
+                  padding: '0 16px',
                   fontSize: '12.5px',
-                  fontWeight: '700',
-                  borderRadius: '8px',
+                  fontWeight: '800',
+                  borderRadius: '999px',
                   border: 'none',
                   background: '#dc2626',
                   color: '#ffffff',
                   cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  lineHeight: 1,
+                  margin: 0,
                   transition: 'background 0.12s ease',
                 }}
                 onMouseEnter={(e) => (e.currentTarget.style.background = '#b91c1c')}
                 onMouseLeave={(e) => (e.currentTarget.style.background = '#dc2626')}
               >
-                Yes, Delete
+                Delete
               </button>
             </div>
           </div>

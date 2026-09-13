@@ -21,6 +21,7 @@ export default function HeaderSearchBar() {
   useEffect(() => {
     let isMounted = true;
     async function loadProducts() {
+      let loaded = MOCK_PRODUCTS;
       try {
         const supabase = createClient();
         if (supabase) {
@@ -33,15 +34,25 @@ export default function HeaderSearchBar() {
             `)
             .eq('is_available', true);
 
-          if (!error && data && data.length > 0 && isMounted) {
-            setProducts(data);
-            return;
+          if (!error && data && data.length > 0) {
+            loaded = data;
+          }
+        }
+      } catch {}
+
+      try {
+        if (typeof window !== 'undefined') {
+          const localProds = JSON.parse(localStorage.getItem('likha_custom_products') || '[]');
+          if (Array.isArray(localProds) && localProds.length > 0) {
+            const map = new Map();
+            [...localProds, ...loaded].forEach((p) => map.set(p.id || p.slug, p));
+            loaded = Array.from(map.values());
           }
         }
       } catch {}
 
       if (isMounted) {
-        setProducts(MOCK_PRODUCTS);
+        setProducts(loaded);
       }
     }
 

@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { MOCK_CUSTOM_REQUESTS } from '@/lib/mockData';
+import { createClient } from '@/lib/supabase/client';
 import { formatCurrency } from '@/lib/utils/formatCurrency';
 import { formatRelative, formatDate } from '@/lib/utils/formatDate';
 
@@ -15,6 +16,51 @@ export default function AdminCustomRequestsClient() {
   const [pageSize, setPageSize] = useState(10);
   const [activeMenuId, setActiveMenuId] = useState(null);
   const [requestToDelete, setRequestToDelete] = useState(null);
+
+  // Sync requests from Supabase & localStorage
+  const fetchRequests = useCallback(async () => {
+    let combined = [...MOCK_CUSTOM_REQUESTS];
+    try {
+      const local = JSON.parse(localStorage.getItem('likha_custom_requests') || '[]');
+      if (Array.isArray(local) && local.length > 0) {
+        const localRefs = new Set(local.map(r => r.reference_code));
+        combined = [...local, ...combined.filter(r => !localRefs.has(r.reference_code))];
+      }
+    } catch {}
+
+    try {
+      const supabase = createClient();
+      if (supabase) {
+        const { data, error } = await supabase.from('custom_requests').select('*').order('created_at', { ascending: false });
+        if (!error && data && data.length > 0) {
+          const dbRefs = new Set(data.map(r => r.reference_code));
+          combined = [...data, ...combined.filter(r => !dbRefs.has(r.reference_code))];
+        }
+      }
+    } catch {}
+
+    setRequests(combined);
+  }, []);
+
+  useEffect(() => {
+    fetchRequests();
+    let supabase = null;
+    let channel = null;
+    try {
+      supabase = createClient();
+      if (supabase) {
+        channel = supabase.channel('admin-custom-requests-realtime')
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'custom_requests' }, () => {
+            fetchRequests();
+          })
+          .subscribe();
+      }
+    } catch {}
+
+    return () => {
+      if (supabase && channel) supabase.removeChannel(channel);
+    };
+  }, [fetchRequests]);
 
   // Quote Modal State
   const [quotingRequest, setQuotingRequest] = useState(null);

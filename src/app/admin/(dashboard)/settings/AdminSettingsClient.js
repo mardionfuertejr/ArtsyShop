@@ -12,7 +12,7 @@ export default function AdminSettingsClient() {
     tagline: 'Handcrafted Everlasting Fuzzy Bouquets & Resin Keepsakes',
     messengerLink: 'https://www.facebook.com/messages/t/61587268312750',
     contactNumber: '0917 890 1234',
-    gcashName: 'M&M ARTSY STUDIO',
+    gcashName: 'M&M ARTSY CRAFTS',
     gcashNumber: '0917 890 1234',
     deliveryFee: 45,
     deliveryFeeMode: 'auto',
@@ -64,7 +64,7 @@ export default function AdminSettingsClient() {
     } catch {}
 
     setSaving(false);
-    setToastMsg('Studio settings saved successfully! ✨');
+    setToastMsg('Store settings saved successfully! ✨');
     setTimeout(() => setToastMsg(''), 3000);
   };
 
@@ -80,7 +80,7 @@ export default function AdminSettingsClient() {
 
       {/* Header */}
       <div className="admin-page-header" style={{ marginBottom: '18px' }}>
-        <h1 className="admin-page-title" style={{ margin: 0, fontSize: '22px', fontWeight: '800' }}>Studio Settings</h1>
+        <h1 className="admin-page-title" style={{ margin: 0, fontSize: '22px', fontWeight: '800' }}>Store Settings</h1>
       </div>
 
       <form onSubmit={handleSave}>
@@ -89,13 +89,13 @@ export default function AdminSettingsClient() {
           <div className="card">
             <h2 style={{ fontSize: 'var(--text-base)', fontWeight: 'var(--weight-bold)', marginBottom: 'var(--space-4)', color: 'var(--color-text)', display: 'flex', alignItems: 'center', gap: '8px' }}>
               <i className="fa-solid fa-store" style={{ color: 'var(--color-primary)' }}></i>
-              <span>Studio & Brand Profile</span>
+              <span>Shop & Brand Profile</span>
             </h2>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-4)' }}>
               <div>
                 <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '6px', color: 'var(--color-text)' }}>
-                  Studio / Brand Name
+                  Shop / Brand Name
                 </label>
                 <input
                   type="text"
@@ -140,7 +140,7 @@ export default function AdminSettingsClient() {
 
               <div>
                 <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '6px', color: 'var(--color-text)' }}>
-                  Studio Contact Mobile
+                  Shop Contact Mobile
                 </label>
                 <input
                   type="tel"
@@ -246,7 +246,7 @@ export default function AdminSettingsClient() {
                 {settings.deliveryFeeMode !== 'fixed' ? (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                     <p style={{ fontSize: '11.5px', color: 'var(--color-text-muted)', margin: '0 0 4px' }}>
-                      Auto-computes using GPS map pin from Studio in Barugo Proper:
+                      Auto-computes using GPS map pin from Shop in Barugo Proper:
                     </p>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
                       <div>
@@ -320,7 +320,7 @@ export default function AdminSettingsClient() {
 
               <div>
                 <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '6px', color: 'var(--color-text)' }}>
-                  In-Studio Pickup Address
+                  Store Pickup Address
                 </label>
                 <input
                   type="text"
@@ -351,7 +351,7 @@ export default function AdminSettingsClient() {
             ) : (
               <>
                 <i className="fa-solid fa-floppy-disk"></i>
-                <span>Save Studio Settings</span>
+                <span>Save Store Settings</span>
               </>
             )}
           </button>

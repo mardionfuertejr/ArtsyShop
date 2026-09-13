@@ -74,7 +74,7 @@ function getStatusHero(status, isDelivery) {
         title: isDelivery ? 'Out for Delivery' : 'Ready for Pickup',
         subtitle: isDelivery
           ? 'Your order is packed and dispatched for delivery.'
-          : 'Your order is ready for collection at our Barugo studio.',
+          : 'Your order is ready for pickup at our Barugo store.',
       };
     case 'completed':
       return {
@@ -1139,14 +1139,14 @@ function TrackContent() {
                             ? formatDate(order.target_date || order.preferred_date)
                             : isDelivery
                             ? 'Standard Delivery'
-                            : 'Barugo Studio'
+                            : 'Barugo Store'
                         }
                       >
                         {order.target_date || order.preferred_date
                           ? formatDate(order.target_date || order.preferred_date)
                           : isDelivery
                           ? 'Standard Delivery'
-                          : 'Barugo Studio'}
+                          : 'Barugo Store'}
                       </span>
                     </div>
                   </div>

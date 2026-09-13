@@ -8,7 +8,7 @@ import { formatRelative } from '@/lib/utils/formatDate';
 import { formatCurrency } from '@/lib/utils/formatCurrency';
 
 // Build initial synchronous notifications to prevent initial blank state
-function buildNotificationList(ordersList = MOCK_ORDERS, materialsList = MOCK_MATERIALS, feedbacksList = getMockFeedbacks()) {
+function buildNotificationList(ordersList = MOCK_ORDERS, materialsList = MOCK_MATERIALS, feedbacksList = getMockFeedbacks(), customRequestsList = []) {
   const notifs = [];
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -62,7 +62,21 @@ function buildNotificationList(ordersList = MOCK_ORDERS, materialsList = MOCK_MA
     }
   });
 
-  // 2. FEEDBACKS & REVIEWS
+  // 2. CUSTOM REQUESTS
+  (customRequestsList || []).filter(r => r.status === 'pending').slice(0, 3).forEach((cr) => {
+    notifs.push({
+      id: `cr-${cr.id || cr.reference_code}`,
+      icon: 'fa-solid fa-wand-magic-sparkles',
+      color: '#7C3AED',
+      bgColor: '#F5F3FF',
+      title: `Custom Request: ${cr.reference_code}`,
+      subtitle: `${cr.customer_name} • ${cr.description ? cr.description.slice(0, 32) + '...' : 'Custom Quote Needed'}`,
+      href: '/admin/custom-requests',
+      time: cr.created_at,
+    });
+  });
+
+  // 3. REVIEWS & FEEDBACK
   feedbacksList.slice(0, 2).forEach((fb) => {
     notifs.push({
       id: `fb-${fb.id}`,
@@ -76,7 +90,7 @@ function buildNotificationList(ordersList = MOCK_ORDERS, materialsList = MOCK_MA
     });
   });
 
-  // 3. LOW STOCKS
+  // 4. LOW STOCKS
   materialsList.forEach((mat) => {
     const current = parseFloat(mat.current_stock) || 0;
     const minimum = parseFloat(mat.minimum_stock) || 0;
@@ -171,7 +185,24 @@ export default function NotificationBell() {
         }
       } catch {}
 
-      const freshNotifs = buildNotificationList(ordersList, materialsList, feedbacksList);
+      // 4. CUSTOM REQUESTS
+      let customRequestsList = [];
+      try {
+        const localCustoms = JSON.parse(localStorage.getItem('likha_custom_requests') || '[]');
+        if (Array.isArray(localCustoms)) customRequestsList = [...localCustoms];
+      } catch {}
+      try {
+        const supabase = createClient();
+        if (supabase) {
+          const { data: dbCustoms } = await supabase.from('custom_requests').select('*').order('created_at', { ascending: false }).limit(5);
+          if (dbCustoms && dbCustoms.length > 0) {
+            const dbRefs = new Set(dbCustoms.map(c => c.reference_code));
+            customRequestsList = [...dbCustoms, ...customRequestsList.filter(c => !dbRefs.has(c.reference_code))];
+          }
+        }
+      } catch {}
+
+      const freshNotifs = buildNotificationList(ordersList, materialsList, feedbacksList, customRequestsList);
       setNotifications(freshNotifs);
     } catch {}
   }, []);

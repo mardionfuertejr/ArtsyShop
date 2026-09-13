@@ -8,7 +8,7 @@ let serverSettings = {
   tagline: 'Handcrafted Everlasting Fuzzy Bouquets & Resin Keepsakes',
   messengerLink: 'https://www.facebook.com/messages/t/61587268312750',
   contactNumber: '0917 890 1234',
-  gcashName: 'M&M ARTSY STUDIO',
+  gcashName: 'M&M ARTSY CRAFTS',
   gcashNumber: '0917 890 1234',
   deliveryFee: 45,
   deliveryFeeMode: 'auto', // 'auto' (Distance-based GPS) or 'fixed' (Manual flat fee)

@@ -317,6 +317,10 @@ export default function ProductDetailClient({ product: initialProduct, photos: i
   const isOnSale = Boolean(currentProduct.is_on_sale && currentProduct.sale_price && Number(currentProduct.base_price) > Number(currentProduct.sale_price));
   const originalBasePrice = parseFloat(currentProduct.base_price || 0);
   const effectiveBasePrice = isOnSale ? parseFloat(currentProduct.sale_price) : originalBasePrice;
+  const discountPercent = isOnSale && originalBasePrice > 0
+    ? Math.round(((originalBasePrice - parseFloat(currentProduct.sale_price)) / originalBasePrice) * 100)
+    : null;
+  const saleBadgeText = discountPercent ? `${discountPercent}% OFF` : (currentProduct.sale_tag || 'Sale');
 
   // Calculate live price (including options)
   const extraCost = Object.values(selectedOptions).reduce(
@@ -504,6 +508,20 @@ export default function ProductDetailClient({ product: initialProduct, photos: i
               {isOnSale && (
                 <span style={{ fontSize: '15px', color: 'var(--color-text-muted)', textDecoration: 'line-through', fontWeight: '500' }}>
                   {formatCurrency(originalBasePrice + extraCost)}
+                </span>
+              )}
+
+              {isOnSale && (
+                <span style={{
+                  fontSize: '11px',
+                  fontWeight: '800',
+                  color: '#B91C1C',
+                  background: '#FEE2E2',
+                  padding: '2px 8px',
+                  borderRadius: '6px',
+                  letterSpacing: '0.02em',
+                }}>
+                  {saleBadgeText}
                 </span>
               )}
             </div>

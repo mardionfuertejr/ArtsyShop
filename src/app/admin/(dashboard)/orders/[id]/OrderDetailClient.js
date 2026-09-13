@@ -77,7 +77,7 @@ export default function OrderDetailClient({ order: initialOrder }) {
         const marker = L.marker(coords, { icon: customIcon }).addTo(map);
         const popupText = isDelivery
           ? (order.delivery_location?.address || `${order.customer_name}'s Delivery Location`)
-          : 'M&M Artsy Crafts Studio (Pickup)';
+          : 'M&M Artsy Crafts Store (Pickup)';
         marker.bindPopup(`<div style="font-size: 12px; font-weight: 700; color: #0f172a; padding: 2px;">${popupText}</div>`);
 
         mapInstanceRef.current = map;
@@ -310,13 +310,13 @@ export default function OrderDetailClient({ order: initialOrder }) {
         .order-detail-grid {
           display: grid;
           grid-template-columns: 1fr;
-          gap: 18px;
-          align-items: stretch;
+          gap: 16px;
+          align-items: start;
         }
         @media (min-width: 900px) {
           .order-detail-grid {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            align-items: stretch;
+            grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+            align-items: start;
           }
         }
       `}</style>
@@ -451,34 +451,35 @@ export default function OrderDetailClient({ order: initialOrder }) {
                   justifyContent: 'center',
                   width: '32px',
                   height: '32px',
-                  background: isMenuOpen ? 'var(--color-surface-warm, #FAF6F0)' : 'var(--color-surface, #ffffff)',
-                  border: '1px solid var(--color-border)',
                   borderRadius: '8px',
-                  color: 'var(--color-text)',
+                  border: '1px solid var(--color-border)',
+                  background: isMenuOpen ? '#f1f5f9' : '#ffffff',
+                  color: '#334155',
                   cursor: 'pointer',
                   transition: 'all 0.15s ease',
-                  fontSize: '14px',
                 }}
               >
-                <i className="fa-solid fa-ellipsis"></i>
+                <i className="fa-solid fa-ellipsis" style={{ fontSize: '13px' }}></i>
               </button>
 
-              {/* Dropdown Options */}
+              {/* Status Action Menu Popover */}
               {isMenuOpen && (
                 <div style={{
                   position: 'absolute',
-                  right: 0,
                   top: 'calc(100% + 6px)',
-                  background: 'var(--color-surface, #ffffff)',
-                  border: '1px solid var(--color-border)',
-                  borderRadius: '12px',
+                  right: 0,
+                  background: '#ffffff',
+                  borderRadius: '10px',
+                  border: '1px solid #e2e8f0',
                   boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.05)',
-                  minWidth: '210px',
-                  zIndex: 50,
+                  minWidth: '170px',
                   padding: '6px',
-                  animation: 'fadeIn 0.15s ease',
+                  zIndex: 9999,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '2px',
                 }}>
-                  <div style={{ padding: '6px 10px 4px', fontSize: '10.5px', fontWeight: '800', color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  <div style={{ padding: '4px 8px', fontSize: '10px', fontWeight: '800', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                     Set Order Status
                   </div>
 
@@ -492,7 +493,7 @@ export default function OrderDetailClient({ order: initialOrder }) {
                       padding: '8px 10px',
                       borderRadius: '8px',
                       border: 'none',
-                      background: status === 'confirmed' ? 'rgba(79, 70, 229, 0.08)' : 'transparent',
+                      background: status === 'confirmed' ? 'rgba(55, 48, 163, 0.08)' : 'transparent',
                       color: status === 'confirmed' ? '#3730A3' : 'var(--color-text)',
                       fontSize: '12.5px',
                       fontWeight: status === 'confirmed' ? '700' : '500',
@@ -615,335 +616,344 @@ export default function OrderDetailClient({ order: initialOrder }) {
         </div>
       </div>
 
-      {/* 2-Column Dashboard Grid with Equal Height Balance */}
+      {/* 2-Column Dashboard Grid (Clean, Balanced & Compact) */}
       <div className="order-detail-grid">
         
-        {/* Left Column: Ordered Items & Integrated Financial Breakdown */}
-        <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-          <div className="card" style={{
-            padding: '20px',
-            background: 'var(--color-surface, #ffffff)',
-            borderRadius: '16px',
-            border: '1px solid var(--color-border)',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
-            height: '100%',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'space-between',
-            boxSizing: 'border-box',
-          }}>
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', paddingBottom: '10px', borderBottom: '1px solid var(--color-border-light)' }}>
-                <h2 style={{ fontSize: '15px', fontWeight: '800', color: 'var(--color-text)', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <i className="fa-solid fa-bag-shopping" style={{ color: 'var(--color-primary)', fontSize: '14px' }}></i>
-                  <span>Ordered Items</span>
-                </h2>
-                <span style={{
-                  background: 'rgba(180, 83, 9, 0.08)',
-                  color: 'var(--color-primary)',
-                  fontSize: '11px',
-                  fontWeight: '700',
-                  padding: '3px 8px',
-                  borderRadius: '6px',
-                }}>
-                  {order.order_items?.length || 0} {order.order_items?.length === 1 ? 'item' : 'items'}
-                </span>
-              </div>
+        {/* Left Column: Ordered Items, Customer Note & Financial Breakdown */}
+        <div className="card" style={{
+          padding: '20px',
+          background: 'var(--color-surface, #ffffff)',
+          borderRadius: '16px',
+          border: '1px solid var(--color-border)',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
+          display: 'flex',
+          flexDirection: 'column',
+          boxSizing: 'border-box',
+        }}>
+          {/* Header */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', paddingBottom: '10px', borderBottom: '1px solid var(--color-border-light)' }}>
+            <h2 style={{ fontSize: '14.5px', fontWeight: '800', color: 'var(--color-text)', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <i className="fa-solid fa-bag-shopping" style={{ color: 'var(--color-primary)', fontSize: '14px' }}></i>
+              <span>Ordered Items</span>
+            </h2>
+            <span style={{
+              background: 'rgba(180, 83, 9, 0.08)',
+              color: 'var(--color-primary)',
+              fontSize: '11px',
+              fontWeight: '700',
+              padding: '2px 8px',
+              borderRadius: '6px',
+            }}>
+              {order.order_items?.length || 0} {order.order_items?.length === 1 ? 'item' : 'items'}
+            </span>
+          </div>
 
-              {/* Clean Items List */}
-              <div style={{ display: 'flex', flexDirection: 'column', flex: 1 }}>
-                {order.order_items && order.order_items.length > 0 ? (
-                  order.order_items.map((item, idx) => (
-                    <div
-                      key={idx}
-                      style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'flex-start',
-                        gap: '12px',
-                        padding: '12px 0',
-                        borderBottom: idx < order.order_items.length - 1 ? '1px solid var(--color-border-light)' : 'none',
-                      }}
-                    >
-                      <div style={{ flex: 1 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                          <span style={{ fontWeight: '700', fontSize: '14px', color: 'var(--color-text)' }}>
-                            {item.product_name}
-                          </span>
-                          <span style={{
-                            fontWeight: '700',
-                            fontSize: '11.5px',
-                            background: 'rgba(0, 0, 0, 0.05)',
-                            color: 'var(--color-text)',
-                            padding: '1px 6px',
-                            borderRadius: '4px',
-                          }}>
-                            × {item.quantity}
-                          </span>
-                        </div>
+          {/* Clean Items List */}
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            {order.order_items && order.order_items.length > 0 ? (
+              order.order_items.map((item, idx) => (
+                <div
+                  key={idx}
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    gap: '12px',
+                    padding: '10px 0',
+                    borderBottom: idx < order.order_items.length - 1 ? '1px solid var(--color-border-light)' : 'none',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: 0 }}>
+                    <div style={{
+                      width: '36px',
+                      height: '36px',
+                      borderRadius: '8px',
+                      background: '#F8FAFC',
+                      border: '1px solid #E2E8F0',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0,
+                    }}>
+                      <i className="fa-solid fa-gift" style={{ color: 'var(--color-primary, #b45309)', fontSize: '14px' }}></i>
+                    </div>
 
-                        {item.options?.length > 0 && (
-                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '4px' }}>
-                            {item.options.map((opt, oIdx) => (
-                              <span key={oIdx} style={{
-                                fontSize: '10.5px',
-                                fontWeight: '600',
-                                background: 'rgba(234, 88, 12, 0.08)',
-                                color: 'var(--color-primary-dark, #9a3412)',
-                                padding: '1px 6px',
-                                borderRadius: '4px',
-                                border: '1px solid rgba(234, 88, 12, 0.14)',
-                              }}>
-                                {opt.option_name}: {opt.option_value}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-
-                        <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', marginTop: '4px' }}>
-                          {formatCurrency(item.unit_price)} each
-                        </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                        <span style={{ fontWeight: '700', fontSize: '13.5px', color: 'var(--color-text)' }}>
+                          {item.product_name}
+                        </span>
+                        <span style={{
+                          fontWeight: '700',
+                          fontSize: '11px',
+                          background: 'rgba(0, 0, 0, 0.06)',
+                          color: '#334155',
+                          padding: '1px 5px',
+                          borderRadius: '4px',
+                        }}>
+                          × {item.quantity}
+                        </span>
                       </div>
 
-                      <div style={{ textAlign: 'right', fontWeight: '800', fontSize: '14px', color: 'var(--color-text)', whiteSpace: 'nowrap' }}>
-                        {formatCurrency(item.total_price)}
+                      {item.options?.length > 0 && (
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '3px' }}>
+                          {item.options.map((opt, oIdx) => (
+                            <span key={oIdx} style={{
+                              fontSize: '10px',
+                              fontWeight: '600',
+                              background: 'rgba(234, 88, 12, 0.08)',
+                              color: 'var(--color-primary-dark, #9a3412)',
+                              padding: '1px 5px',
+                              borderRadius: '4px',
+                              border: '1px solid rgba(234, 88, 12, 0.14)',
+                            }}>
+                              {opt.option_name}: {opt.option_value}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+
+                      <div style={{ fontSize: '11.5px', color: 'var(--color-text-secondary)', marginTop: '2px' }}>
+                        {formatCurrency(item.unit_price)} each
                       </div>
                     </div>
-                  ))
-                ) : (
-                  <p style={{ fontSize: '13px', color: '#94a3b8', fontStyle: 'italic', padding: '16px 0' }}>
-                    No items in this order.
-                  </p>
-                )}
+                  </div>
+
+                  <div style={{ textAlign: 'right', fontWeight: '800', fontSize: '13.5px', color: 'var(--color-text)', whiteSpace: 'nowrap' }}>
+                    {formatCurrency(item.total_price)}
+                  </div>
+                </div>
+              ))
+            ) : (
+              <p style={{ fontSize: '12.5px', color: '#94a3b8', fontStyle: 'italic', padding: '12px 0', margin: 0 }}>
+                No items in this order.
+              </p>
+            )}
+          </div>
+
+          {/* Integrated Customer Note (No wasted full-width card!) */}
+          {order.notes && (
+            <div style={{
+              background: '#FFFBEB',
+              border: '1px solid #FDE68A',
+              borderRadius: '10px',
+              padding: '10px 12px',
+              display: 'flex',
+              gap: '8px',
+              alignItems: 'flex-start',
+              marginTop: '12px',
+            }}>
+              <i className="fa-regular fa-comment-dots" style={{ color: '#B45309', fontSize: '13px', marginTop: '2px', flexShrink: 0 }}></i>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <span style={{ display: 'block', fontSize: '10px', fontWeight: '800', color: '#92400E', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: '2px' }}>
+                  Customer Note
+                </span>
+                <p style={{ margin: 0, fontSize: '12px', color: '#78350F', fontStyle: 'italic', lineHeight: 1.4 }}>
+                  &ldquo;{order.notes}&rdquo;
+                </p>
               </div>
             </div>
+          )}
 
-            {/* Integrated Financial Summary */}
-            <div style={{ marginTop: '16px', paddingTop: '14px', borderTop: '1px solid var(--color-border-light)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: 'var(--color-text-secondary)' }}>
-                <span>Items Subtotal</span>
-                <span style={{ fontWeight: '600', color: 'var(--color-text)' }}>{formatCurrency(order.subtotal)}</span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: 'var(--color-text-secondary)' }}>
-                <span>Delivery Fee</span>
-                <span style={{ fontWeight: '600', color: 'var(--color-text)' }}>{formatCurrency(order.delivery_fee)}</span>
-              </div>
-              <div style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                fontWeight: '800',
-                fontSize: '15px',
-                borderTop: '1px solid var(--color-border)',
-                paddingTop: '10px',
-                marginTop: '4px',
-              }}>
-                <span style={{ color: 'var(--color-text)' }}>Total Amount</span>
-                <span style={{ color: 'var(--color-primary)', fontSize: '18px' }}>{formatCurrency(order.total_amount)}</span>
-              </div>
+          {/* Integrated Financial Summary */}
+          <div style={{ marginTop: '14px', paddingTop: '12px', borderTop: '1px solid var(--color-border-light)', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12.5px', color: 'var(--color-text-secondary)' }}>
+              <span>Items Subtotal</span>
+              <span style={{ fontWeight: '600', color: 'var(--color-text)' }}>{formatCurrency(order.subtotal)}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12.5px', color: 'var(--color-text-secondary)' }}>
+              <span>Delivery Fee</span>
+              <span style={{ fontWeight: '600', color: 'var(--color-text)' }}>{formatCurrency(order.delivery_fee)}</span>
+            </div>
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              fontWeight: '800',
+              fontSize: '14.5px',
+              borderTop: '1px solid var(--color-border)',
+              paddingTop: '8px',
+              marginTop: '4px',
+            }}>
+              <span style={{ color: 'var(--color-text)' }}>Total Amount</span>
+              <span style={{ color: 'var(--color-primary)', fontSize: '17px' }}>{formatCurrency(order.total_amount)}</span>
             </div>
           </div>
         </div>
 
         {/* Right Column: Customer & Delivery Details */}
-        <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-          <div className="card" style={{
-            padding: '20px',
-            background: 'var(--color-surface, #ffffff)',
-            borderRadius: '16px',
-            border: '1px solid var(--color-border)',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
-            height: '100%',
-            display: 'flex',
-            flexDirection: 'column',
-            boxSizing: 'border-box',
-            gap: '14px',
-          }}>
-            {/* Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '10px', borderBottom: '1px solid var(--color-border-light)' }}>
-              <h2 style={{ fontSize: '15px', fontWeight: '800', color: 'var(--color-text)', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <i className="fa-solid fa-user-check" style={{ color: 'var(--color-primary)', fontSize: '14px' }}></i>
-                <span>Customer & Delivery</span>
-              </h2>
-              <span style={{
-                background: order.order_type === 'delivery' ? 'rgba(234, 88, 12, 0.08)' : 'rgba(22, 163, 74, 0.08)',
-                color: order.order_type === 'delivery' ? '#C2410C' : '#166534',
-                fontSize: '11px',
-                fontWeight: '700',
-                padding: '3px 8px',
-                borderRadius: '6px',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '4px',
-              }}>
-                <i className={order.order_type === 'delivery' ? 'fa-solid fa-motorcycle' : 'fa-solid fa-store'} style={{ fontSize: '10px' }}></i>
-                <span>{order.order_type === 'delivery' ? 'Delivery' : 'Pickup'}</span>
+        <div className="card" style={{
+          padding: '20px',
+          background: 'var(--color-surface, #ffffff)',
+          borderRadius: '16px',
+          border: '1px solid var(--color-border)',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
+          display: 'flex',
+          flexDirection: 'column',
+          boxSizing: 'border-box',
+          gap: '12px',
+        }}>
+          {/* Header */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '10px', borderBottom: '1px solid var(--color-border-light)' }}>
+            <h2 style={{ fontSize: '14.5px', fontWeight: '800', color: 'var(--color-text)', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <i className="fa-solid fa-user-check" style={{ color: 'var(--color-primary)', fontSize: '14px' }}></i>
+              <span>Customer & Delivery</span>
+            </h2>
+            <span style={{
+              background: order.order_type === 'delivery' ? 'rgba(234, 88, 12, 0.08)' : 'rgba(22, 163, 74, 0.08)',
+              color: order.order_type === 'delivery' ? '#C2410C' : '#166534',
+              fontSize: '11px',
+              fontWeight: '700',
+              padding: '2px 8px',
+              borderRadius: '6px',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px',
+            }}>
+              <i className={order.order_type === 'delivery' ? 'fa-solid fa-motorcycle' : 'fa-solid fa-store'} style={{ fontSize: '10px' }}></i>
+              <span>{order.order_type === 'delivery' ? 'Delivery' : 'Pickup'}</span>
+            </span>
+          </div>
+
+          {/* Customer & Date Needed Info Pills */}
+          <div style={{ display: 'grid', gridTemplateColumns: order.preferred_date ? '1.1fr 1fr' : '1fr', gap: '8px' }}>
+            {/* Customer Name & Phone */}
+            <div style={{ background: '#F8FAFC', padding: '8px 12px', borderRadius: '10px', border: '1px solid #E2E8F0' }}>
+              <span style={{ fontSize: '9.5px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.04em', color: '#64748B', display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '2px' }}>
+                <i className="fa-solid fa-user" style={{ fontSize: '9px', color: 'var(--color-primary)' }}></i>
+                <span>Customer</span>
               </span>
-            </div>
-
-            {/* Customer & Date Needed Pills */}
-            <div style={{ display: 'grid', gridTemplateColumns: order.preferred_date ? '1.1fr 1fr' : '1fr', gap: '8px' }}>
-              {/* Customer Name */}
-              <div style={{ background: '#F8FAFC', padding: '9px 12px', borderRadius: '10px', border: '1px solid #E2E8F0' }}>
-                <span style={{ fontSize: '10px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.04em', color: '#64748B', display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '2px' }}>
-                  <i className="fa-solid fa-user" style={{ fontSize: '9px', color: 'var(--color-primary)' }}></i>
-                  <span>Customer</span>
+              <p style={{ fontWeight: '800', fontSize: '13px', color: '#0F172A', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {order.customer_name}
+              </p>
+              {order.customer_phone && (
+                <span style={{ fontSize: '11px', color: '#64748B', fontWeight: '600' }}>
+                  {order.customer_phone}
                 </span>
-                <p style={{ fontWeight: '800', fontSize: '13.5px', color: '#0F172A', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {order.customer_name}
-                </p>
-              </div>
-
-              {/* Date Needed */}
-              {order.preferred_date && (
-                <div style={{
-                  background: '#FEF3C7',
-                  padding: '9px 12px',
-                  borderRadius: '10px',
-                  border: '1px solid #FDE68A',
-                }}>
-                  <span style={{
-                    fontSize: '10px',
-                    fontWeight: '700',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.04em',
-                    color: '#92400E',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                    marginBottom: '2px',
-                  }}>
-                    <i className="fa-regular fa-calendar-check" style={{ fontSize: '9.5px', color: '#B45309' }}></i>
-                    <span>Date Needed</span>
-                  </span>
-                  <p style={{
-                    fontWeight: '800',
-                    fontSize: '12.5px',
-                    color: '#B45309',
-                    margin: 0,
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                  }}>
-                    {formatDate(order.preferred_date)}
-                  </p>
-                </div>
               )}
             </div>
 
-            {/* Dynamic Full-Height Interactive Satellite Map & Navigation Container */}
-            <div style={{
-              flex: 1,
-              display: 'flex',
-              flexDirection: 'column',
-              minHeight: '220px',
-              borderRadius: '12px',
-              border: '1px solid #E2E8F0',
-              overflow: 'hidden',
-              background: '#FAF8F5',
-              boxShadow: '0 1px 4px rgba(0,0,0,0.03)',
-            }}>
-              {/* High-Res Satellite Pin Map (Fills entire available vertical space) */}
-              <div
-                ref={mapRef}
-                style={{
-                  flex: 1,
-                  minHeight: '160px',
-                  width: '100%',
-                  background: '#e2e8f0',
-                  zIndex: 1,
-                }}
-              />
-
-              {/* Integrated Address & Turn-by-Turn Directions Bar */}
+            {/* Date Needed */}
+            {order.preferred_date && (
               <div style={{
-                padding: '12px 14px',
-                background: '#ffffff',
-                borderTop: '1px solid #E2E8F0',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                gap: '10px',
+                background: '#FEF3C7',
+                padding: '8px 12px',
+                borderRadius: '10px',
+                border: '1px solid #FDE68A',
               }}>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginBottom: '2px' }}>
-                    <i className={order.order_type === 'delivery' ? 'fa-solid fa-location-dot' : 'fa-solid fa-store'} style={{ color: 'var(--color-primary)', fontSize: '11px' }}></i>
-                    <span style={{ fontSize: '10px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.04em', color: '#64748B' }}>
-                      {order.order_type === 'delivery' ? 'Delivery Address' : 'Studio Pickup Station'}
-                    </span>
-                  </div>
-                  <p style={{ fontSize: '12.5px', fontWeight: '700', color: '#0F172A', margin: 0, lineHeight: 1.4 }}>
-                    {order.order_type === 'delivery'
-                      ? (order.delivery_location?.address || 'Poblacion, Barugo, Leyte')
-                      : 'M&M Artsy Crafts Studio • Barugo, Leyte'}
-                  </p>
-                  {order.delivery_location?.landmark_notes && order.delivery_location.landmark_notes.trim() !== (order.delivery_location.address || '').trim() && (
-                    <p style={{ fontSize: '11px', color: '#64748B', margin: '2px 0 0' }}>
-                      <span style={{ fontWeight: '600' }}>Landmark: </span>{order.delivery_location.landmark_notes}
-                    </p>
-                  )}
-                </div>
+                <span style={{
+                  fontSize: '9.5px',
+                  fontWeight: '700',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.04em',
+                  color: '#92400E',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  marginBottom: '2px',
+                }}>
+                  <i className="fa-regular fa-calendar-check" style={{ fontSize: '9.5px', color: '#B45309' }}></i>
+                  <span>Date Needed</span>
+                </span>
+                <p style={{
+                  fontWeight: '800',
+                  fontSize: '12.5px',
+                  color: '#B45309',
+                  margin: 0,
+                  whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                }}>
+                  {formatDate(order.preferred_date)}
+                </p>
+              </div>
+            )}
+          </div>
 
-                {(order.delivery_location?.latitude || order.delivery_location?.address) && (
-                  <a
-                    href={
-                      order.delivery_location?.latitude
-                        ? `https://www.google.com/maps/dir/?api=1&origin=Current+Location&destination=${order.delivery_location.latitude},${order.delivery_location.longitude}&travelmode=driving&dir_action=navigate`
-                        : `https://www.google.com/maps/dir/?api=1&origin=Current+Location&destination=${encodeURIComponent((order.delivery_location?.address || 'Barugo, Leyte') + ', Philippines')}&travelmode=driving&dir_action=navigate`
-                    }
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="btn btn-secondary btn-sm"
-                    title="Start GPS Navigation from your location to customer"
-                    style={{
-                      padding: '6px 12px',
-                      fontSize: '11px',
-                      fontWeight: '700',
-                      borderRadius: '8px',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      flexShrink: 0,
-                      textDecoration: 'none',
-                      background: '#F8FAFC',
-                      border: '1px solid #CBD5E1',
-                      color: '#1E293B',
-                      boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
-                    }}
-                  >
-                    <i className="fa-solid fa-location-arrow" style={{ color: 'var(--color-primary)', fontSize: '11px' }}></i>
-                    <span>Directions</span>
-                  </a>
+          {/* Interactive Satellite Map & Navigation Container */}
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            borderRadius: '12px',
+            border: '1px solid #E2E8F0',
+            overflow: 'hidden',
+            background: '#FAF8F5',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
+          }}>
+            {/* Satellite Map */}
+            <div
+              ref={mapRef}
+              style={{
+                height: '160px',
+                width: '100%',
+                background: '#e2e8f0',
+                zIndex: 1,
+              }}
+            />
+
+            {/* Address & Directions Bar */}
+            <div style={{
+              padding: '10px 12px',
+              background: '#ffffff',
+              borderTop: '1px solid #E2E8F0',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              gap: '8px',
+            }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginBottom: '2px' }}>
+                  <i className={order.order_type === 'delivery' ? 'fa-solid fa-location-dot' : 'fa-solid fa-store'} style={{ color: 'var(--color-primary)', fontSize: '10.5px' }}></i>
+                  <span style={{ fontSize: '9.5px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.04em', color: '#64748B' }}>
+                    {order.order_type === 'delivery' ? 'Delivery Address' : 'Store Pickup Station'}
+                  </span>
+                </div>
+                <p style={{ fontSize: '12px', fontWeight: '700', color: '#0F172A', margin: 0, lineHeight: 1.3 }}>
+                  {order.order_type === 'delivery'
+                    ? (order.delivery_location?.address || 'Poblacion, Barugo, Leyte')
+                    : 'M&M Artsy Crafts Shop • Barugo, Leyte'}
+                </p>
+                {order.delivery_location?.landmark_notes && order.delivery_location.landmark_notes.trim() !== (order.delivery_location.address || '').trim() && (
+                  <p style={{ fontSize: '10.5px', color: '#64748B', margin: '2px 0 0' }}>
+                    <span style={{ fontWeight: '600' }}>Landmark: </span>{order.delivery_location.landmark_notes}
+                  </p>
                 )}
               </div>
+
+              {(order.delivery_location?.latitude || order.delivery_location?.address) && (
+                <a
+                  href={
+                    order.delivery_location?.latitude
+                      ? `https://www.google.com/maps/dir/?api=1&origin=Current+Location&destination=${order.delivery_location.latitude},${order.delivery_location.longitude}&travelmode=driving&dir_action=navigate`
+                      : `https://www.google.com/maps/dir/?api=1&origin=Current+Location&destination=${encodeURIComponent((order.delivery_location?.address || 'Barugo, Leyte') + ', Philippines')}&travelmode=driving&dir_action=navigate`
+                  }
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn btn-secondary btn-sm"
+                  title="Start GPS Navigation"
+                  style={{
+                    padding: '5px 10px',
+                    fontSize: '11px',
+                    fontWeight: '700',
+                    borderRadius: '7px',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '5px',
+                    flexShrink: 0,
+                    textDecoration: 'none',
+                    background: '#F8FAFC',
+                    border: '1px solid #CBD5E1',
+                    color: '#1E293B',
+                  }}
+                >
+                  <i className="fa-solid fa-location-arrow" style={{ color: 'var(--color-primary)', fontSize: '10px' }}></i>
+                  <span>Directions</span>
+                </a>
+              )}
             </div>
           </div>
         </div>
       </div>
-
-      {/* Full-Width Customer Note Card (Uniform & Balanced Across the Whole Container) */}
-      {order.notes && (
-        <div style={{
-          marginTop: '18px',
-          padding: '16px 20px',
-          background: 'rgba(180, 83, 9, 0.03)',
-          borderRadius: '16px',
-          border: '1px solid rgba(180, 83, 9, 0.15)',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
-          width: '100%',
-          boxSizing: 'border-box',
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-            <i className="fa-regular fa-comment-dots" style={{ color: 'var(--color-primary, #b45309)', fontSize: '13px' }}></i>
-            <span style={{ fontSize: '11px', fontWeight: '800', color: 'var(--color-primary, #b45309)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              Customer Note & Special Instructions
-            </span>
-          </div>
-          <p style={{ fontSize: '13.5px', color: 'var(--color-text)', fontStyle: 'italic', margin: 0, lineHeight: 1.6 }}>
-            &ldquo;{order.notes}&rdquo;
-          </p>
-        </div>
-      )}
     </div>
   );
 }

@@ -387,7 +387,7 @@ function PetalRushGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
         }}
         style={{
           position: 'relative',
-          height: '310px',
+          height: '380px',
           background: 'radial-gradient(circle at center, #FFFDFB 0%, #FEF3EB 100%)',
           overflow: 'hidden',
           touchAction: 'none',
@@ -418,7 +418,7 @@ function PetalRushGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
                 Petal Rush
               </h4>
               <p style={{ margin: '4px 0 0', fontSize: '0.82rem', color: '#64748B', fontWeight: 500 }}>
-                Catch blooms & dodge bombs 💣, bees 🐝 & thorns 🥀!
+                Catch blooms and dodge the bombs!
               </p>
             </div>
 
@@ -557,6 +557,8 @@ function PetalRushGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
           </div>
         )}
       </div>
+    </div>
+  );
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -897,7 +899,7 @@ function RibbonNinjaGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
 
       <div
         className={`${isShaking ? 'arcade-shake' : ''} ${isHitFlashing ? 'arcade-hit-flash' : ''}`}
-        style={{ position: 'relative', height: '310px', background: 'radial-gradient(circle at center, #FFFDFD 0%, #FFE4E6 100%)', overflow: 'hidden' }}
+        style={{ position: 'relative', height: '380px', background: 'radial-gradient(circle at center, #FFFDFD 0%, #FFE4E6 100%)', overflow: 'hidden' }}
       >
         {gameState === 'ready' && (
           <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px 20px', textAlign: 'center', gap: '10px' }}>
@@ -922,7 +924,7 @@ function RibbonNinjaGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
                 Ribbon Ninja
               </h4>
               <p style={{ margin: '4px 0 0', fontSize: '0.82rem', color: '#64748B', fontWeight: 500 }}>
-                Slice ribbons 🎀 & avoid bombs 💣, wasps 🐝 & thorns 🥀!
+                Slice ribbons and avoid the bombs!
               </p>
             </div>
 
@@ -956,17 +958,21 @@ function RibbonNinjaGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
         <canvas
           ref={canvasRef}
           width={360}
-          height={310}
+          height={380}
           onPointerDown={(e) => {
             isDraggingRef.current = true;
             const rect = e.currentTarget.getBoundingClientRect();
-            handlePointerSlash(e.clientX - rect.left, e.clientY - rect.top);
+            const x = ((e.clientX - rect.left) / rect.width) * 360;
+            const y = ((e.clientY - rect.top) / rect.height) * 380;
+            handlePointerSlash(x, y);
           }}
           onPointerUp={() => (isDraggingRef.current = false)}
           onPointerMove={(e) => {
             if (isDraggingRef.current) {
               const rect = e.currentTarget.getBoundingClientRect();
-              handlePointerSlash(e.clientX - rect.left, e.clientY - rect.top);
+              const x = ((e.clientX - rect.left) / rect.width) * 360;
+              const y = ((e.clientY - rect.top) / rect.height) * 380;
+              handlePointerSlash(x, y);
             }
           }}
           style={{ width: '100%', height: '100%', display: gameState === 'playing' ? 'block' : 'none', cursor: 'crosshair', touchAction: 'none' }}
@@ -1230,7 +1236,7 @@ function BloomStackerGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
         onPointerDown={handleDrop}
         style={{
           position: 'relative',
-          height: '310px',
+          height: '380px',
           background: 'radial-gradient(circle at center, #FAF5FF 0%, #F3E8FF 100%)',
           overflow: 'hidden',
           userSelect: 'none',
@@ -1260,7 +1266,7 @@ function BloomStackerGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
                 Bloom Stacker
               </h4>
               <p style={{ margin: '4px 0 0', fontSize: '0.82rem', color: '#64748B', fontWeight: 500 }}>
-                Tap to stack! Get perfect drops for streak multipliers!
+                Tap to stack and time perfect drops!
               </p>
             </div>
 
@@ -1792,7 +1798,7 @@ function PetalPopGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
 
       <div
         className={`${isShaking ? 'arcade-shake' : ''} ${isHitFlashing ? 'arcade-hit-flash' : ''}`}
-        style={{ position: 'relative', height: '310px', background: 'radial-gradient(circle at center, #F0FDF4 0%, #DCFCE7 100%)', overflow: 'hidden', userSelect: 'none' }}
+        style={{ position: 'relative', height: '380px', background: 'radial-gradient(circle at center, #F0FDF4 0%, #DCFCE7 100%)', overflow: 'hidden', userSelect: 'none' }}
       >
         {gameState === 'ready' && (
           <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px 20px', textAlign: 'center', gap: '10px' }}>
@@ -1817,7 +1823,7 @@ function PetalPopGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
                 Petal Pop
               </h4>
               <p style={{ margin: '4px 0 0', fontSize: '0.82rem', color: '#64748B', fontWeight: 500 }}>
-                Pop floating bubbles & dodge bomb bubbles 💣, hornets 🐝 & sparks ⚡!
+                Pop bubbles and dodge the bombs!
               </p>
             </div>
 
@@ -1852,7 +1858,7 @@ function PetalPopGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
           <canvas
             ref={canvasRef}
             width={340}
-            height={310}
+            height={380}
             onPointerDown={handlePointerDown}
             style={{
               width: '100%',
@@ -2005,7 +2011,7 @@ export default function ArtsyFunZoneModal({ isOpen, onClose }) {
         className="arcade-modal-container"
         style={{
           width: '100%',
-          maxWidth: '380px',
+          maxWidth: '395px',
           background: '#FFFFFF',
           borderRadius: '24px',
           boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(0,0,0,0.06)',
@@ -2200,56 +2206,6 @@ export default function ArtsyFunZoneModal({ isOpen, onClose }) {
               {activeGameId === 'stacker' && <BloomStackerGame audio={audioRef.current} onWinVoucher={setActiveVoucher} onBackToMenu={() => setActiveGameId('menu')} onClose={onClose} />}
               {activeGameId === 'pop' && <PetalPopGame audio={audioRef.current} onWinVoucher={setActiveVoucher} onBackToMenu={() => setActiveGameId('menu')} onClose={onClose} />}
             </div>
-          )}
-        </div>
-
-        {/* Clean Footer Bar */}
-        <div
-          style={{
-            padding: '10px 16px',
-            background: '#FFFFFF',
-            borderTop: '1px solid rgba(0,0,0,0.06)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: activeGameId === 'menu' ? 'center' : 'flex-start',
-          }}
-        >
-          {activeGameId !== 'menu' ? (
-            <button
-              onClick={() => setActiveGameId('menu')}
-              style={{
-                background: 'transparent',
-                border: 'none',
-                color: '#78716C',
-                fontSize: '0.76rem',
-                fontWeight: 700,
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '5px',
-                padding: 0,
-              }}
-            >
-              <i className="fa-solid fa-arrow-left"></i> Games Menu
-            </button>
-          ) : (
-            <button
-              onClick={onClose}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: '#EA580C',
-                fontWeight: 800,
-                fontSize: '0.8rem',
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '5px',
-                padding: '2px 0',
-              }}
-            >
-              Start Shopping <i className="fa-solid fa-arrow-right" style={{ fontSize: '0.68rem' }}></i>
-            </button>
           )}
         </div>
       </div>

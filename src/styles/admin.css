@@ -32,15 +32,18 @@ button:active, .btn:active, .sidebar-link:active, [role="button"]:active {
   border-right: 1px solid var(--color-border);
   display: flex;
   flex-direction: column;
-  position: sticky;
+  position: fixed;
+  left: 0;
   top: 0;
+  bottom: 0;
+  height: 100vh;
   height: 100dvh;
+  z-index: 100;
   overflow-y: auto;
   overflow-x: hidden;
   scrollbar-width: none;
   -ms-overflow-style: none;
   flex-shrink: 0;
-  transition: width var(--transition-base);
 }
 
 .admin-sidebar::-webkit-scrollbar {
@@ -148,7 +151,8 @@ button:active, .btn:active, .sidebar-link:active, [role="button"]:active {
 /* ── Admin Main Content ───────────────────────────────────── */
 .admin-main {
   flex: 1;
-  width: calc(100% - 250px);
+  margin-left: 225px;
+  width: calc(100% - 225px);
   min-width: 0;
   display: flex;
   flex-direction: column;
@@ -332,6 +336,7 @@ button:active, .btn:active, .sidebar-link:active, [role="button"]:active {
   }
 
   .admin-main {
+    margin-left: 0;
     width: 100%;
     min-width: 100%;
     padding-bottom: calc(64px + env(safe-area-inset-bottom, 0px));
@@ -565,25 +570,21 @@ button:active, .btn:active, .sidebar-link:active, [role="button"]:active {
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
   border-radius: 16px;
-  border: none;
+  border: 1px solid #E2E8F0;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
   background: var(--color-surface, #ffffff);
   position: relative;
   margin-bottom: var(--space-6);
-  min-height: 520px;
-  display: flex;
-  flex-direction: column;
 }
 
 .data-table-wrapper > table,
 .admin-table-container > table {
   width: 100%;
-  flex: 1;
 }
 
 .table-empty-cell {
   text-align: center;
-  padding: 110px 24px !important;
+  padding: 64px 24px !important;
   border: none !important;
   vertical-align: middle !important;
 }

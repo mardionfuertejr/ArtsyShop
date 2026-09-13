@@ -47,22 +47,29 @@ export default function CustomRequestClient({ product }) {
       const refCode = await generateCustomRequestReference();
       const supabase = createClient();
 
+      const reqPayload = {
+        reference_code: refCode,
+        source_product_id: product?.id || null,
+        product_name: product?.name || null,
+        customer_name: formData.name,
+        customer_phone: formData.phone,
+        description: formData.description,
+        preferred_color: formData.colorPreference || null,
+        budget: formData.budget ? parseFloat(formData.budget) : null,
+        preferred_date: formData.preferredDate || null,
+        additional_notes: formData.notes || null,
+        status: 'pending',
+        created_at: new Date().toISOString(),
+      };
+
       if (supabase) {
-        await supabase.from('custom_requests').insert({
-          reference_code: refCode,
-          source_product_id: product?.id || null,
-          customer_name: formData.name,
-          customer_phone: formData.phone,
-          description: formData.description,
-          preferred_color: formData.colorPreference || null,
-          budget: formData.budget ? parseFloat(formData.budget) : null,
-          preferred_date: formData.preferredDate || null,
-          additional_notes: formData.notes || null,
-          status: 'pending',
-        });
+        await supabase.from('custom_requests').insert([reqPayload]);
       }
 
       try {
+        const localReqs = JSON.parse(localStorage.getItem('likha_custom_requests') || '[]');
+        localReqs.unshift(reqPayload);
+        localStorage.setItem('likha_custom_requests', JSON.stringify(localReqs));
         localStorage.setItem('likha_guest_info', JSON.stringify({
           name: formData.name,
           phone: formData.phone,

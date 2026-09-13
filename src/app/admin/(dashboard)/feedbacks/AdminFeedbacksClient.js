@@ -201,7 +201,7 @@ export default function AdminFeedbacksClient() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '14px', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <h1 className="admin-page-title" style={{ margin: 0, fontSize: '22px', fontWeight: '800' }}>
-            Feedbacks & Reviews
+            Reviews
           </h1>
           <span style={{
             background: 'rgba(180, 83, 9, 0.1)',
@@ -964,23 +964,30 @@ export default function AdminFeedbacksClient() {
             <p style={{ margin: '0 0 20px', fontSize: '13px', color: '#64748b', lineHeight: 1.5 }}>
               Are you sure you want to permanently remove this entry? This action cannot be undone.
             </p>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', width: '100%' }}>
               <button
                 type="button"
                 onClick={() => setItemToDelete(null)}
                 style={{
-                  padding: '9px 16px',
+                  height: '38px',
+                  boxSizing: 'border-box',
+                  padding: '0 16px',
                   fontSize: '12.5px',
                   fontWeight: '700',
-                  borderRadius: '8px',
+                  borderRadius: '999px',
                   border: '1px solid #e2e8f0',
-                  background: '#ffffff',
-                  color: '#334155',
+                  background: '#f1f5f9',
+                  color: '#475569',
                   cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  lineHeight: 1,
+                  margin: 0,
                   transition: 'background 0.12s ease',
                 }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = '#f8fafc')}
-                onMouseLeave={(e) => (e.currentTarget.style.background = '#ffffff')}
+                onMouseEnter={(e) => (e.currentTarget.style.background = '#e2e8f0')}
+                onMouseLeave={(e) => (e.currentTarget.style.background = '#f1f5f9')}
               >
                 Cancel
               </button>
@@ -994,20 +1001,27 @@ export default function AdminFeedbacksClient() {
                   }
                 }}
                 style={{
-                  padding: '9px 16px',
+                  height: '38px',
+                  boxSizing: 'border-box',
+                  padding: '0 16px',
                   fontSize: '12.5px',
-                  fontWeight: '700',
-                  borderRadius: '8px',
+                  fontWeight: '800',
+                  borderRadius: '999px',
                   border: 'none',
                   background: '#dc2626',
                   color: '#ffffff',
                   cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  lineHeight: 1,
+                  margin: 0,
                   transition: 'background 0.12s ease',
                 }}
                 onMouseEnter={(e) => (e.currentTarget.style.background = '#b91c1c')}
                 onMouseLeave={(e) => (e.currentTarget.style.background = '#dc2626')}
               >
-                Yes, Delete
+                Delete
               </button>
             </div>
           </div>

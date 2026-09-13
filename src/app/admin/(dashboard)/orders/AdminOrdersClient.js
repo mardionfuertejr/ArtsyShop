@@ -584,17 +584,18 @@ export default function AdminOrdersClient({ initialOrders }) {
         <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ background: '#F8FAFC', borderBottom: '1.5px solid #E2E8F0' }}>
-              <th style={{ width: '24%', padding: '13px 18px', textAlign: 'left', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#334155', borderBottom: '1.5px solid #E2E8F0' }}>Order & Needed Date</th>
-              <th style={{ width: '26%', padding: '13px 18px', textAlign: 'left', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#334155', borderBottom: '1.5px solid #E2E8F0' }}>Customer</th>
-              <th style={{ width: '28%', padding: '13px 18px', textAlign: 'left', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#334155', borderBottom: '1.5px solid #E2E8F0' }}>Items</th>
+              <th style={{ width: '22%', padding: '13px 18px', textAlign: 'left', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#334155', borderBottom: '1.5px solid #E2E8F0' }}>Order & Needed Date</th>
+              <th style={{ width: '20%', padding: '13px 18px', textAlign: 'left', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#334155', borderBottom: '1.5px solid #E2E8F0' }}>Customer</th>
+              <th style={{ width: '24%', padding: '13px 18px', textAlign: 'left', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#334155', borderBottom: '1.5px solid #E2E8F0' }}>Items</th>
+              <th style={{ width: '14%', padding: '13px 18px', textAlign: 'right', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#334155', borderBottom: '1.5px solid #E2E8F0' }}>Total</th>
               <th style={{ width: '12%', padding: '13px 14px', textAlign: 'center', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#334155', borderBottom: '1.5px solid #E2E8F0' }}>Status</th>
-              <th style={{ width: '10%', padding: '13px 14px', textAlign: 'center', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#334155', borderBottom: '1.5px solid #E2E8F0' }}>Action</th>
+              <th style={{ width: '8%', padding: '13px 14px', textAlign: 'center', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#334155', borderBottom: '1.5px solid #E2E8F0' }}>Action</th>
             </tr>
           </thead>
           <tbody key={`${statusFilter}-${searchQuery}-${currentPage}`} className="table-fade-enter">
             {paginatedOrders.length === 0 ? (
               <tr>
-                <td colSpan={5} className="table-empty-cell" style={{ textAlign: 'center', padding: '120px 20px', border: 'none' }}>
+                <td colSpan={6} className="table-empty-cell" style={{ textAlign: 'center', padding: '70px 20px', border: 'none' }}>
                   <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '56px', height: '56px', borderRadius: '50%', background: '#f8fafc', color: '#94a3b8', marginBottom: '14px', fontSize: '22px' }}>
                     <i className="fa-solid fa-cart-shopping" style={{ opacity: 0.8 }}></i>
                   </div>
@@ -697,6 +698,14 @@ export default function AdminOrdersClient({ initialOrders }) {
                         ) : (
                           <span style={{ fontSize: '12px', color: '#94a3b8', fontStyle: 'italic' }}>No items</span>
                         )}
+                      </div>
+                    </td>
+                    <td style={{ padding: '14px 18px', textAlign: 'right', borderBottom: '1px solid #E2E8F0', whiteSpace: 'nowrap' }}>
+                      <div style={{ fontWeight: '800', fontSize: '13.5px', color: '#0f172a' }}>
+                        {formatCurrency(ord.total_amount || 0)}
+                      </div>
+                      <div style={{ fontSize: '11px', color: '#64748b', textTransform: 'capitalize', marginTop: '2px', fontWeight: '500' }}>
+                        {ord.payment_method === 'gcash' ? 'GCash' : 'Cash'}
                       </div>
                     </td>
                     <td style={{ padding: '14px 14px', textAlign: 'center', whiteSpace: 'nowrap', borderBottom: '1px solid #E2E8F0' }}>
@@ -1067,23 +1076,31 @@ export default function AdminOrdersClient({ initialOrders }) {
             <p style={{ margin: '0 0 20px', fontSize: '13px', color: '#64748b', lineHeight: 1.5 }}>
               Are you sure you want to cancel order <strong style={{ color: '#0f172a' }}>{orderToCancel.reference_code}</strong>?
             </p>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', width: '100%' }}>
               <button
                 type="button"
                 onClick={() => setOrderToCancel(null)}
                 style={{
-                  padding: '9px 16px',
+                  height: '38px',
+                  boxSizing: 'border-box',
+                  background: '#F1F5F9',
+                  border: '1px solid #E2E8F0',
+                  borderRadius: '999px',
+                  padding: '0 16px',
                   fontSize: '12.5px',
                   fontWeight: '700',
-                  borderRadius: '8px',
-                  border: '1px solid #e2e8f0',
-                  background: '#ffffff',
-                  color: '#334155',
+                  color: '#475569',
                   cursor: 'pointer',
-                  transition: 'background 0.12s ease',
+                  width: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  lineHeight: 1,
+                  margin: 0,
+                  transition: 'all 0.15s ease',
                 }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = '#f8fafc')}
-                onMouseLeave={(e) => (e.currentTarget.style.background = '#ffffff')}
+                onMouseEnter={(e) => (e.currentTarget.style.background = '#E2E8F0')}
+                onMouseLeave={(e) => (e.currentTarget.style.background = '#F1F5F9')}
               >
                 Keep Order
               </button>
@@ -1091,20 +1108,29 @@ export default function AdminOrdersClient({ initialOrders }) {
                 type="button"
                 onClick={handleConfirmCancelOrder}
                 style={{
-                  padding: '9px 16px',
+                  height: '38px',
+                  boxSizing: 'border-box',
+                  background: 'var(--color-primary, #b45309)',
+                  border: '1px solid var(--color-primary, #b45309)',
+                  borderRadius: '999px',
+                  padding: '0 16px',
                   fontSize: '12.5px',
-                  fontWeight: '700',
-                  borderRadius: '8px',
-                  border: 'none',
-                  background: '#b45309',
+                  fontWeight: '800',
                   color: '#ffffff',
                   cursor: 'pointer',
-                  transition: 'background 0.12s ease',
+                  width: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  lineHeight: 1,
+                  margin: 0,
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                  transition: 'opacity 0.15s ease',
                 }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = '#92400e')}
-                onMouseLeave={(e) => (e.currentTarget.style.background = '#b45309')}
+                onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.9')}
+                onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}
               >
-                Yes, Cancel Order
+                Yes, Cancel
               </button>
             </div>
           </div>
@@ -1167,23 +1193,31 @@ export default function AdminOrdersClient({ initialOrders }) {
             <p style={{ margin: '0 0 20px', fontSize: '13px', color: '#64748b', lineHeight: 1.5 }}>
               Permanently delete order <strong style={{ color: '#0f172a' }}>{orderToDelete.reference_code}</strong>? This action cannot be undone.
             </p>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', width: '100%' }}>
               <button
                 type="button"
                 onClick={() => setOrderToDelete(null)}
                 style={{
-                  padding: '9px 16px',
+                  height: '38px',
+                  boxSizing: 'border-box',
+                  background: '#F1F5F9',
+                  border: '1px solid #E2E8F0',
+                  borderRadius: '999px',
+                  padding: '0 16px',
                   fontSize: '12.5px',
                   fontWeight: '700',
-                  borderRadius: '8px',
-                  border: '1px solid #e2e8f0',
-                  background: '#ffffff',
-                  color: '#334155',
+                  color: '#475569',
                   cursor: 'pointer',
-                  transition: 'background 0.12s ease',
+                  width: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  lineHeight: 1,
+                  margin: 0,
+                  transition: 'all 0.15s ease',
                 }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = '#f8fafc')}
-                onMouseLeave={(e) => (e.currentTarget.style.background = '#ffffff')}
+                onMouseEnter={(e) => (e.currentTarget.style.background = '#E2E8F0')}
+                onMouseLeave={(e) => (e.currentTarget.style.background = '#F1F5F9')}
               >
                 Cancel
               </button>
@@ -1191,18 +1225,27 @@ export default function AdminOrdersClient({ initialOrders }) {
                 type="button"
                 onClick={handleConfirmDeleteOrder}
                 style={{
-                  padding: '9px 16px',
-                  fontSize: '12.5px',
-                  fontWeight: '700',
-                  borderRadius: '8px',
-                  border: 'none',
+                  height: '38px',
+                  boxSizing: 'border-box',
                   background: '#dc2626',
+                  border: '1px solid #dc2626',
+                  borderRadius: '999px',
+                  padding: '0 16px',
+                  fontSize: '12.5px',
+                  fontWeight: '800',
                   color: '#ffffff',
                   cursor: 'pointer',
-                  transition: 'background 0.12s ease',
+                  width: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  lineHeight: 1,
+                  margin: 0,
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+                  transition: 'opacity 0.15s ease',
                 }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = '#b91c1c')}
-                onMouseLeave={(e) => (e.currentTarget.style.background = '#dc2626')}
+                onMouseEnter={(e) => (e.currentTarget.style.opacity = '0.9')}
+                onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}
               >
                 Yes, Delete
               </button>

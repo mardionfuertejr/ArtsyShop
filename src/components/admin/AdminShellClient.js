@@ -11,7 +11,7 @@ const NAV_ITEMS = [
   { href: '/admin/orders', icon: 'fa-solid fa-box-archive', label: 'Orders' },
   { href: '/admin/products', icon: 'fa-solid fa-tags', label: 'Products' },
   { href: '/admin/materials', icon: 'fa-solid fa-boxes-stacked', label: 'Materials' },
-  { href: '/admin/feedbacks', icon: 'fa-solid fa-comments', label: 'Feedbacks & Reviews' },
+  { href: '/admin/feedbacks', icon: 'fa-solid fa-comments', label: 'Reviews' },
   { href: '/admin/reports', icon: 'fa-solid fa-chart-line', label: 'Reports' },
   { href: '/admin/settings', icon: 'fa-solid fa-sliders', label: 'Settings' },
 ];
@@ -21,6 +21,7 @@ const BOTTOM_NAV_ITEMS = [
   { href: '/admin/orders', icon: 'fa-solid fa-box-archive', label: 'Orders' },
   { href: '/admin/products', icon: 'fa-solid fa-tags', label: 'Products' },
   { href: '/admin/materials', icon: 'fa-solid fa-boxes-stacked', label: 'Materials' },
+  { href: '/admin/settings', icon: 'fa-solid fa-sliders', label: 'Settings' },
 ];
 
 export default function AdminShellClient({ user, children }) {

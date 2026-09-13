@@ -238,7 +238,7 @@ export default function AdminNotepad() {
         }}
       >
         <i className="fa-solid fa-list-check" style={{ color: 'var(--color-primary, #b45309)', fontSize: '13px' }}></i>
-        <span>Studio Notes</span>
+        <span>Shop Notes</span>
         {pendingCount > 0 && (
           <span
             style={{
@@ -268,7 +268,7 @@ export default function AdminNotepad() {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            padding: '20px 20px 260px 80px',
+            padding: '16px',
             animation: 'fadeIn 0.12s ease',
           }}
           onClick={(e) => {
@@ -302,7 +302,7 @@ export default function AdminNotepad() {
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <i className="fa-solid fa-note-sticky" style={{ color: 'var(--color-primary, #b45309)', fontSize: '17px' }}></i>
                 <h2 style={{ fontSize: '17px', fontWeight: '800', color: '#0f172a', margin: 0 }}>
-                  Studio Notes & Checklist
+                  Shop Notes & Checklist
                 </h2>
                 {isSyncing && (
                   <span style={{ fontSize: '11px', color: '#16A34A', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>

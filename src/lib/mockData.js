@@ -4,7 +4,12 @@
  * Categories are left empty/unassigned so the user can create and assign them.
  */
 
-export const MOCK_CATEGORIES = [];
+export const MOCK_CATEGORIES = [
+  { id: 'cat-bouquets', name: 'Bouquets', slug: 'bouquets', display_order: 1, is_active: true },
+  { id: 'cat-crochet', name: 'Crochet', slug: 'crochet', display_order: 2, is_active: true },
+  { id: 'cat-resin-art', name: 'Resin Art', slug: 'resin-art', display_order: 3, is_active: true },
+  { id: 'cat-custom-gifts', name: 'Custom Gifts', slug: 'custom-gifts', display_order: 4, is_active: true },
+];
 
 export const MOCK_MATERIALS = [
   {
@@ -104,8 +109,8 @@ export const MOCK_PRODUCTS = [
     id: 'prod-01',
     name: 'Fuzzy Wire Rose Bouquet',
     slug: 'fuzzy-wire-rose-bouquet',
-    category_id: null,
-    category: null,
+    category_id: 'cat-bouquets',
+    category: { id: 'cat-bouquets', name: 'Bouquets', slug: 'bouquets' },
     base_price: 250,
     description: 'Handcrafted velvety fuzzy-wire roses wrapped in waterproof Korean matte kraft paper and tied with a silky satin ribbon. Everlasting flower art that never wilts.',
     is_available: true,
@@ -130,8 +135,8 @@ export const MOCK_PRODUCTS = [
     id: 'prod-02',
     name: 'Potted Handcrafted Crochet Sunflower',
     slug: 'potted-crochet-sunflower',
-    category_id: null,
-    category: null,
+    category_id: 'cat-crochet',
+    category: { id: 'cat-crochet', name: 'Crochet', slug: 'crochet' },
     base_price: 380,
     description: 'Delicately hand-knitted vibrant sunflower in a miniature terracotta-style knit pot. Perfect cheerful desk companion that brings sunshine every day.',
     is_available: true,

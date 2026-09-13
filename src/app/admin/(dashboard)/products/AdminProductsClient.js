@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { getMockProducts, getMockCategories, saveMockProduct, deleteMockProduct } from '@/lib/mockData';
@@ -116,11 +116,25 @@ export default function AdminProductsClient({ initialProducts, categories = [] }
   );
   const [isAddingNewCat, setIsAddingNewCat] = useState(false);
   const [newCatName, setNewCatName] = useState('');
+  const [isCatDropdownOpen, setIsCatDropdownOpen] = useState(false);
+  const catDropdownRef = useRef(null);
+
+  // Close Category Dropdown on Click Outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (catDropdownRef.current && !catDropdownRef.current.contains(e.target)) {
+        setIsCatDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // Actual Photo Upload State
   const fileInputRef = useRef(null);
   const [uploadingPhotos, setUploadingPhotos] = useState(false);
   const [isDraggingPhoto, setIsDraggingPhoto] = useState(false);
+  const [zoomedPhotoUrl, setZoomedPhotoUrl] = useState(null);
 
   const showToast = (msg) => {
     setToastMsg(msg);
@@ -191,7 +205,7 @@ export default function AdminProductsClient({ initialProducts, categories = [] }
       id: '',
       name: '',
       slug: '',
-      category_id: categoriesList[0]?.id || '',
+      category_id: allKnownCategories[0]?.id || allKnownCategories[0]?.slug || '',
       base_price: 250,
       description: '',
       is_available: true,
@@ -260,6 +274,50 @@ export default function AdminProductsClient({ initialProducts, categories = [] }
       return updates;
     });
   };
+
+  // Auto-calculate discount percentage and badge tag from price
+  const handleSalePriceChange = (val) => {
+    setFormData((prev) => {
+      const baseNum = parseFloat(prev.base_price) || 0;
+      const saleNum = parseFloat(val) || 0;
+      let autoTag = '';
+
+      if (baseNum > 0 && saleNum > 0 && saleNum < baseNum) {
+        const percent = Math.round(((baseNum - saleNum) / baseNum) * 100);
+        autoTag = `${percent}% OFF`;
+      } else if (saleNum >= baseNum && baseNum > 0) {
+        autoTag = '';
+      }
+
+      return {
+        ...prev,
+        sale_price: val,
+        sale_tag: autoTag,
+      };
+    });
+  };
+
+  const handleBasePriceChange = (val) => {
+    setFormData((prev) => {
+      const baseNum = parseFloat(val) || 0;
+      const saleNum = parseFloat(prev.sale_price) || 0;
+      let autoTag = prev.sale_tag;
+
+      if (prev.is_on_sale && baseNum > 0 && saleNum > 0 && saleNum < baseNum) {
+        const percent = Math.round(((baseNum - saleNum) / baseNum) * 100);
+        autoTag = `${percent}% OFF`;
+      } else if (saleNum >= baseNum) {
+        autoTag = '';
+      }
+
+      return {
+        ...prev,
+        base_price: val,
+        sale_tag: autoTag,
+      };
+    });
+  };
+
 
   // Toggle availability directly from table
   const handleToggleAvailability = async (prod) => {
@@ -631,12 +689,57 @@ export default function AdminProductsClient({ initialProducts, categories = [] }
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const activeCatObj = categories.find((c) => c.slug === activeCategory || c.id === activeCategory);
+  // Ensure all categories (from categoriesList, custom categories, or products) are known and included
+  const allKnownCategories = useMemo(() => {
+    const map = new Map();
+    (categoriesList || []).forEach((c) => {
+      if (c && (c.name || c.slug || c.id)) {
+        const key = (c.slug || c.name || c.id).toString().toLowerCase();
+        map.set(key, {
+          id: c.id || key,
+          name: c.name || key,
+          slug: c.slug || key,
+        });
+      }
+    });
+    (products || []).forEach((p) => {
+      if (p.category && p.category.name) {
+        const key = (p.category.slug || p.category.name || p.category.id).toString().toLowerCase();
+        if (!map.has(key)) {
+          map.set(key, {
+            id: p.category.id || key,
+            name: p.category.name,
+            slug: p.category.slug || key,
+          });
+        }
+      } else if (p.category_id && typeof p.category_id === 'string' && p.category_id !== 'all' && p.category_id !== 'unassigned') {
+        const key = p.category_id.toLowerCase();
+        if (!map.has(key)) {
+          map.set(key, {
+            id: p.category_id,
+            name: p.category_id.charAt(0).toUpperCase() + p.category_id.slice(1),
+            slug: key,
+          });
+        }
+      }
+    });
+    return Array.from(map.values());
+  }, [categoriesList, products]);
+
+  const activeCatObj = allKnownCategories.find((c) => c.slug === activeCategory || c.id === activeCategory);
   const activeCatLabel = activeCategory === 'all' ? 'All Categories' : activeCatObj?.name || activeCategory;
 
   const filteredProducts = products.filter((p) => {
+    const pCatSlug = (p.category?.slug || p.category?.name || p.category_id || '').toString().toLowerCase();
+    const pCatId = (p.category?.id || p.category_id || '').toString().toLowerCase();
+    const targetCat = activeCategory.toLowerCase();
+
     const matchesCategory =
-      activeCategory === 'all' || p.category?.slug === activeCategory || p.category_id === activeCategory;
+      activeCategory === 'all' ||
+      pCatSlug === targetCat ||
+      pCatId === targetCat ||
+      (p.category?.name && p.category.name.toLowerCase() === targetCat);
+
     const matchesSearch =
       !searchQuery.trim() ||
       p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -831,15 +934,20 @@ export default function AdminProductsClient({ initialProducts, categories = [] }
                         <span style={{ fontSize: '11px', opacity: 0.7 }}>{products.length}</span>
                       </button>
 
-                      {categories.map((cat) => {
+                      {allKnownCategories.map((cat) => {
                         const isSelected = activeCategory === cat.slug || activeCategory === cat.id;
-                        const count = products.filter((p) => p.category?.slug === cat.slug || p.category_id === cat.id).length;
+                        const count = products.filter((p) => {
+                          const pCatSlug = (p.category?.slug || p.category?.name || p.category_id || '').toString().toLowerCase();
+                          const pCatId = (p.category?.id || p.category_id || '').toString().toLowerCase();
+                          const target = (cat.slug || cat.id || cat.name || '').toString().toLowerCase();
+                          return pCatSlug === target || pCatId === target || (p.category?.name && p.category.name.toLowerCase() === target);
+                        }).length;
                         return (
                           <button
-                            key={cat.id}
+                            key={cat.id || cat.slug}
                             type="button"
                             onClick={() => {
-                              setActiveCategory(cat.slug);
+                              setActiveCategory(cat.slug || cat.id);
                               setIsFilterOpen(false);
                             }}
                             style={{
@@ -893,27 +1001,25 @@ export default function AdminProductsClient({ initialProducts, categories = [] }
           <div className="data-table-wrapper" style={{ background: '#ffffff', borderRadius: '12px', overflow: 'visible', margin: 0, border: 'none', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
             <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
               <colgroup>
-                <col style={{ width: '36%' }} />
-                <col style={{ width: '16%' }} />
-                <col style={{ width: '15%' }} />
-                <col style={{ width: '19%' }} />
+                <col style={{ width: '44%' }} />
+                <col style={{ width: '22%' }} />
+                <col style={{ width: '18%' }} />
                 <col style={{ width: '10%' }} />
-                <col style={{ width: '4%' }} />
+                <col style={{ width: '6%' }} />
               </colgroup>
               <thead>
                 <tr style={{ background: '#F8FAFC', borderBottom: '1.5px solid #E2E8F0' }}>
-                  <th style={{ width: '36%', padding: '12px 14px', textAlign: 'left', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#334155', borderBottom: '1.5px solid #E2E8F0' }}>Product</th>
-                  <th style={{ width: '16%', padding: '12px 14px', textAlign: 'left', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#334155', borderBottom: '1.5px solid #E2E8F0' }}>Category</th>
-                  <th style={{ width: '15%', padding: '12px 14px', textAlign: 'left', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#334155', borderBottom: '1.5px solid #E2E8F0' }}>Base Price</th>
-                  <th style={{ width: '19%', padding: '12px 14px', textAlign: 'left', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#334155', borderBottom: '1.5px solid #E2E8F0' }}>Options</th>
+                  <th style={{ width: '44%', padding: '12px 14px', textAlign: 'left', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#334155', borderBottom: '1.5px solid #E2E8F0' }}>Product</th>
+                  <th style={{ width: '22%', padding: '12px 14px', textAlign: 'left', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#334155', borderBottom: '1.5px solid #E2E8F0' }}>Category</th>
+                  <th style={{ width: '18%', padding: '12px 14px', textAlign: 'left', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#334155', borderBottom: '1.5px solid #E2E8F0' }}>Base Price</th>
                   <th style={{ width: '10%', padding: '12px 10px', textAlign: 'center', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#334155', borderBottom: '1.5px solid #E2E8F0' }}>Status</th>
-                  <th style={{ width: '4%', padding: '12px 8px', textAlign: 'center', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#334155', borderBottom: '1.5px solid #E2E8F0' }}>Action</th>
+                  <th style={{ width: '6%', padding: '12px 8px', textAlign: 'center', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#334155', borderBottom: '1.5px solid #E2E8F0' }}>Action</th>
                 </tr>
               </thead>
               <tbody key={`${activeCategory}-${searchQuery}-${currentPage}`} className="table-fade-enter">
                 {paginatedProducts.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="table-empty-cell" style={{ textAlign: 'center', padding: '120px 20px', border: 'none' }}>
+                    <td colSpan={5} className="table-empty-cell" style={{ textAlign: 'center', padding: '120px 20px', border: 'none' }}>
                       <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '56px', height: '56px', borderRadius: '50%', background: '#f8fafc', color: '#94a3b8', marginBottom: '14px', fontSize: '22px' }}>
                         <i className="fa-solid fa-box-open" style={{ opacity: 0.8 }}></i>
                       </div>
@@ -948,34 +1054,27 @@ export default function AdminProductsClient({ initialProducts, categories = [] }
                                 flexShrink: 0,
                               }}
                             />
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                              <p style={{ fontWeight: '700', color: '#0f172a', margin: 0, fontSize: '13px', lineHeight: 1.3 }}>
+                            <div style={{ minWidth: 0, flex: 1 }}>
+                              <p style={{ margin: 0, fontWeight: '700', fontSize: '13.5px', color: '#0f172a', lineHeight: 1.3 }}>
                                 {p.name}
                               </p>
-                              {(p.is_sold_out || p.is_bestseller || p.is_on_sale || p.is_ready_made) && (
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '5px', flexWrap: 'wrap' }}>
-                                  {p.is_sold_out && (
-                                    <span style={{ fontSize: '9.5px', fontWeight: '700', padding: '1.5px 6px', borderRadius: '4px', background: '#334155', color: '#fff', lineHeight: 1.2 }}>
-                                      SOLD OUT
-                                    </span>
-                                  )}
-                                  {p.is_bestseller && (
-                                    <span style={{ fontSize: '9.5px', fontWeight: '700', padding: '1.5px 6px', borderRadius: '4px', background: '#FFEDD5', color: '#C2410C', lineHeight: 1.2 }}>
-                                      Bestseller
-                                    </span>
-                                  )}
-                                  {p.is_on_sale && (
-                                    <span style={{ fontSize: '9.5px', fontWeight: '700', padding: '1.5px 6px', borderRadius: '4px', background: '#FEE2E2', color: '#B91C1C', lineHeight: 1.2 }}>
-                                      {p.sale_tag || 'Sale'}
-                                    </span>
-                                  )}
-                                  {p.is_ready_made && (
-                                    <span style={{ fontSize: '9.5px', fontWeight: '700', padding: '1.5px 6px', borderRadius: '4px', background: '#DCFCE7', color: '#15803D', lineHeight: 1.2 }}>
-                                      On-Hand ({p.ready_made_stock || 0})
-                                    </span>
-                                  )}
-                                </div>
-                              )}
+                              <div style={{ display: 'flex', gap: '6px', marginTop: '4px', flexWrap: 'wrap' }}>
+                                {p.is_bestseller && (
+                                  <span style={{ fontSize: '10px', background: '#FEF3C7', color: '#92400E', padding: '1px 6px', borderRadius: '4px', fontWeight: '700' }}>
+                                    Bestseller
+                                  </span>
+                                )}
+                                {p.is_ready_made && (
+                                  <span style={{ fontSize: '10px', background: '#DCFCE7', color: '#166534', padding: '1px 6px', borderRadius: '4px', fontWeight: '700' }}>
+                                    On-Hand ({p.ready_made_stock})
+                                  </span>
+                                )}
+                                {p.is_on_sale && (
+                                  <span style={{ fontSize: '10px', background: '#FCE7F3', color: '#9D174D', padding: '1px 6px', borderRadius: '4px', fontWeight: '700' }}>
+                                    Sale
+                                  </span>
+                                )}
+                              </div>
                             </div>
                           </div>
                         </td>
@@ -986,17 +1085,6 @@ export default function AdminProductsClient({ initialProducts, categories = [] }
                         </td>
                         <td style={{ padding: '13px 16px', fontWeight: '800', color: '#0f172a', fontSize: '13px' }}>
                           {formatCurrency(p.base_price)}
-                        </td>
-                        <td style={{ padding: '13px 16px', whiteSpace: 'nowrap' }}>
-                          {p.product_options?.length > 0 ? (
-                            <span style={{ fontSize: '11px', fontWeight: '700', color: '#0369a1', background: '#e0f2fe', padding: '2px 8px', borderRadius: '6px', display: 'inline-flex', alignItems: 'center' }}>
-                              {p.product_options.length} {p.product_options.length === 1 ? 'option' : 'options'}
-                            </span>
-                          ) : (
-                            <span style={{ fontSize: '13px', color: '#94a3b8', fontWeight: '600' }}>
-                              —
-                            </span>
-                          )}
                         </td>
                         <td style={{ padding: '13px 14px', textAlign: 'center' }}>
                           <button
@@ -1406,18 +1494,20 @@ export default function AdminProductsClient({ initialProducts, categories = [] }
             alignItems: 'start',
           }}>
             
-            {/* ── LEFT COLUMN: Core Details, Badges & Customizations ── */}
+            {/* ── LEFT COLUMN: Core Details, Pricing & Customizations ── */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               
-              {/* Card 1: General Info */}
-              <div className="card" style={{ padding: '18px 20px', borderRadius: '12px', background: '#ffffff', border: 'none', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
-                <h2 style={{ fontSize: '13.5px', fontWeight: '800', margin: '0 0 14px', color: '#0f172a' }}>
-                  General Information
+              {/* Card 1: General Information */}
+              <div className="card" style={{ padding: '20px', borderRadius: '14px', background: '#ffffff', border: '1px solid #E2E8F0', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
+                <h2 style={{ fontSize: '14px', fontWeight: '800', margin: '0 0 16px', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <i className="fa-solid fa-circle-info" style={{ color: 'var(--color-primary, #b45309)', fontSize: '14px' }}></i>
+                  <span>General Information</span>
                 </h2>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                  {/* Product Title */}
                   <div>
-                    <label style={{ display: 'block', fontSize: '11.5px', fontWeight: '700', color: '#334155', marginBottom: '4px' }}>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#334155', marginBottom: '6px' }}>
                       Product Title <span style={{ color: '#dc2626' }}>*</span>
                     </label>
                     <input
@@ -1427,330 +1517,768 @@ export default function AdminProductsClient({ initialProducts, categories = [] }
                       value={formData.name}
                       onChange={(e) => handleNameChange(e.target.value)}
                       required
-                      style={{ width: '100%', height: '36px', padding: '0 10px', borderRadius: '8px', border: 'none', background: '#f8fafc', fontSize: '12.5px', boxSizing: 'border-box' }}
+                      style={{
+                        width: '100%',
+                        height: '38px',
+                        padding: '0 12px',
+                        borderRadius: '9px',
+                        border: '1.5px solid #E2E8F0',
+                        background: '#F8FAFC',
+                        fontSize: '13px',
+                        fontWeight: '600',
+                        color: '#0F172A',
+                        boxSizing: 'border-box',
+                      }}
                     />
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                    <div>
-                      <label style={{ display: 'block', fontSize: '11.5px', fontWeight: '700', color: '#334155', marginBottom: '4px' }}>
-                        URL Slug <span style={{ color: '#dc2626' }}>*</span>
-                      </label>
-                      <input
-                        type="text"
-                        className="form-input"
-                        placeholder="fuzzy-wire-rose-bouquet"
-                        value={formData.slug}
-                        onChange={(e) => setFormData({ ...formData, slug: e.target.value })}
-                        required
-                        style={{ width: '100%', height: '36px', padding: '0 10px', borderRadius: '8px', border: 'none', background: '#f8fafc', fontSize: '12px', boxSizing: 'border-box' }}
-                      />
-                    </div>
-
-                    <div>
-                      <label style={{ display: 'block', fontSize: '11.5px', fontWeight: '700', color: '#334155', marginBottom: '4px' }}>
-                        Category <span style={{ color: '#dc2626' }}>*</span>
-                      </label>
-                      
-                      {!isAddingNewCat ? (
-                        <div style={{ display: 'flex', gap: '6px' }}>
-                          <select
-                            className="form-input"
-                            value={formData.category_id}
-                            onChange={(e) => {
-                              if (e.target.value === '__new__') {
-                                setIsAddingNewCat(true);
-                              } else {
-                                setFormData({ ...formData, category_id: e.target.value });
-                              }
-                            }}
-                            style={{ flex: 1, height: '36px', padding: '0 10px', borderRadius: '8px', border: 'none', background: '#f8fafc', fontSize: '12px', boxSizing: 'border-box' }}
-                          >
-                            {categoriesList.map((c) => (
-                              <option key={c.id} value={c.id}>
-                                {c.name}
-                              </option>
-                            ))}
-                            <option value="__new__">➕ Add New Category...</option>
-                          </select>
-                          <button
-                            type="button"
-                            onClick={() => setIsAddingNewCat(true)}
-                            className="btn btn-secondary btn-sm"
-                            style={{ padding: '0 10px', fontSize: '11px', whiteSpace: 'nowrap', borderRadius: '8px', border: 'none', background: '#f1f5f9', fontWeight: '700' }}
-                          >
-                            + New
-                          </button>
-                        </div>
-                      ) : (
-                        <div style={{ display: 'flex', gap: '6px' }}>
-                          <input
-                            type="text"
-                            placeholder="Type new category name..."
-                            value={newCatName}
-                            onChange={(e) => setNewCatName(e.target.value)}
-                            autoFocus
-                            style={{ flex: 1, height: '36px', padding: '0 10px', borderRadius: '8px', border: '1px solid var(--color-primary, #b45309)', background: '#fff', fontSize: '12px', boxSizing: 'border-box' }}
-                          />
-                          <button
-                            type="button"
-                            onClick={handleCreateNewCategory}
-                            className="btn btn-primary btn-sm"
-                            style={{ padding: '0 12px', fontSize: '11px', borderRadius: '8px', fontWeight: '700' }}
-                          >
-                            Add
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setIsAddingNewCat(false)}
-                            className="btn btn-secondary btn-sm"
-                            style={{ padding: '0 10px', fontSize: '11px', borderRadius: '8px', border: 'none', background: '#f1f5f9' }}
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
+                  {/* Category Field */}
                   <div>
-                    <label style={{ display: 'block', fontSize: '11.5px', fontWeight: '700', color: '#334155', marginBottom: '4px' }}>
-                      Base Price (₱) <span style={{ color: '#dc2626' }}>*</span>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#334155', marginBottom: '6px' }}>
+                      Category <span style={{ color: '#dc2626' }}>*</span>
                     </label>
-                    <input
-                      type="number"
-                      step="0.01"
-                      className="form-input"
-                      placeholder="250.00"
-                      value={formData.base_price}
-                      onChange={(e) => setFormData({ ...formData, base_price: e.target.value })}
-                      required
-                      style={{ width: '100%', height: '36px', padding: '0 10px', borderRadius: '8px', border: 'none', background: '#f8fafc', fontSize: '13.5px', fontWeight: '800', color: '#b45309', boxSizing: 'border-box' }}
-                    />
+                    
+                    {!isAddingNewCat ? (
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                        <div ref={catDropdownRef} style={{ position: 'relative', flex: 1 }}>
+                          <button
+                            type="button"
+                            onClick={() => setIsCatDropdownOpen((prev) => !prev)}
+                            style={{
+                              width: '100%',
+                              height: '38px',
+                              padding: '0 12px',
+                              borderRadius: '9px',
+                              border: isCatDropdownOpen ? '1.5px solid var(--color-primary, #b45309)' : '1.5px solid #E2E8F0',
+                              background: '#F8FAFC',
+                              fontSize: '13px',
+                              fontWeight: '600',
+                              color: formData.category_id ? '#0F172A' : '#94A3B8',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              cursor: 'pointer',
+                              boxSizing: 'border-box',
+                              transition: 'all 0.15s ease',
+                              outline: 'none',
+                            }}
+                          >
+                            <span>
+                              {allKnownCategories.find((c) => c.id === formData.category_id || c.slug === formData.category_id)?.name || 'Select Category'}
+                            </span>
+                            <i
+                              className="fa-solid fa-chevron-down"
+                              style={{
+                                fontSize: '11px',
+                                color: isCatDropdownOpen ? 'var(--color-primary, #b45309)' : '#94A3B8',
+                                transform: isCatDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                                transition: 'transform 0.22s cubic-bezier(0.4, 0, 0.2, 1), color 0.15s ease',
+                              }}
+                            />
+                          </button>
+
+                          {/* Custom Dropdown Menu */}
+                          {isCatDropdownOpen && (
+                            <div
+                              style={{
+                                position: 'absolute',
+                                top: 'calc(100% + 4px)',
+                                left: 0,
+                                right: 0,
+                                background: '#ffffff',
+                                border: '1px solid #E2E8F0',
+                                borderRadius: '10px',
+                                boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.05)',
+                                zIndex: 100,
+                                padding: '6px',
+                                maxHeight: '220px',
+                                overflowY: 'auto',
+                              }}
+                            >
+                              {allKnownCategories.map((c) => {
+                                const isSelected = formData.category_id === c.id || formData.category_id === c.slug;
+                                return (
+                                  <button
+                                    key={c.id || c.slug}
+                                    type="button"
+                                    onClick={() => {
+                                      setFormData((prev) => ({ ...prev, category_id: c.id || c.slug }));
+                                      setIsCatDropdownOpen(false);
+                                    }}
+                                    style={{
+                                      width: '100%',
+                                      padding: '8px 12px',
+                                      borderRadius: '7px',
+                                      border: 'none',
+                                      background: isSelected ? '#FAF6F0' : 'transparent',
+                                      color: isSelected ? 'var(--color-primary, #b45309)' : '#334155',
+                                      fontWeight: isSelected ? '700' : '600',
+                                      fontSize: '12.5px',
+                                      cursor: 'pointer',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'space-between',
+                                      textAlign: 'left',
+                                      transition: 'background 0.12s ease',
+                                    }}
+                                    onMouseEnter={(e) => {
+                                      if (!isSelected) e.currentTarget.style.background = '#F8FAFC';
+                                    }}
+                                    onMouseLeave={(e) => {
+                                      if (!isSelected) e.currentTarget.style.background = 'transparent';
+                                    }}
+                                  >
+                                    <span>{c.name}</span>
+                                    {isSelected && <i className="fa-solid fa-check" style={{ fontSize: '11px', color: 'var(--color-primary, #b45309)' }}></i>}
+                                  </button>
+                                );
+                              })}
+
+                              <div style={{ height: '1px', background: '#F1F5F9', margin: '4px 0' }} />
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setIsCatDropdownOpen(false);
+                                  setIsAddingNewCat(true);
+                                }}
+                                style={{
+                                  width: '100%',
+                                  padding: '8px 12px',
+                                  borderRadius: '7px',
+                                  border: 'none',
+                                  background: '#F8FAFC',
+                                  color: 'var(--color-primary, #b45309)',
+                                  fontWeight: '700',
+                                  fontSize: '12px',
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '6px',
+                                  textAlign: 'left',
+                                }}
+                              >
+                                <i className="fa-solid fa-plus" style={{ fontSize: '10.5px' }}></i>
+                                <span>Add New Category...</span>
+                              </button>
+                            </div>
+                          )}
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => setIsAddingNewCat(true)}
+                          style={{
+                            height: '38px',
+                            padding: '0 14px',
+                            fontSize: '12px',
+                            whiteSpace: 'nowrap',
+                            borderRadius: '9px',
+                            border: '1.5px solid #E2E8F0',
+                            background: '#F8FAFC',
+                            fontWeight: '700',
+                            color: '#334155',
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '5px',
+                            transition: 'all 0.15s ease',
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.background = '#F1F5F9';
+                            e.currentTarget.style.borderColor = '#CBD5E1';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.background = '#F8FAFC';
+                            e.currentTarget.style.borderColor = '#E2E8F0';
+                          }}
+                        >
+                          <i className="fa-solid fa-plus" style={{ fontSize: '11px', color: 'var(--color-primary, #b45309)' }}></i>
+                          <span>New</span>
+                        </button>
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                        <input
+                          type="text"
+                          placeholder="Type new category name..."
+                          value={newCatName}
+                          onChange={(e) => setNewCatName(e.target.value)}
+                          autoFocus
+                          style={{
+                            flex: 1,
+                            height: '38px',
+                            padding: '0 12px',
+                            borderRadius: '9px',
+                            border: '1.5px solid var(--color-primary, #b45309)',
+                            background: '#ffffff',
+                            fontSize: '13px',
+                            fontWeight: '600',
+                            boxSizing: 'border-box',
+                          }}
+                        />
+                        <button
+                          type="button"
+                          onClick={handleCreateNewCategory}
+                          style={{
+                            height: '38px',
+                            padding: '0 14px',
+                            fontSize: '12px',
+                            borderRadius: '9px',
+                            fontWeight: '800',
+                            background: 'var(--color-primary, #b45309)',
+                            color: '#ffffff',
+                            border: 'none',
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '5px',
+                          }}
+                        >
+                          <i className="fa-solid fa-check" style={{ fontSize: '11px' }}></i>
+                          <span>Add</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setIsAddingNewCat(false)}
+                          style={{
+                            height: '38px',
+                            padding: '0 12px',
+                            fontSize: '12px',
+                            borderRadius: '9px',
+                            border: '1.5px solid #E2E8F0',
+                            background: '#F1F5F9',
+                            color: '#64748B',
+                            fontWeight: '700',
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                          }}
+                          title="Cancel"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    )}
                   </div>
 
+                  {/* Description */}
                   <div>
-                    <label style={{ display: 'block', fontSize: '11.5px', fontWeight: '700', color: '#334155', marginBottom: '4px' }}>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#334155', marginBottom: '6px' }}>
                       Description
                     </label>
                     <textarea
                       className="form-input"
-                      rows={2}
+                      rows={3}
                       placeholder="Handcrafted details, materials, and care instructions..."
                       value={formData.description}
                       onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                      style={{ width: '100%', padding: '8px 10px', borderRadius: '8px', border: 'none', background: '#f8fafc', fontSize: '12px', resize: 'vertical', boxSizing: 'border-box' }}
+                      style={{
+                        width: '100%',
+                        padding: '10px 12px',
+                        borderRadius: '9px',
+                        border: '1.5px solid #E2E8F0',
+                        background: '#F8FAFC',
+                        fontSize: '12.5px',
+                        lineHeight: '1.5',
+                        resize: 'vertical',
+                        boxSizing: 'border-box',
+                      }}
                     />
                   </div>
                 </div>
               </div>
 
-              {/* Card 2: Badges & Inventory */}
-              <div className="card" style={{ padding: '18px 20px', borderRadius: '12px', background: '#ffffff', border: 'none', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
-                <h2 style={{ fontSize: '13.5px', fontWeight: '800', margin: '0 0 12px', color: '#0f172a' }}>
-                  Badges & Inventory
+              {/* Card 2: Pricing & Discounts */}
+              <div className="card" style={{ padding: '20px', borderRadius: '14px', background: '#ffffff', border: '1px solid #E2E8F0', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
+                <h2 style={{ fontSize: '14px', fontWeight: '800', margin: '0 0 14px', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <i className="fa-solid fa-tags" style={{ color: 'var(--color-primary, #b45309)', fontSize: '13.5px' }}></i>
+                  <span>Pricing & Discounts</span>
                 </h2>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                  {/* Available */}
-                  <label style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    padding: '10px 12px',
-                    borderRadius: '8px',
-                    background: formData.is_available ? '#F0FDF4' : '#F8FAFC',
-                    cursor: 'pointer',
-                    minHeight: '44px',
-                    boxSizing: 'border-box',
-                  }}>
-                    <input
-                      type="checkbox"
-                      checked={formData.is_available}
-                      onChange={(e) => setFormData({ ...formData, is_available: e.target.checked })}
-                      style={{ width: '15px', height: '15px', accentColor: '#16a34a' }}
-                    />
-                    <span style={{ fontSize: '12px', fontWeight: '700', color: '#0f172a' }}>Available in Store</span>
-                  </label>
-
-                  {/* Bestseller */}
-                  <label style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    padding: '10px 12px',
-                    borderRadius: '8px',
-                    background: formData.is_bestseller ? '#FFFBEB' : '#F8FAFC',
-                    cursor: 'pointer',
-                    minHeight: '44px',
-                    boxSizing: 'border-box',
-                  }}>
-                    <input
-                      type="checkbox"
-                      checked={formData.is_bestseller}
-                      onChange={(e) => setFormData({ ...formData, is_bestseller: e.target.checked })}
-                      style={{ width: '15px', height: '15px', accentColor: '#d97706' }}
-                    />
-                    <span style={{ fontSize: '12px', fontWeight: '700', color: '#92400e' }}>Bestseller Badge</span>
-                  </label>
-
-                  {/* Ready-made / On-hand */}
-                  <div style={{
-                    padding: '8px 12px',
-                    borderRadius: '8px',
-                    background: formData.is_ready_made ? '#F0FDF4' : '#F8FAFC',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    gap: '8px',
-                    minHeight: '44px',
-                    boxSizing: 'border-box',
-                  }}>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', margin: 0 }}>
-                      <input
-                        type="checkbox"
-                        checked={formData.is_ready_made}
-                        onChange={(e) => setFormData({ ...formData, is_ready_made: e.target.checked })}
-                        style={{ width: '15px', height: '15px', accentColor: '#16a34a' }}
-                      />
-                      <span style={{ fontSize: '12px', fontWeight: '700', color: '#166534' }}>On-Hand</span>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {/* Base Price */}
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#334155', marginBottom: '6px' }}>
+                      Base Regular Price <span style={{ color: '#dc2626' }}>*</span>
                     </label>
-                    {formData.is_ready_made && (
+                    <div style={{ position: 'relative' }}>
+                      <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', fontWeight: '800', color: '#64748B', fontSize: '13.5px' }}>₱</span>
                       <input
                         type="number"
+                        step="0.01"
                         min="0"
-                        placeholder="Qty"
-                        value={formData.ready_made_stock}
-                        onChange={(e) => setFormData({ ...formData, ready_made_stock: e.target.value })}
-                        style={{ width: '55px', height: '26px', padding: '0 6px', borderRadius: '4px', border: 'none', fontSize: '11.5px', background: '#fff' }}
+                        className="form-input"
+                        placeholder="0.00"
+                        value={formData.base_price || ''}
+                        onChange={(e) => handleBasePriceChange(e.target.value)}
+                        required
+                        style={{
+                          width: '100%',
+                          height: '38px',
+                          paddingLeft: '30px',
+                          paddingRight: '12px',
+                          borderRadius: '9px',
+                          border: '1.5px solid #E2E8F0',
+                          background: '#F8FAFC',
+                          fontSize: '14px',
+                          fontWeight: '800',
+                          color: '#0F172A',
+                          boxSizing: 'border-box',
+                        }}
                       />
-                    )}
+                    </div>
                   </div>
 
-                  {/* On Sale */}
+                  {/* Promotional Sale Toggle Card */}
                   <div style={{
-                    padding: '8px 12px',
-                    borderRadius: '8px',
+                    padding: '12px 14px',
+                    borderRadius: '10px',
+                    border: formData.is_on_sale ? '1.5px solid #FECACA' : '1px solid #E2E8F0',
                     background: formData.is_on_sale ? '#FEF2F2' : '#F8FAFC',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    gap: '6px',
-                    minHeight: '44px',
-                    boxSizing: 'border-box',
+                    transition: 'all 0.15s ease',
                   }}>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', margin: 0 }}>
-                      <input
-                        type="checkbox"
-                        checked={formData.is_on_sale}
-                        onChange={(e) => setFormData({ ...formData, is_on_sale: e.target.checked })}
-                        style={{ width: '15px', height: '15px', accentColor: '#dc2626' }}
-                      />
-                      <span style={{ fontSize: '12px', fontWeight: '700', color: '#991b1b' }}>On Sale</span>
-                    </label>
-                    {formData.is_on_sale && (
-                      <div style={{ display: 'flex', gap: '4px' }}>
+                    <label style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      cursor: 'pointer',
+                      margin: 0,
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <input
-                          type="number"
-                          step="0.01"
-                          placeholder="₱ Sale"
-                          value={formData.sale_price}
-                          onChange={(e) => setFormData({ ...formData, sale_price: e.target.value })}
-                          style={{ width: '60px', height: '26px', padding: '0 4px', borderRadius: '4px', border: 'none', fontSize: '11px', background: '#fff' }}
+                          type="checkbox"
+                          checked={formData.is_on_sale}
+                          onChange={(e) => {
+                            const isChecked = e.target.checked;
+                            setFormData((prev) => {
+                              const baseNum = parseFloat(prev.base_price) || 0;
+                              const saleNum = parseFloat(prev.sale_price) || 0;
+                              let newTag = prev.sale_tag;
+                              if (isChecked && baseNum > 0 && saleNum > 0 && saleNum < baseNum) {
+                                const percent = Math.round(((baseNum - saleNum) / baseNum) * 100);
+                                newTag = `${percent}% OFF`;
+                              }
+                              return { ...prev, is_on_sale: isChecked, sale_tag: newTag };
+                            });
+                          }}
+                          style={{ width: '16px', height: '16px', accentColor: '#dc2626', cursor: 'pointer' }}
                         />
+                        <span style={{ fontSize: '12.5px', fontWeight: '700', color: formData.is_on_sale ? '#991B1B' : '#334155' }}>
+                          On Sale / Discount
+                        </span>
+                      </div>
+                      <span style={{
+                        fontSize: '10.5px',
+                        fontWeight: '800',
+                        color: formData.is_on_sale ? '#DC2626' : '#64748B',
+                        background: formData.is_on_sale ? '#FEE2E2' : '#E2E8F0',
+                        padding: '2px 8px',
+                        borderRadius: '9999px',
+                        letterSpacing: '0.03em',
+                      }}>
+                        {formData.is_on_sale ? 'ACTIVE' : 'OFF'}
+                      </span>
+                    </label>
+
+                    {/* Expandable Sale Price & Calculated Discount */}
+                    {formData.is_on_sale && (
+                      <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid #FEE2E2', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <div>
+                          <label style={{ display: 'block', fontSize: '11.5px', fontWeight: '700', color: '#991B1B', marginBottom: '5px' }}>
+                            Sale Price <span style={{ color: '#dc2626' }}>*</span>
+                          </label>
+                          <div style={{ position: 'relative' }}>
+                            <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', fontWeight: '800', color: '#DC2626', fontSize: '13px' }}>₱</span>
+                            <input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              className="form-input"
+                              placeholder="0.00"
+                              value={formData.sale_price !== 0 && formData.sale_price !== '0' ? formData.sale_price : ''}
+                              onChange={(e) => handleSalePriceChange(e.target.value)}
+                              style={{
+                                width: '100%',
+                                height: '38px',
+                                paddingLeft: '30px',
+                                paddingRight: '12px',
+                                borderRadius: '9px',
+                                border: '1.5px solid #FCA5A5',
+                                background: '#FFFFFF',
+                                fontSize: '13.5px',
+                                fontWeight: '800',
+                                color: '#991B1B',
+                                boxSizing: 'border-box',
+                              }}
+                            />
+                          </div>
+                        </div>
+
+                        {/* Calculated Savings & Discount Indicator */}
+                        {parseFloat(formData.base_price) > 0 && parseFloat(formData.sale_price) > 0 && parseFloat(formData.sale_price) < parseFloat(formData.base_price) ? (
+                          <div style={{ fontSize: '11.5px', fontWeight: '700', color: '#166534', background: '#DCFCE7', padding: '7px 12px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <i className="fa-solid fa-tag"></i>
+                              <span>
+                                Discount: <strong>{Math.round(((parseFloat(formData.base_price) - parseFloat(formData.sale_price)) / parseFloat(formData.base_price)) * 100)}% OFF</strong>
+                              </span>
+                            </div>
+                            <span style={{ fontWeight: '800' }}>
+                              Saves ₱{(parseFloat(formData.base_price) - parseFloat(formData.sale_price)).toFixed(2)}
+                            </span>
+                          </div>
+                        ) : null}
                       </div>
                     )}
                   </div>
                 </div>
               </div>
 
-              {/* Card 3: Customization Options */}
-              <div className="card" style={{ padding: '18px 20px', borderRadius: '12px', background: '#ffffff', border: 'none', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                  <h2 style={{ fontSize: '13.5px', fontWeight: '800', margin: 0, color: '#0f172a' }}>
-                    Customization Options ({formData.product_options.length})
+              {/* Card 3: Store Badges & Inventory (Clean 3-Column Grid) */}
+              <div className="card" style={{ padding: '20px', borderRadius: '14px', background: '#ffffff', border: '1px solid #E2E8F0', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
+                <h2 style={{ fontSize: '14px', fontWeight: '800', margin: '0 0 14px', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <i className="fa-solid fa-boxes-stacked" style={{ color: 'var(--color-primary, #b45309)', fontSize: '13.5px' }}></i>
+                  <span>Store Badges & Inventory</span>
+                </h2>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
+                  {/* Available in Store */}
+                  <label style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: '10px 12px',
+                    borderRadius: '10px',
+                    border: '1.5px solid ' + (formData.is_available ? '#BBF7D0' : '#E2E8F0'),
+                    background: formData.is_available ? '#F0FDF4' : '#F8FAFC',
+                    cursor: 'pointer',
+                    minHeight: '42px',
+                    boxSizing: 'border-box',
+                    transition: 'all 0.15s ease',
+                  }}>
+                    <input
+                      type="checkbox"
+                      checked={formData.is_available}
+                      onChange={(e) => setFormData({ ...formData, is_available: e.target.checked })}
+                      style={{ width: '16px', height: '16px', accentColor: '#16a34a', cursor: 'pointer' }}
+                    />
+                    <span style={{ fontSize: '12px', fontWeight: '700', color: formData.is_available ? '#166534' : '#334155' }}>
+                      Available in Store
+                    </span>
+                  </label>
+
+                  {/* Bestseller Badge */}
+                  <label style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: '10px 12px',
+                    borderRadius: '10px',
+                    border: '1.5px solid ' + (formData.is_bestseller ? '#FED7AA' : '#E2E8F0'),
+                    background: formData.is_bestseller ? '#FFFBEB' : '#F8FAFC',
+                    cursor: 'pointer',
+                    minHeight: '42px',
+                    boxSizing: 'border-box',
+                    transition: 'all 0.15s ease',
+                  }}>
+                    <input
+                      type="checkbox"
+                      checked={formData.is_bestseller}
+                      onChange={(e) => setFormData({ ...formData, is_bestseller: e.target.checked })}
+                      style={{ width: '16px', height: '16px', accentColor: '#d97706', cursor: 'pointer' }}
+                    />
+                    <span style={{ fontSize: '12px', fontWeight: '700', color: formData.is_bestseller ? '#92400E' : '#334155' }}>
+                      Bestseller
+                    </span>
+                  </label>
+
+                  {/* On-Hand Stock */}
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '6px',
+                    padding: '10px 12px',
+                    borderRadius: '10px',
+                    border: '1.5px solid ' + (formData.is_ready_made ? '#BBF7D0' : '#E2E8F0'),
+                    background: formData.is_ready_made ? '#F0FDF4' : '#F8FAFC',
+                    minHeight: '42px',
+                    boxSizing: 'border-box',
+                    transition: 'all 0.15s ease',
+                  }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', margin: 0, flex: 1 }}>
+                      <input
+                        type="checkbox"
+                        checked={formData.is_ready_made}
+                        onChange={(e) => setFormData({ ...formData, is_ready_made: e.target.checked })}
+                        style={{ width: '16px', height: '16px', accentColor: '#16a34a', cursor: 'pointer' }}
+                      />
+                      <span style={{ fontSize: '12px', fontWeight: '700', color: formData.is_ready_made ? '#166534' : '#334155' }}>
+                        On-Hand
+                      </span>
+                    </label>
+                    {formData.is_ready_made && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <input
+                          type="number"
+                          min="0"
+                          placeholder="Qty"
+                          value={formData.ready_made_stock}
+                          onChange={(e) => setFormData({ ...formData, ready_made_stock: e.target.value })}
+                          style={{
+                            width: '50px',
+                            height: '26px',
+                            padding: '0 4px',
+                            borderRadius: '6px',
+                            border: Number(formData.ready_made_stock) === 0 ? '1.5px solid #FCA5A5' : '1.5px solid #86EFAC',
+                            fontSize: '12px',
+                            background: '#ffffff',
+                            fontWeight: '800',
+                            color: Number(formData.ready_made_stock) === 0 ? '#DC2626' : '#166534',
+                            boxSizing: 'border-box',
+                            textAlign: 'center',
+                          }}
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {formData.is_ready_made && Number(formData.ready_made_stock) === 0 && (
+                  <p style={{ margin: '8px 0 0', fontSize: '11px', fontWeight: '600', color: '#DC2626', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <i className="fa-solid fa-triangle-exclamation" style={{ fontSize: '10px' }}></i>
+                    <span>Stock is 0 — item will appear as &quot;Sold Out&quot; in store.</span>
+                  </p>
+                )}
+              </div>
+
+              {/* Card 4: Customization Options */}
+              <div className="card" style={{ padding: '20px', borderRadius: '14px', background: '#ffffff', border: '1px solid #E2E8F0', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                  <h2 style={{ fontSize: '14px', fontWeight: '800', margin: 0, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <i className="fa-solid fa-sliders" style={{ color: 'var(--color-primary, #b45309)', fontSize: '13.5px' }}></i>
+                    <span>Customization Options ({formData.product_options.length})</span>
                   </h2>
                   <button
                     type="button"
                     onClick={handleAddOptionGroup}
-                    className="btn btn-secondary btn-sm"
-                    style={{ padding: '3px 9px', fontSize: '11px', fontWeight: '700', borderRadius: '6px', border: 'none', background: '#f1f5f9' }}
+                    style={{
+                      height: '32px',
+                      padding: '0 12px',
+                      fontSize: '12px',
+                      fontWeight: '700',
+                      borderRadius: '8px',
+                      border: '1.5px solid #E2E8F0',
+                      background: '#F8FAFC',
+                      color: '#334155',
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                      transition: 'all 0.15s ease',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = '#F1F5F9';
+                      e.currentTarget.style.borderColor = '#CBD5E1';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = '#F8FAFC';
+                      e.currentTarget.style.borderColor = '#E2E8F0';
+                    }}
                   >
-                    + Add Group
+                    <i className="fa-solid fa-plus" style={{ fontSize: '10.5px', color: 'var(--color-primary, #b45309)' }}></i>
+                    <span>Add Group</span>
                   </button>
                 </div>
 
                 {formData.product_options.length === 0 ? (
-                  <div style={{ textAlign: 'center', padding: '14px', background: '#f8fafc', borderRadius: '8px' }}>
-                    <p style={{ margin: 0, fontSize: '12px', color: '#64748b' }}>No custom options configured</p>
+                  <div style={{ textAlign: 'center', padding: '18px', background: '#F8FAFC', borderRadius: '10px', border: '1px dashed #CBD5E1' }}>
+                    <p style={{ margin: 0, fontSize: '12.5px', color: '#64748B', fontWeight: '500' }}>No customization option groups configured</p>
                   </div>
                 ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                     {formData.product_options.map((opt, optIdx) => (
-                      <div key={opt.id || optIdx} style={{ padding: '12px', background: '#FAF6F0', borderRadius: '8px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                      <div key={opt.id || optIdx} style={{ padding: '14px', background: '#FAF6F0', borderRadius: '10px', border: '1px solid #EADDC9' }}>
+                        {/* Group Header */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
                           <input
                             type="text"
                             value={opt.option_name}
                             onChange={(e) => handleUpdateOptionGroupName(opt.id, e.target.value)}
                             placeholder="Group Name (e.g. Color Theme)"
-                            style={{ flex: 1, height: '30px', padding: '0 8px', borderRadius: '6px', border: 'none', fontSize: '12px', fontWeight: '700', background: '#fff' }}
+                            style={{
+                              flex: 1,
+                              height: '34px',
+                              padding: '0 10px',
+                              borderRadius: '8px',
+                              border: '1px solid #D8C4AA',
+                              fontSize: '12.5px',
+                              fontWeight: '700',
+                              background: '#FFFFFF',
+                              color: '#0F172A',
+                              boxSizing: 'border-box',
+                            }}
                           />
-                          <label style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', fontWeight: '700', color: '#334155', cursor: 'pointer' }}>
+                          <label style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            fontSize: '11.5px',
+                            fontWeight: '700',
+                            color: opt.is_required ? '#92400E' : '#475569',
+                            background: opt.is_required ? '#FEF3C7' : '#FFFFFF',
+                            border: '1px solid ' + (opt.is_required ? '#FDE68A' : '#D8C4AA'),
+                            padding: '4px 8px',
+                            borderRadius: '6px',
+                            cursor: 'pointer',
+                            height: '34px',
+                            boxSizing: 'border-box',
+                          }}>
                             <input
                               type="checkbox"
                               checked={opt.is_required}
                               onChange={() => handleToggleOptionRequired(opt.id)}
+                              style={{ width: '14px', height: '14px', accentColor: '#d97706', cursor: 'pointer' }}
                             />
-                            Required
+                            <span>Required</span>
                           </label>
                           <button
                             type="button"
                             onClick={() => handleDeleteOptionGroup(opt.id)}
-                            style={{ border: 'none', background: 'none', color: '#dc2626', cursor: 'pointer', padding: '2px 4px', fontSize: '12px' }}
-                            title="Delete"
+                            style={{
+                              width: '34px',
+                              height: '34px',
+                              borderRadius: '8px',
+                              border: '1px solid #FECACA',
+                              background: '#FFFFFF',
+                              color: '#DC2626',
+                              cursor: 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: '12px',
+                              transition: 'all 0.15s ease',
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.background = '#FEE2E2';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.background = '#FFFFFF';
+                            }}
+                            title="Delete Option Group"
                           >
-                            ✕
+                            <i className="fa-solid fa-trash-can"></i>
                           </button>
                         </div>
 
-                        {/* Choices */}
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                        {/* Choices List */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                           {(opt.choices || []).map((ch, chIdx) => (
-                            <div key={chIdx} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <div key={chIdx} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                               <input
                                 type="text"
-                                placeholder="Choice (e.g. Pink)"
+                                placeholder="Choice Label (e.g. Pastel Pink)"
                                 value={ch.label}
                                 onChange={(e) => handleUpdateChoice(opt.id, chIdx, 'label', e.target.value)}
-                                style={{ flex: 1, height: '28px', padding: '0 8px', borderRadius: '4px', border: 'none', fontSize: '11.5px', background: '#fff' }}
+                                style={{
+                                  flex: 1,
+                                  height: '32px',
+                                  padding: '0 10px',
+                                  borderRadius: '7px',
+                                  border: '1px solid #D8C4AA',
+                                  fontSize: '12px',
+                                  fontWeight: '600',
+                                  background: '#FFFFFF',
+                                  color: '#0F172A',
+                                  boxSizing: 'border-box',
+                                }}
                               />
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
-                                <span style={{ fontSize: '10.5px', color: '#64748b', fontWeight: '700' }}>+₱</span>
+                              <div style={{ position: 'relative', width: '90px' }}>
+                                <span style={{ position: 'absolute', left: '8px', top: '50%', transform: 'translateY(-50%)', fontSize: '11px', color: '#64748B', fontWeight: '800' }}>+₱</span>
                                 <input
                                   type="number"
                                   step="0.01"
-                                  placeholder="0"
+                                  placeholder="0.00"
                                   value={ch.extra_cost || ''}
                                   onChange={(e) => handleUpdateChoice(opt.id, chIdx, 'extra_cost', e.target.value)}
-                                  style={{ width: '55px', height: '28px', padding: '0 4px', borderRadius: '4px', border: 'none', fontSize: '11.5px', background: '#fff' }}
+                                  style={{
+                                    width: '100%',
+                                    height: '32px',
+                                    paddingLeft: '24px',
+                                    paddingRight: '6px',
+                                    borderRadius: '7px',
+                                    border: '1px solid #D8C4AA',
+                                    fontSize: '12px',
+                                    fontWeight: '700',
+                                    background: '#FFFFFF',
+                                    color: '#0F172A',
+                                    boxSizing: 'border-box',
+                                  }}
                                 />
                               </div>
                               <button
                                 type="button"
                                 onClick={() => handleDeleteChoice(opt.id, chIdx)}
-                                style={{ border: 'none', background: 'none', color: '#94a3b8', cursor: 'pointer', padding: '2px', fontSize: '11px' }}
+                                style={{
+                                  width: '28px',
+                                  height: '28px',
+                                  borderRadius: '6px',
+                                  border: 'none',
+                                  background: 'transparent',
+                                  color: '#94A3B8',
+                                  cursor: 'pointer',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  fontSize: '12px',
+                                  transition: 'all 0.12s ease',
+                                }}
+                                onMouseEnter={(e) => {
+                                  e.currentTarget.style.background = '#FEE2E2';
+                                  e.currentTarget.style.color = '#DC2626';
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.style.background = 'transparent';
+                                  e.currentTarget.style.color = '#94A3B8';
+                                }}
+                                title="Remove Choice"
                               >
                                 ✕
                               </button>
                             </div>
                           ))}
+
                           <button
                             type="button"
                             onClick={() => handleAddChoice(opt.id)}
-                            style={{ alignSelf: 'flex-start', border: 'none', background: 'none', color: 'var(--color-primary, #b45309)', fontSize: '11px', fontWeight: '700', cursor: 'pointer', padding: '2px 0' }}
+                            style={{
+                              marginTop: '4px',
+                              alignSelf: 'flex-start',
+                              height: '28px',
+                              padding: '0 10px',
+                              fontSize: '11.5px',
+                              fontWeight: '700',
+                              borderRadius: '6px',
+                              border: '1px dashed #B45309',
+                              background: '#FFFFFF',
+                              color: 'var(--color-primary, #b45309)',
+                              cursor: 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              transition: 'all 0.15s ease',
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.background = '#FAF6F0';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.background = '#FFFFFF';
+                            }}
                           >
-                            + Add Choice
+                            <i className="fa-solid fa-plus" style={{ fontSize: '9.5px' }}></i>
+                            <span>Add Choice</span>
                           </button>
                         </div>
                       </div>
@@ -1760,13 +2288,14 @@ export default function AdminProductsClient({ initialProducts, categories = [] }
               </div>
             </div>
 
-            {/* ── RIGHT COLUMN: Photos Gallery & Live Storefront Preview ── */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {/* ── RIGHT COLUMN: Photos Gallery & Live Storefront Preview (Sticky on Desktop) ── */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', position: 'sticky', top: '76px', alignSelf: 'start' }}>
               
               {/* Card 4: Photos Gallery */}
-              <div className="card" style={{ padding: '18px 20px', borderRadius: '12px', background: '#ffffff', border: 'none', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
-                <h2 style={{ fontSize: '13.5px', fontWeight: '800', margin: '0 0 12px', color: '#0f172a' }}>
-                  Product Gallery ({formData.product_photos.length})
+              <div className="card" style={{ padding: '20px', borderRadius: '14px', background: '#ffffff', border: '1px solid #E2E8F0', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
+                <h2 style={{ fontSize: '14px', fontWeight: '800', margin: '0 0 14px', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <i className="fa-solid fa-images" style={{ color: 'var(--color-primary, #b45309)', fontSize: '13.5px' }}></i>
+                  <span>Product Gallery ({formData.product_photos.length})</span>
                 </h2>
 
                 {/* Hidden File Input for Device Photo Upload */}
@@ -1815,35 +2344,44 @@ export default function AdminProductsClient({ initialProducts, categories = [] }
                   </p>
                 </div>
 
-                {/* Photo List */}
+                {/* Photo List with Golden Cover Highlight & Zoom */}
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(75px, 1fr))', gap: '8px' }}>
                   {formData.product_photos.map((ph) => (
                     <div
                       key={ph.id}
+                      onClick={() => setZoomedPhotoUrl(ph.url)}
+                      title="Click to zoom photo"
                       style={{
                         position: 'relative',
-                        borderRadius: '6px',
+                        borderRadius: '8px',
                         overflow: 'hidden',
                         height: '75px',
                         background: '#f8fafc',
+                        border: ph.is_cover ? '2.5px solid var(--color-primary, #b45309)' : '1px solid #e2e8f0',
+                        boxShadow: ph.is_cover ? '0 0 0 2px rgba(180,83,9,0.25)' : 'none',
+                        cursor: 'zoom-in',
+                        transition: 'all 0.15s ease',
                       }}
                     >
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img src={ph.url} alt="Product" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
 
                       {ph.is_cover && (
-                        <span style={{ position: 'absolute', top: '2px', left: '2px', background: 'var(--color-primary, #b45309)', color: '#fff', fontSize: '8px', fontWeight: '800', padding: '1px 3px', borderRadius: '3px' }}>
-                          COVER
+                        <span style={{ position: 'absolute', top: '2px', left: '2px', background: 'var(--color-primary, #b45309)', color: '#fff', fontSize: '8px', fontWeight: '800', padding: '1px 4px', borderRadius: '3px', boxShadow: '0 1px 2px rgba(0,0,0,0.15)' }}>
+                          ★ COVER
                         </span>
                       )}
 
-                      <div style={{ position: 'absolute', bottom: '2px', right: '2px', display: 'flex', gap: '2px' }}>
+                      <div
+                        style={{ position: 'absolute', bottom: '2px', right: '2px', display: 'flex', gap: '2px', zIndex: 3 }}
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         {!ph.is_cover && (
                           <button
                             type="button"
                             onClick={() => handleSetCoverPhoto(ph.id)}
-                            title="Set Cover"
-                            style={{ background: 'rgba(0,0,0,0.6)', color: '#fff', border: 'none', borderRadius: '3px', padding: '2px 4px', fontSize: '8px', cursor: 'pointer', fontWeight: '700' }}
+                            title="Set as Main Cover"
+                            style={{ background: 'rgba(0,0,0,0.65)', color: '#fff', border: 'none', borderRadius: '3px', padding: '2px 5px', fontSize: '8px', cursor: 'pointer', fontWeight: '700' }}
                           >
                             Cover
                           </button>
@@ -1852,7 +2390,7 @@ export default function AdminProductsClient({ initialProducts, categories = [] }
                           type="button"
                           onClick={() => handleDeletePhoto(ph.id)}
                           title="Delete photo"
-                          style={{ background: 'rgba(220,38,38,0.85)', color: '#fff', border: 'none', borderRadius: '3px', padding: '2px 4px', fontSize: '8px', cursor: 'pointer' }}
+                          style={{ background: 'rgba(220,38,38,0.88)', color: '#fff', border: 'none', borderRadius: '3px', padding: '2px 5px', fontSize: '8px', cursor: 'pointer' }}
                         >
                           ✕
                         </button>
@@ -1862,56 +2400,119 @@ export default function AdminProductsClient({ initialProducts, categories = [] }
                 </div>
               </div>
 
-              {/* Card 5: Storefront Preview */}
-              <div className="card" style={{ padding: '18px 20px', borderRadius: '12px', background: '#FAF6F0', border: 'none' }}>
-                <h2 style={{ fontSize: '12px', fontWeight: '800', margin: '0 0 10px', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                  Storefront Preview
-                </h2>
+              {/* Card 5: Storefront Preview (Maximized & Clear) */}
+              <div className="card" style={{ padding: '20px', borderRadius: '14px', background: '#ffffff', border: '1px solid #E2E8F0', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
+                  <h2 style={{ fontSize: '14px', fontWeight: '800', margin: 0, color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <i className="fa-solid fa-eye" style={{ color: 'var(--color-primary, #b45309)', fontSize: '13.5px' }}></i>
+                    <span>Storefront Live Preview</span>
+                  </h2>
+                  <span style={{ fontSize: '10.5px', fontWeight: '700', color: '#0369A1', background: '#E0F2FE', padding: '2px 8px', borderRadius: '6px' }}>
+                    Customer View
+                  </span>
+                </div>
 
-                <div style={{ background: '#ffffff', borderRadius: '10px', overflow: 'hidden', border: 'none', maxWidth: '240px', margin: '0 auto', boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
-                  <div style={{ position: 'relative', height: '140px', background: '#f1f5f9' }}>
+                <div style={{
+                  width: '100%',
+                  background: '#FAFAF9',
+                  borderRadius: '12px',
+                  overflow: 'hidden',
+                  border: '1.5px solid #E2E8F0',
+                  boxShadow: '0 3px 10px rgba(0,0,0,0.04)',
+                }}>
+                  {/* Image area */}
+                  <div style={{ position: 'relative', width: '100%', height: '240px', background: '#F1F5F9', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={coverPhotoPreview} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-                    <div style={{ position: 'absolute', top: '6px', left: '6px', display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                    <img
+                      src={coverPhotoPreview}
+                      alt="Preview"
+                      style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                    />
+                    {/* Badges on photo */}
+                    <div style={{ position: 'absolute', top: '10px', left: '10px', display: 'flex', flexDirection: 'column', gap: '5px', zIndex: 2 }}>
                       {formData.is_bestseller && (
-                        <span style={{ fontSize: '8.5px', fontWeight: '800', background: '#FFEDD5', color: '#C2410C', padding: '1px 5px', borderRadius: '4px' }}>
-                          Bestseller
+                        <span style={{ fontSize: '10px', fontWeight: '800', background: '#FFEDD5', color: '#C2410C', padding: '3px 8px', borderRadius: '6px', boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }}>
+                          ⭐ Bestseller
                         </span>
                       )}
                       {formData.is_ready_made && (
-                        <span style={{ fontSize: '8.5px', fontWeight: '800', background: '#DCFCE7', color: '#15803D', padding: '1px 5px', borderRadius: '4px' }}>
-                          On-Hand ({formData.ready_made_stock || 0})
+                        <span style={{ fontSize: '10px', fontWeight: '800', background: '#DCFCE7', color: '#15803D', padding: '3px 8px', borderRadius: '6px', boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }}>
+                          🌿 On-Hand ({formData.ready_made_stock || 0})
                         </span>
                       )}
                       {formData.is_on_sale && (
-                        <span style={{ fontSize: '8.5px', fontWeight: '800', background: '#FEE2E2', color: '#B91C1C', padding: '1px 5px', borderRadius: '4px' }}>
-                          {formData.sale_tag || 'Sale'}
+                        <span style={{ fontSize: '10px', fontWeight: '800', background: '#FEE2E2', color: '#B91C1C', padding: '3px 8px', borderRadius: '6px', boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }}>
+                          🔥 {formData.sale_tag || 'Sale'}
+                        </span>
+                      )}
+                      {formData.is_sold_out && (
+                        <span style={{ fontSize: '10px', fontWeight: '800', background: '#1E293B', color: '#FFFFFF', padding: '3px 8px', borderRadius: '6px', boxShadow: '0 1px 3px rgba(0,0,0,0.08)' }}>
+                          Sold Out
                         </span>
                       )}
                     </div>
                   </div>
 
-                  <div style={{ padding: '10px' }}>
-                    <p style={{ margin: '0 0 2px', fontSize: '9.5px', fontWeight: '700', color: 'var(--color-primary, #b45309)', textTransform: 'uppercase' }}>
-                      {categories.find((c) => c.id === formData.category_id)?.name || 'Crafts'}
-                    </p>
-                    <h3 style={{ margin: '0 0 4px', fontSize: '12px', fontWeight: '800', color: '#0f172a' }}>
-                      {formData.name || 'Product Title'}
+                  {/* Details Body */}
+                  <div style={{ padding: '16px', background: '#FFFFFF' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '4px' }}>
+                      <span style={{ fontSize: '11px', fontWeight: '800', color: 'var(--color-primary, #b45309)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                        {allKnownCategories.find((c) => c.id === formData.category_id || c.slug === formData.category_id)?.name || 'Crafts'}
+                      </span>
+                      <span style={{ fontSize: '11px', fontWeight: '600', color: '#64748B' }}>
+                        {formData.product_options?.length || 0} option{formData.product_options?.length !== 1 ? 's' : ''}
+                      </span>
+                    </div>
+
+                    <h3 style={{ margin: '0 0 6px', fontSize: '15px', fontWeight: '800', color: '#0F172A', lineHeight: 1.3 }}>
+                      {formData.name || 'Handmade Craft Piece'}
                     </h3>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <div style={{ display: 'flex', alignItems: 'baseline', gap: '5px' }}>
-                        <span style={{ fontSize: '13.5px', fontWeight: '800', color: 'var(--color-primary, #b45309)' }}>
-                          {formatCurrency(formData.is_on_sale && formData.sale_price ? formData.sale_price : formData.base_price)}
-                        </span>
-                        {formData.is_on_sale && Boolean(formData.sale_price) && parseFloat(formData.base_price) > 0 && (
-                          <span style={{ fontSize: '10.5px', fontWeight: '500', color: '#94a3b8', textDecoration: 'line-through' }}>
-                            {formatCurrency(formData.base_price)}
+
+                    {formData.description ? (
+                      <p style={{ margin: '0 0 12px', fontSize: '12px', color: '#64748B', lineHeight: 1.4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                        {formData.description}
+                      </p>
+                    ) : (
+                      <p style={{ margin: '0 0 12px', fontSize: '11.5px', color: '#94A3B8', fontStyle: 'italic' }}>
+                        No description provided yet.
+                      </p>
+                    )}
+
+                    {/* Price and Add to Cart Preview */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: '10px', borderTop: '1px solid #F1F5F9' }}>
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
+                          <span style={{ fontSize: '17px', fontWeight: '900', color: 'var(--color-primary, #b45309)' }}>
+                            {formatCurrency(formData.is_on_sale && formData.sale_price ? formData.sale_price : formData.base_price)}
+                          </span>
+                          {formData.is_on_sale && Boolean(formData.sale_price) && parseFloat(formData.base_price) > 0 && (
+                            <span style={{ fontSize: '12px', fontWeight: '600', color: '#94A3B8', textDecoration: 'line-through' }}>
+                              {formatCurrency(formData.base_price)}
+                            </span>
+                          )}
+                        </div>
+                        {formData.is_on_sale && Boolean(formData.sale_price) && parseFloat(formData.base_price) > parseFloat(formData.sale_price) && (
+                          <span style={{ fontSize: '10.5px', fontWeight: '700', color: '#166534', display: 'block', marginTop: '1px' }}>
+                            Save ₱{(parseFloat(formData.base_price) - parseFloat(formData.sale_price)).toFixed(2)}
                           </span>
                         )}
                       </div>
-                      <span style={{ fontSize: '9.5px', fontWeight: '600', color: '#64748b' }}>
-                        {formData.product_options.length} options
-                      </span>
+
+                      <div style={{
+                        background: 'var(--color-primary, #b45309)',
+                        color: '#FFFFFF',
+                        padding: '7px 13px',
+                        borderRadius: '8px',
+                        fontSize: '11.5px',
+                        fontWeight: '700',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        boxShadow: '0 2px 6px rgba(180,83,9,0.2)',
+                      }}>
+                        <i className="fa-solid fa-cart-shopping" style={{ fontSize: '10.5px' }}></i>
+                        <span>Add to Cart</span>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1920,7 +2521,133 @@ export default function AdminProductsClient({ initialProducts, categories = [] }
             </div>
 
           </div>
+
+          {/* Floating Sticky Quick-Save Action Bar */}
+          <div style={{
+            position: 'sticky',
+            bottom: '16px',
+            zIndex: 100,
+            marginTop: '24px',
+            background: 'rgba(255, 255, 255, 0.96)',
+            backdropFilter: 'blur(10px)',
+            WebkitBackdropFilter: 'blur(10px)',
+            border: '1.5px solid #E2E8F0',
+            borderRadius: '12px',
+            padding: '10px 18px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--color-primary, #b45309)', display: 'inline-block' }}></span>
+              <span style={{ fontSize: '12.5px', fontWeight: '700', color: '#0F172A' }}>
+                {editingProduct ? `Editing "${formData.name || 'Product'}"` : 'New Product Draft'}
+              </span>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setViewMode('list');
+                  scrollToTop();
+                }}
+                className="btn btn-secondary btn-sm"
+                style={{ height: '34px', padding: '0 14px', borderRadius: '8px', fontWeight: '700', fontSize: '12px', border: 'none', background: '#F1F5F9' }}
+              >
+                Cancel
+              </button>
+
+              <button
+                type="submit"
+                disabled={saving}
+                className="btn btn-primary btn-sm"
+                style={{
+                  height: '34px',
+                  padding: '0 18px',
+                  borderRadius: '8px',
+                  fontWeight: '800',
+                  fontSize: '12px',
+                  border: 'none',
+                }}
+              >
+                {saving ? 'Saving...' : (editingProduct ? 'Save Changes' : 'Create Product')}
+              </button>
+            </div>
+          </div>
         </form>
+      )}
+
+      {/* Lightbox Zoom Modal for Product Gallery */}
+      {zoomedPhotoUrl && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            width: '100vw',
+            height: '100vh',
+            background: 'rgba(15, 23, 42, 0.85)',
+            backdropFilter: 'blur(8px)',
+            WebkitBackdropFilter: 'blur(8px)',
+            zIndex: 999999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '20px',
+            boxSizing: 'border-box',
+          }}
+          onClick={() => setZoomedPhotoUrl(null)}
+        >
+          <div
+            style={{
+              position: 'relative',
+              maxWidth: '650px',
+              maxHeight: '85vh',
+              background: '#0F172A',
+              borderRadius: '16px',
+              overflow: 'hidden',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={zoomedPhotoUrl}
+              alt="Zoomed Photo"
+              style={{ width: '100%', height: 'auto', maxHeight: '80vh', objectFit: 'contain' }}
+            />
+            <button
+              type="button"
+              onClick={() => setZoomedPhotoUrl(null)}
+              style={{
+                position: 'absolute',
+                top: '12px',
+                right: '12px',
+                width: '32px',
+                height: '32px',
+                borderRadius: '50%',
+                background: 'rgba(0,0,0,0.6)',
+                color: '#fff',
+                border: 'none',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '14px',
+                fontWeight: '800',
+              }}
+            >
+              ✕
+            </button>
+          </div>
+        </div>
       )}
 
       {/* Delete Confirmation Modal */}
@@ -1979,23 +2706,30 @@ export default function AdminProductsClient({ initialProducts, categories = [] }
             <p style={{ margin: '0 0 20px', fontSize: '13px', color: '#64748b', lineHeight: 1.5 }}>
               Are you sure you want to remove <strong style={{ color: '#0f172a' }}>{productToDelete.name}</strong> from your catalog?
             </p>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', width: '100%' }}>
               <button
                 type="button"
                 onClick={() => setProductToDelete(null)}
                 style={{
-                  padding: '9px 16px',
+                  height: '38px',
+                  boxSizing: 'border-box',
+                  padding: '0 16px',
                   fontSize: '12.5px',
                   fontWeight: '700',
-                  borderRadius: '8px',
+                  borderRadius: '999px',
                   border: '1px solid #e2e8f0',
-                  background: '#ffffff',
-                  color: '#334155',
+                  background: '#f1f5F9',
+                  color: '#475569',
                   cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  lineHeight: 1,
+                  margin: 0,
                   transition: 'background 0.12s ease',
                 }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = '#f8fafc')}
-                onMouseLeave={(e) => (e.currentTarget.style.background = '#ffffff')}
+                onMouseEnter={(e) => (e.currentTarget.style.background = '#e2e8f0')}
+                onMouseLeave={(e) => (e.currentTarget.style.background = '#f1f5f9')}
               >
                 Cancel
               </button>
@@ -2003,20 +2737,27 @@ export default function AdminProductsClient({ initialProducts, categories = [] }
                 type="button"
                 onClick={handleConfirmDelete}
                 style={{
-                  padding: '9px 16px',
+                  height: '38px',
+                  boxSizing: 'border-box',
+                  padding: '0 16px',
                   fontSize: '12.5px',
-                  fontWeight: '700',
-                  borderRadius: '8px',
+                  fontWeight: '800',
+                  borderRadius: '999px',
                   border: 'none',
                   background: '#dc2626',
                   color: '#ffffff',
                   cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  lineHeight: 1,
+                  margin: 0,
                   transition: 'background 0.12s ease',
                 }}
                 onMouseEnter={(e) => (e.currentTarget.style.background = '#b91c1c')}
                 onMouseLeave={(e) => (e.currentTarget.style.background = '#dc2626')}
               >
-                Yes, Delete
+                Delete
               </button>
             </div>
           </div>

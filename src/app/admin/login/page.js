@@ -382,7 +382,7 @@ export default function AdminLoginPage() {
                     <i className="fa-solid fa-key"></i>
                   </div>
                   <h3 style={{ fontSize: '16px', fontWeight: '700', color: 'var(--color-text)', margin: '0 0 4px' }}>
-                    Reset Studio Password
+                    Reset Admin Password
                   </h3>
                   <p style={{
                     fontSize: '12px',

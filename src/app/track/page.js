@@ -142,6 +142,14 @@ function TrackContent() {
   const [itemReviewed, setItemReviewed] = useState({});
   const [itemSubmitting, setItemSubmitting] = useState({});
 
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      document.title = order?.reference_code
+        ? `Track Order #${order.reference_code} | M&M's Artsy`
+        : "Track Order | M&M's Artsy";
+    }
+  }, [order?.reference_code]);
+
   const handleOrderAgain = () => {
     if (!order?.order_items?.length) return;
     setReordering(true);
@@ -170,10 +178,7 @@ function TrackContent() {
       });
 
       addItems(itemsToAdd);
-
-      setTimeout(() => {
-        router.push('/cart');
-      }, 350);
+      router.push('/cart');
     } catch (e) {
       setReordering(false);
       router.push('/shop');

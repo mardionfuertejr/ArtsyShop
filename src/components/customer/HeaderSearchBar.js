@@ -292,6 +292,9 @@ export default function HeaderSearchBar() {
                           alt={prod.name}
                           className="header-search-thumb"
                           loading="lazy"
+                          onError={(e) => {
+                            e.currentTarget.src = 'https://images.unsplash.com/photo-1561181286-d3fee7d55364?auto=format&fit=crop&w=400&q=80';
+                          }}
                         />
                       </div>
 

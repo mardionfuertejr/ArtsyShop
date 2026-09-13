@@ -5,7 +5,7 @@ import { formatRelative, formatDate, formatDateShort } from '@/lib/utils/formatD
 import { getMockDashboardData, getAllMockOrders } from '@/lib/mockData';
 import AdminNotepad from '@/components/admin/AdminNotepad';
 
-export const metadata = { title: 'Dashboard — M&M Artsy Admin' };
+export const metadata = { title: "Dashboard | M&M's Artsy Admin" };
 
 async function getDashboardData() {
   try {

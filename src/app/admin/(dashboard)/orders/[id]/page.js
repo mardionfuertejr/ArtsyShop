@@ -2,7 +2,7 @@ import { getAllMockOrders, MOCK_ORDERS } from '@/lib/mockData';
 import { createClient } from '@/lib/supabase/server';
 import OrderDetailClient from './OrderDetailClient';
 
-export const metadata = { title: 'Order Details — M&M Artsy Admin' };
+export const metadata = { title: "Order Details | M&M's Artsy Admin" };
 
 export default async function AdminOrderDetailPage({ params }) {
   const resolvedParams = await params;

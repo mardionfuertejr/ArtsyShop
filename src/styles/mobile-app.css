@@ -9,14 +9,53 @@
   -webkit-tap-highlight-color: transparent;
 }
 
+/* Custom Sleek Scrollbar for Whole App */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.12);
+  border-radius: 999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.22);
+}
+
+/* Hide scrollbars completely on option dropdowns and carousels */
+.no-scrollbar,
+.option-menu-panel,
+.category-tabs,
+.photo-carousel-track {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+  overflow: visible !important;
+  overflow-y: visible !important;
+  max-height: none !important;
+}
+
+.no-scrollbar::-webkit-scrollbar,
+.option-menu-panel::-webkit-scrollbar,
+.category-tabs::-webkit-scrollbar,
+.photo-carousel-track::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  background: transparent !important;
+}
+
 button, a, .btn, .product-card, .bottom-nav-item, .top-bar-action, .cart-btn-wrapper, [role="button"], [role="tab"] {
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
   cursor: pointer;
+  transition: transform 0.10s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.10s ease, background-color 0.10s ease, border-color 0.10s ease;
 }
 
 button:active, .btn:active, .product-card:active, .bottom-nav-item:active, [role="button"]:active {
-  transform: scale(0.97);
+  transform: scale(0.972);
 }
 
 /* ── CSS Variables for mobile layout ───────────────────────── */
@@ -1357,11 +1396,11 @@ button:active, .btn:active, .product-card:active, .bottom-nav-item:active, [role
 .photo-carousel-arrow {
   position: absolute;
   top: 50%;
-  transform: translateY(-50%) scale(1) !important;
-  width: 36px;
-  height: 36px;
+  transform: translateY(-50%) !important;
+  width: 38px;
+  height: 38px;
   border-radius: var(--radius-full);
-  background: rgba(255, 255, 255, 0.92);
+  background: rgba(255, 255, 255, 0.95);
   border: 1px solid rgba(0, 0, 0, 0.08);
   color: var(--color-text);
   display: flex;
@@ -1370,29 +1409,29 @@ button:active, .btn:active, .product-card:active, .bottom-nav-item:active, [role
   cursor: pointer;
   z-index: 5;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
-  transition: transform 0.22s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+  transition: transform 0.12s ease, background 0.12s ease, box-shadow 0.12s ease;
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   outline: none;
+  touch-action: manipulation;
 }
 
 .photo-carousel-arrow:hover:not(:disabled) {
   background: #ffffff;
-  transform: translateY(-50%) scale(1.12) !important;
+  transform: translateY(-50%) scale(1.08) !important;
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.16);
 }
 
 .photo-carousel-arrow:active:not(:disabled) {
   background: #ffffff;
-  transform: translateY(-50%) scale(1.2) !important;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+  transform: translateY(-50%) scale(0.95) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .photo-carousel-arrow:disabled {
   opacity: 0.25;
   cursor: not-allowed;
   pointer-events: none;
-  transform: translateY(-50%) scale(0.92) !important;
   box-shadow: none;
 }
 
@@ -1406,7 +1445,7 @@ button:active, .btn:active, .product-card:active, .bottom-nav-item:active, [role
 
 .photo-carousel-track {
   display: flex;
-  transition: transform 0.38s cubic-bezier(0.25, 1, 0.5, 1);
+  transition: transform 0.24s cubic-bezier(0.2, 0.9, 0.3, 1);
   height: 100%;
   will-change: transform;
 }

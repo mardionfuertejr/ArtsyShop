@@ -23,6 +23,7 @@ export default function OptionSelector({
   selected,
   selectedValue,
   onSelect,
+  required,
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
@@ -33,23 +34,20 @@ export default function OptionSelector({
   const name = optionName || option?.option_name || '';
   const rawChoices = choices || option?.choices || [];
   const activeSelected = selected ?? selectedValue ?? '';
+  const isRequired = required !== undefined ? Boolean(required) : Boolean(option?.is_required);
 
   const handleClose = () => {
-    if (!isOpen || isClosing) return;
-    setIsClosing(true);
-    setTimeout(() => {
-      setIsOpen(false);
-      setIsClosing(false);
-    }, 180);
+    setIsOpen(false);
+    setIsClosing(false);
   };
 
-  const handleToggle = () => {
-    if (isOpen) {
-      handleClose();
-    } else {
-      setIsClosing(false);
-      setIsOpen(true);
+  const handleToggle = (e) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
     }
+    setIsOpen((prev) => !prev);
+    setIsClosing(false);
   };
 
   // Close dropdown on outside click
@@ -59,7 +57,7 @@ export default function OptionSelector({
         handleClose();
       }
     }
-    if (isOpen && !isClosing) {
+    if (isOpen) {
       document.addEventListener('mousedown', handleClickOutside);
       document.addEventListener('touchstart', handleClickOutside);
     }
@@ -67,13 +65,7 @@ export default function OptionSelector({
       document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('touchstart', handleClickOutside);
     };
-  }, [isOpen, isClosing]);
-
-  useEffect(() => {
-    return () => {
-      if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
-    };
-  }, []);
+  }, [isOpen]);
 
   if (!rawChoices || rawChoices.length === 0) {
     return null;
@@ -115,14 +107,9 @@ export default function OptionSelector({
   }
 
   const handleSelectOption = (cleanLabel, extraCost) => {
-    setHighlightedChoice(cleanLabel);
     onSelect(cleanLabel, extraCost);
-
-    // Micro-delay gives instant visual touch feedback before smooth exit
-    closeTimerRef.current = setTimeout(() => {
-      handleClose();
-      setHighlightedChoice(null);
-    }, 120);
+    setIsOpen(false);
+    setIsClosing(false);
   };
 
   return (
@@ -193,21 +180,28 @@ export default function OptionSelector({
           color: var(--color-primary, #EA580C) !important;
           font-weight: 700 !important;
         }
+        .option-menu-panel::-webkit-scrollbar {
+          display: none;
+          width: 0;
+          height: 0;
+        }
       `}</style>
 
       {/* Label */}
-      <label
-        style={{
-          display: 'block',
-          fontSize: '12px',
-          fontWeight: '700',
-          color: 'var(--color-text)',
-          marginBottom: '5px',
-          letterSpacing: '0.01em',
-        }}
-      >
-        {name}
-      </label>
+      <div style={{ display: 'flex', alignItems: 'center', marginBottom: '5px' }}>
+        <label
+          style={{
+            display: 'block',
+            fontSize: '12px',
+            fontWeight: '700',
+            color: 'var(--color-text)',
+            letterSpacing: '0.01em',
+            margin: 0,
+          }}
+        >
+          {name} {isRequired && <span style={{ color: '#E11D48', fontWeight: '800' }}>*</span>}
+        </label>
+      </div>
 
       {/* Trigger Button - Sleek Single Line with smooth focus state */}
       <button
@@ -299,22 +293,22 @@ export default function OptionSelector({
       {/* Floating Dropdown Options Panel with Smooth Animation */}
       {(isOpen || isClosing) && (
         <div
+          className="option-menu-panel"
           style={{
             position: 'absolute',
             top: 'calc(100% + 5px)',
             left: 0,
             right: 0,
-            zIndex: 70,
+            zIndex: 90,
             background: 'var(--color-surface, #FFFFFF)',
             border: '1px solid var(--color-border-light, #E2E8F0)',
             borderRadius: '14px',
-            boxShadow: '0 10px 28px -4px rgba(0,0,0,0.12), 0 4px 10px -2px rgba(0,0,0,0.06)',
+            boxShadow: '0 12px 32px -4px rgba(0,0,0,0.16), 0 4px 12px -2px rgba(0,0,0,0.06)',
             padding: '5px',
             display: 'flex',
             flexDirection: 'column',
             gap: '3px',
-            maxHeight: '230px',
-            overflowY: 'auto',
+            overflow: 'visible',
             transformOrigin: 'top center',
             animation: isClosing
               ? 'optionMenuExit 0.18s cubic-bezier(0.4, 0, 0.2, 1) forwards'

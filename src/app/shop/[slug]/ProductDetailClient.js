@@ -14,6 +14,7 @@ import HeaderSearchBar from '@/components/customer/HeaderSearchBar';
 import BrandLogo from '@/components/common/BrandLogo';
 import { useCart } from '@/lib/hooks/useCart';
 import { formatCurrency } from '@/lib/utils/formatCurrency';
+import { triggerToast, clearToast } from '@/components/common/GlobalToast';
 
 export default function ProductDetailClient({ product: initialProduct, photos: initialPhotos, slug }) {
   const router = useRouter();
@@ -22,6 +23,13 @@ export default function ProductDetailClient({ product: initialProduct, photos: i
   const [photos, setPhotos] = useState(initialPhotos && initialPhotos.length > 0 ? initialPhotos : []);
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+
+  // Dynamic Browser Tab Title
+  useEffect(() => {
+    if (currentProduct?.name && typeof document !== 'undefined') {
+      document.title = `${currentProduct.name} | M&M's Artsy`;
+    }
+  }, [currentProduct?.name]);
 
   // Helper to build photo list
   const buildPhotoList = (prod) => {
@@ -337,8 +345,17 @@ export default function ProductDetailClient({ product: initialProduct, photos: i
       }));
   };
 
+  const requiredOptions = (options || []).filter(
+    (opt) => opt.is_required !== false && Array.isArray(opt.choices) && opt.choices.length > 0
+  );
+  const missingRequiredOptions = requiredOptions.filter((opt) => {
+    const val = selectedOptions[opt.option_name]?.value;
+    return !val || val === '— Select —' || val === '---' || val.trim() === '';
+  });
+  const hasMissingOptions = missingRequiredOptions.length > 0;
+
   const handleAddToCart = () => {
-    if (isSoldOut || added) return;
+    if (isSoldOut || added || hasMissingOptions) return;
 
     const photoUrl = photos[0]?.url || (photos[0]?.storage_path && supabaseUrl ? `${supabaseUrl}/storage/v1/object/public/product-photos/${photos[0].storage_path}` : null);
 
@@ -354,6 +371,19 @@ export default function ProductDetailClient({ product: initialProduct, photos: i
     });
     setAdded(true);
     setTimeout(() => setAdded(false), 1200);
+
+    const selectedLabels = Object.values(selectedOptions)
+      .map((o) => o?.value)
+      .filter(Boolean)
+      .join(', ');
+
+    triggerToast({
+      title: 'Added to Cart! ✨',
+      message: `${currentProduct.name}${selectedLabels ? ` (${selectedLabels})` : ''}`,
+      photo: photoUrl,
+      type: 'cart',
+      quantity,
+    });
 
     // Trigger Parabolic Fly-to-Cart Animation
     try {
@@ -377,10 +407,15 @@ export default function ProductDetailClient({ product: initialProduct, photos: i
   };
 
   const handleCheckoutNow = () => {
+    if (isSoldOut || hasMissingOptions) return;
+
+    clearToast();
+
     const photoUrl = photos[0]?.url || (photos[0]?.storage_path && supabaseUrl ? `${supabaseUrl}/storage/v1/object/public/product-photos/${photos[0].storage_path}` : null);
 
-    addItem({
-      productId: currentProduct.id,
+    const directItem = {
+      cartItemId: `direct-${Date.now()}`,
+      productId: currentProduct.id || `prod-${currentProduct.slug}`,
       productSlug: currentProduct.slug,
       productName: currentProduct.name,
       photo: photoUrl,
@@ -388,18 +423,46 @@ export default function ProductDetailClient({ product: initialProduct, photos: i
       unitPrice,
       quantity,
       options: getFilteredSelectedOptions(),
-    });
+    };
+
+    try {
+      localStorage.removeItem('likha_checkout_items');
+      localStorage.setItem('likha_direct_checkout_item', JSON.stringify(directItem));
+    } catch {}
 
     router.push('/checkout');
+  };
+
+  const handleGoBack = (e) => {
+    if (e) e.preventDefault();
+    if (typeof window !== 'undefined' && window.history.length > 1) {
+      router.back();
+    } else {
+      router.push('/shop');
+    }
   };
 
   return (
     <div className="customer-shell">
       {/* Top Bar */}
       <header className="top-bar">
-        <Link href="/shop" className="top-bar-action" aria-label="Back to collection">
+        <button
+          type="button"
+          onClick={handleGoBack}
+          className="top-bar-action"
+          aria-label="Back"
+          style={{
+            background: 'none',
+            border: 'none',
+            cursor: 'pointer',
+            padding: 0,
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
           <i className="fa-solid fa-arrow-left"></i>
-        </Link>
+        </button>
         <span className="top-bar-title" style={{ flex: 1, textAlign: 'left', marginLeft: '6px', margin: 0 }}>Product Details</span>
         
         {/* Desktop Navigation */}
@@ -456,6 +519,7 @@ export default function ProductDetailClient({ product: initialProduct, photos: i
                     choices={opt.choices}
                     selected={selectedOptions[opt.option_name]?.value}
                     onSelect={(val, cost) => handleOptionSelect(opt.option_name, val, cost)}
+                    required={opt.is_required !== false}
                   />
                 </div>
               );
@@ -515,7 +579,9 @@ export default function ProductDetailClient({ product: initialProduct, photos: i
                     type="button"
                     className="shopee-btn-add-cart ripple"
                     onClick={handleAddToCart}
+                    disabled={hasMissingOptions || added}
                     id="add-to-cart-btn"
+                    title={hasMissingOptions ? `Please select ${missingRequiredOptions.map((o) => o.option_name).join(', ')}` : ''}
                   >
                     <i className={added ? 'fa-solid fa-check' : 'fa-solid fa-cart-plus'}></i>
                     <span>{added ? 'Added to Cart' : 'Add to Cart'}</span>
@@ -526,7 +592,9 @@ export default function ProductDetailClient({ product: initialProduct, photos: i
                     type="button"
                     className="shopee-btn-buy-now ripple"
                     onClick={handleCheckoutNow}
+                    disabled={hasMissingOptions}
                     id="checkout-now-btn"
+                    title={hasMissingOptions ? `Please select ${missingRequiredOptions.map((o) => o.option_name).join(', ')}` : ''}
                   >
                     <span>Buy Now · {formatCurrency(totalPrice)}</span>
                   </button>

@@ -6,6 +6,7 @@ import GlobalFlyingCart from '@/components/customer/GlobalFlyingCart';
 import GlobalLoadingScreen from '@/components/common/GlobalLoadingScreen';
 import GameFloatingBadge from '@/components/customer/GameFloatingBadge';
 import GlobalToast from '@/components/common/GlobalToast';
+import QuickOptionModal from '@/components/customer/QuickOptionModal';
 
 export const viewport = {
   width: 'device-width',
@@ -17,8 +18,11 @@ export const viewport = {
 };
 
 export const metadata = {
-  title: 'M&M Artsy — Handmade & Custom Creations',
-  description: 'Turning sweet thoughts into timeless gifts. Order handcrafted bouquets and handmade artisan products from M&M Artsy.',
+  title: {
+    default: "M&M's Artsy | Handcrafted Flowers & Custom Gifts",
+    template: "%s | M&M's Artsy",
+  },
+  description: 'Turning sweet thoughts into timeless gifts. Order handcrafted bouquets and handmade artisan products from M&M\'s Artsy.',
   keywords: ['m&m artsy', 'handmade', 'custom bouquet', 'handmade products', 'floral arrangement', 'artisan gifts', 'everlasting bouquets'],
   manifest: '/manifest.json',
   icons: {
@@ -31,11 +35,11 @@ export const metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
-    title: 'M&M Artsy',
+    title: "M&M's Artsy",
   },
   openGraph: {
-    title: 'M&M Artsy — Handmade & Custom Creations',
-    description: 'Turning sweet thoughts into timeless gifts. Order handcrafted bouquets and handmade artisan products from M&M Artsy.',
+    title: "M&M's Artsy | Handcrafted Flowers & Custom Gifts",
+    description: 'Turning sweet thoughts into timeless gifts. Order handcrafted bouquets and handmade artisan products from M&M\'s Artsy.',
     type: 'website',
     images: ['/images/m&m_favicon.png'],
   },
@@ -69,6 +73,7 @@ export default function RootLayout({ children }) {
         <GameFloatingBadge />
         <GlobalFlyingCart />
         <GlobalToast />
+        <QuickOptionModal />
       </body>
     </html>
   );

@@ -34,6 +34,9 @@ export default function CartPage() {
 
   useEffect(() => {
     setMounted(true);
+    if (typeof document !== 'undefined') {
+      document.title = "Shopping Cart | M&M's Artsy";
+    }
   }, []);
 
   // Initialize & sync selected items when cart items change (auto-select all by default)
@@ -69,16 +72,18 @@ export default function CartPage() {
     });
   }, [cart, isLoaded]);
 
-  // Lock body scroll when any modal is open
+  // Lock scroll completely when any modal is open
   useEffect(() => {
     if (viewingItem || editingItem || itemToDelete || batchDeleteModalOpen) {
+      const originalBodyOverflow = document.body.style.overflow;
+      const originalHtmlOverflow = document.documentElement.style.overflow;
+      document.documentElement.style.overflow = 'hidden';
       document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
+      return () => {
+        document.documentElement.style.overflow = originalHtmlOverflow || '';
+        document.body.style.overflow = originalBodyOverflow || '';
+      };
     }
-    return () => {
-      document.body.style.overflow = '';
-    };
   }, [viewingItem, editingItem, itemToDelete, batchDeleteModalOpen]);
 
   // Toggle single item selection
@@ -142,6 +147,7 @@ export default function CartPage() {
   const handleProceedToCheckout = () => {
     if (selectedItems.length === 0) return;
     try {
+      localStorage.removeItem('likha_direct_checkout_item');
       localStorage.setItem('likha_checkout_items', JSON.stringify(selectedItemIds));
     } catch {}
     router.push('/checkout');
@@ -282,15 +288,22 @@ export default function CartPage() {
 
   // Option selection in Edit Modal
   const handleOptionSelect = (optionName, value, extraCost) => {
-    setSelectedEditOptions((prev) => ({
-      ...prev,
-      [optionName]: { value, extraCost },
-    }));
+    setSelectedEditOptions((prev) => {
+      if (!value || value === '---' || value === '— Select —') {
+        const next = { ...prev };
+        delete next[optionName];
+        return next;
+      }
+      return {
+        ...prev,
+        [optionName]: { value, extraCost: extraCost || 0 },
+      };
+    });
   };
 
   // Calculate live total price in Edit modal
   const editExtraCost = Object.values(selectedEditOptions).reduce(
-    (sum, opt) => sum + (parseFloat(opt.extraCost) || 0),
+    (sum, opt) => sum + (parseFloat(opt?.extraCost) || 0),
     0
   );
   const editUnitPrice = itemBasePrice + editExtraCost;
@@ -298,17 +311,24 @@ export default function CartPage() {
     ? editUnitPrice * editQuantity
     : 0;
 
+  const missingEditRequiredOptions = (editOptions || []).filter((opt) => {
+    if (opt.is_required === false) return false;
+    const val = selectedEditOptions[opt.option_name]?.value;
+    return !val || val === '— Select —' || val === '---' || val.trim() === '';
+  });
+  const hasEditMissingOptions = missingEditRequiredOptions.length > 0;
+
   // Save changes from Edit Modal
   const handleSaveEdit = () => {
-    if (!editingItem) return;
+    if (!editingItem || hasEditMissingOptions) return;
 
-    const formattedOptions = Object.entries(selectedEditOptions).map(
-      ([name, { value, extraCost }]) => ({
+    const formattedOptions = Object.entries(selectedEditOptions)
+      .filter(([_, opt]) => opt?.value && opt.value !== '— Select —' && opt.value !== '---' && opt.value.trim() !== '')
+      .map(([name, { value, extraCost }]) => ({
         optionName: name,
         optionValue: value,
-        additionalCost: extraCost,
-      })
-    );
+        additionalCost: extraCost || 0,
+      }));
 
     updateItem(editingItem.cartItemId, {
       basePrice: itemBasePrice,
@@ -975,7 +995,16 @@ export default function CartPage() {
                 type="button"
                 className="btn btn-primary"
                 onClick={handleSaveEdit}
-                style={{ height: '42px', fontSize: '13px', fontWeight: '600', borderRadius: 'var(--radius-full)' }}
+                disabled={hasEditMissingOptions}
+                style={{
+                  height: '42px',
+                  fontSize: '13px',
+                  fontWeight: '600',
+                  borderRadius: 'var(--radius-full)',
+                  opacity: hasEditMissingOptions ? 0.55 : 1,
+                  cursor: hasEditMissingOptions ? 'not-allowed' : 'pointer',
+                }}
+                title={hasEditMissingOptions ? `Please select ${missingEditRequiredOptions.map((o) => o.option_name).join(', ')}` : ''}
               >
                 Save Changes
               </button>

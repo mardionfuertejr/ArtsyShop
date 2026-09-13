@@ -3,6 +3,14 @@ import BottomNav from '@/components/customer/BottomNav';
 import { getMockProductBySlug } from '@/lib/mockData';
 import CustomRequestClient from './CustomRequestClient';
 
+export async function generateMetadata({ params }) {
+  const resolvedParams = await params;
+  const product = getMockProductBySlug(resolvedParams?.productSlug);
+  return {
+    title: product ? `Custom Request: ${product.name} | M&M's Artsy` : "Custom Order Request | M&M's Artsy",
+  };
+}
+
 export default async function RequestSimilarPage({ params }) {
   const resolvedParams = await params;
   const product = getMockProductBySlug(resolvedParams.productSlug);

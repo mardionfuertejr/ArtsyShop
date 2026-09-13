@@ -11,8 +11,8 @@ export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 export const metadata = {
-  title: 'Collection — M&M Artsy',
-  description: 'Browse all handmade bouquets, crochet art, and custom gifts available from M&M Artsy.',
+  title: 'Collection & Catalog',
+  description: 'Browse all handmade bouquets, crochet art, and custom gifts available from M&M\'s Artsy.',
 };
 
 import { getMockProducts, getMockCategories } from '@/lib/mockData';

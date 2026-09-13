@@ -67,6 +67,8 @@ function calculateDynamicDeliveryFee(settings, deliveryLocation, orderType) {
 export default function CheckoutPage() {
   const router = useRouter();
   const { cart, removeItems } = useCart();
+  const [directItem, setDirectItem] = useState(null);
+  const [isDirectCheckout, setIsDirectCheckout] = useState(false);
   const [selectedIds, setSelectedIds] = useState(null);
   const [orderType, setOrderType] = useState('delivery');
   const [formData, setFormData] = useState({ name: '', phone: '', facebookName: '', notes: '', preferredDate: '' });
@@ -87,9 +89,22 @@ export default function CheckoutPage() {
   const mapInstanceRef = useRef(null);
   const markerRef = useRef(null);
 
-  // Load selected items passed from cart
+  // Load direct buy now item OR selected items passed from cart
   useEffect(() => {
+    if (typeof document !== 'undefined') {
+      document.title = "Checkout | M&M's Artsy";
+    }
     try {
+      const direct = localStorage.getItem('likha_direct_checkout_item');
+      if (direct) {
+        const parsed = JSON.parse(direct);
+        if (parsed && parsed.productName) {
+          setDirectItem(parsed);
+          setIsDirectCheckout(true);
+          return;
+        }
+      }
+
       const stored = localStorage.getItem('likha_checkout_items');
       if (stored) {
         const parsed = JSON.parse(stored);
@@ -101,9 +116,11 @@ export default function CheckoutPage() {
   }, []);
 
   // Filter items to checkout
-  const checkoutCart = selectedIds && selectedIds.length > 0
-    ? cart.filter((item) => selectedIds.includes(item.cartItemId))
-    : cart;
+  const checkoutCart = isDirectCheckout && directItem
+    ? [directItem]
+    : (selectedIds && selectedIds.length > 0
+        ? cart.filter((item) => selectedIds.includes(item.cartItemId))
+        : cart);
 
   const subtotal = checkoutCart.reduce((sum, c) => {
     return sum + (parseFloat(c.unitPrice) || 0) * (c.quantity || 1);
@@ -887,21 +904,57 @@ export default function CheckoutPage() {
       console.warn('Database insert note:', err);
     }
 
-    // Remove only checked out items from cart
-    removeItems(checkoutCart.map((item) => item.cartItemId));
-    try {
-      localStorage.removeItem('likha_checkout_items');
-    } catch {}
+    // Remove only checked out items from cart if from regular cart
+    if (!isDirectCheckout) {
+      removeItems(checkoutCart.map((item) => item.cartItemId));
+      try {
+        localStorage.removeItem('likha_checkout_items');
+      } catch {}
+    } else {
+      try {
+        localStorage.removeItem('likha_direct_checkout_item');
+      } catch {}
+    }
 
     router.push(`/confirmation/${referenceCode}`);
+  };
+
+  const handleGoBack = (e) => {
+    if (e) e.preventDefault();
+    if (isDirectCheckout) {
+      try {
+        localStorage.removeItem('likha_direct_checkout_item');
+      } catch {}
+    }
+    if (typeof window !== 'undefined' && window.history.length > 1) {
+      router.back();
+    } else if (isDirectCheckout && directItem?.productSlug) {
+      router.push(`/shop/${directItem.productSlug}`);
+    } else {
+      router.push('/cart');
+    }
   };
 
   return (
     <div className="customer-shell">
       <header className="top-bar">
-        <Link href="/cart" className="top-bar-action" aria-label="Back to cart">
+        <button
+          type="button"
+          onClick={handleGoBack}
+          className="top-bar-action"
+          aria-label="Go back"
+          style={{
+            background: 'none',
+            border: 'none',
+            cursor: 'pointer',
+            padding: 0,
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
           <i className="fa-solid fa-arrow-left"></i>
-        </Link>
+        </button>
         <span className="top-bar-title" style={{ flex: 1, margin: 0 }}>Checkout</span>
         <div style={{ width: 40 }} />
       </header>

@@ -12,6 +12,9 @@ export default function ConfirmationClient({ order: serverOrder, referenceCode }
   const effectiveCode = referenceCode || serverOrder?.reference_code || '';
 
   useEffect(() => {
+    if (typeof document !== 'undefined') {
+      document.title = effectiveCode ? `Order Received #${effectiveCode} | M&M's Artsy` : "Order Received | M&M's Artsy";
+    }
     try {
       const savedInfo = localStorage.getItem('likha_guest_info');
       if (savedInfo) {
@@ -408,6 +411,14 @@ Hi M&M's Artsy! I would like to confirm my order from the website. Thank you!`;
               <span>Delivery Fee</span>
               <span>{order.order_type === 'pickup' ? 'Free (Pickup)' : formatCurrency(order.delivery_fee)}</span>
             </div>
+            {Math.max(0, (parseFloat(order.subtotal || 0) + (order.order_type === 'pickup' ? 0 : parseFloat(order.delivery_fee || 0))) - parseFloat(order.total_amount || 0)) > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', color: '#16A34A', fontWeight: '600' }}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                  <i className="fa-solid fa-tag" style={{ fontSize: '11px' }}></i> Voucher Discount
+                </span>
+                <span>-{formatCurrency(Math.max(0, (parseFloat(order.subtotal || 0) + (order.order_type === 'pickup' ? 0 : parseFloat(order.delivery_fee || 0))) - parseFloat(order.total_amount || 0)))}</span>
+              </div>
+            )}
             <div style={{
               display: 'flex',
               justifyContent: 'space-between',

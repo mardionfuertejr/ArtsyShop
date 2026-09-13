@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import { MOCK_ORDERS, MOCK_PRODUCTS } from '@/lib/mockData';
 import { formatCurrency } from '@/lib/utils/formatCurrency';
 
-export const metadata = { title: 'Sales & Profit Reports — M&M Artsy' };
+export const metadata = { title: "Sales & Profit Reports | M&M's Artsy Admin" };
 
 export default async function AdminReportsPage() {
   let completedOrders = [];

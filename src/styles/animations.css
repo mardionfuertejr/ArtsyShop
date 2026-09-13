@@ -955,6 +955,34 @@ input:focus, select:focus, textarea:focus, .form-input:focus, .form-textarea:foc
   }
 }
 
+/* ── Global Smooth Transitions & Snappy Feedback ──────────────── */
+button,
+a,
+input,
+select,
+textarea,
+.btn,
+.top-bar-action,
+.cart-btn-wrapper,
+.product-card,
+.product-card-quick-add,
+.photo-carousel-arrow,
+.photo-carousel-dot,
+.qty-interactive-btn,
+.option-selector-trigger,
+.option-choice-item,
+.category-tab {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+button:active:not(:disabled),
+.btn:active:not(:disabled),
+.top-bar-action:active,
+.cart-btn-wrapper:active {
+  transform: scale(0.96);
+}
+
 /* ── Reduce Motion ──────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

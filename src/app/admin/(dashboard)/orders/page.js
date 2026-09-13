@@ -2,7 +2,7 @@ import AdminOrdersClient from './AdminOrdersClient';
 import { MOCK_ORDERS } from '@/lib/mockData';
 import { createClient } from '@/lib/supabase/server';
 
-export const metadata = { title: 'Orders Management — M&M Artsy Admin' };
+export const metadata = { title: "Orders Management | M&M's Artsy Admin" };
 
 export default async function AdminOrdersPage() {
   let orders = MOCK_ORDERS;

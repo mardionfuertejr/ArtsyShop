@@ -3,9 +3,13 @@ import { createClient } from '@/lib/supabase/server';
 import { getMockOrderByReference } from '@/lib/mockData';
 import ConfirmationClient from './ConfirmationClient';
 
-export const metadata = {
-  title: 'Order Received — M&M Artsy',
-};
+export async function generateMetadata({ params }) {
+  const resolvedParams = await params;
+  const decodedRef = decodeURIComponent(resolvedParams?.referenceCode || '');
+  return {
+    title: decodedRef ? `Order Received #${decodedRef} | M&M's Artsy` : "Order Received | M&M's Artsy",
+  };
+}
 
 async function getOrder(referenceCode) {
   try {

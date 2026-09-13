@@ -51,10 +51,10 @@ export async function generateMetadata({ params }) {
   const resolvedParams = await params;
   const slug = resolvedParams?.slug;
   const product = await getProduct(slug);
-  if (!product) return { title: 'Product Details — M&M Artsy' };
+  if (!product) return { title: "Product Details | M&M's Artsy" };
   return {
-    title: `${product.name} — M&M Artsy`,
-    description: product.description || `Order ${product.name} from M&M Artsy`,
+    title: `${product.name} | M&M's Artsy`,
+    description: product.description || `Order ${product.name} handcrafted from M&M's Artsy.`,
   };
 }
 

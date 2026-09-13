@@ -32,6 +32,11 @@ export default function ProductCard({ product, className = '', style = {} }) {
 
   const saleBadgeText = discountPercent ? `${discountPercent}% OFF` : (product.sale_tag || 'Sale');
 
+  const hasOptions = Array.isArray(product.product_options) && product.product_options.length > 0;
+  const hasRequiredOptions = hasOptions
+    ? product.product_options.some((o) => o.is_required !== false && Array.isArray(o.choices) && o.choices.length > 0)
+    : !product.is_ready_made;
+
   const [added, setAdded] = useState(false);
   const [isCooldown, setIsCooldown] = useState(false);
 
@@ -39,6 +44,19 @@ export default function ProductCard({ product, className = '', style = {} }) {
     e.preventDefault();
     e.stopPropagation();
     if (isSoldOut || isCooldown) return;
+
+    // If the product requires options (like color theme), open the Quick Option Bottom Sheet!
+    if (hasRequiredOptions || hasOptions) {
+      window.dispatchEvent(
+        new CustomEvent('likha_open_quick_option', {
+          detail: {
+            product,
+            photoUrl,
+          },
+        })
+      );
+      return;
+    }
 
     // Trigger cooldown immediately to prevent duplicate spam clicks
     setIsCooldown(true);
@@ -79,11 +97,11 @@ export default function ProductCard({ product, className = '', style = {} }) {
       options: [],
     });
 
-    // Reset cooldown after 750ms
+    // Reset cooldown after 200ms for ultra-responsive tapping
     setTimeout(() => {
       setAdded(false);
       setIsCooldown(false);
-    }, 750);
+    }, 200);
   };
 
   return (
@@ -118,6 +136,9 @@ export default function ProductCard({ product, className = '', style = {} }) {
             src={photoUrl}
             alt={product.name}
             loading="lazy"
+            onError={(e) => {
+              e.currentTarget.src = 'https://images.unsplash.com/photo-1561181286-d3fee7d55364?auto=format&fit=crop&w=800&q=80';
+            }}
           />
         ) : (
           <div className="product-card-image-placeholder">
@@ -160,8 +181,8 @@ export default function ProductCard({ product, className = '', style = {} }) {
               type="button"
               onClick={handleQuickAdd}
               disabled={isCooldown}
-              aria-label={`Add ${product.name} to cart`}
-              title={isCooldown ? "Added! Wait a moment..." : "Quick Add to Cart"}
+              aria-label={hasRequiredOptions ? `Choose options for ${product.name}` : `Add ${product.name} to cart`}
+              title={hasRequiredOptions ? "Select options & color" : (isCooldown ? "Added! Wait a moment..." : "Quick Add to Cart")}
               className={`product-card-quick-add ${added ? 'is-added' : ''} ${isCooldown ? 'is-cooldown' : ''}`}
             >
               <i className={added ? 'fa-solid fa-check' : 'fa-solid fa-plus'} />

@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { getMockProducts, getMockCategories } from '@/lib/mockData';
 import AdminProductsClient from './AdminProductsClient';
 
-export const metadata = { title: 'Products — M&M Artsy Studio' };
+export const metadata = { title: "Products Management | M&M's Artsy Admin" };
 
 export default async function AdminProductsPage() {
   let products = [];

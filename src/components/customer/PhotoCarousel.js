@@ -8,8 +8,12 @@ export default function PhotoCarousel({ photos = [], alt = 'Product photo' }) {
   const trackRef = useRef(null);
 
   const goTo = useCallback((idx) => {
-    setCurrent(Math.max(0, Math.min(idx, photos.length - 1)));
-  }, [photos.length]);
+    if (!photos || photos.length === 0) return;
+    const len = photos.length;
+    // Circular navigation so arrow is always clickable and responsive
+    const nextIdx = (idx % len + len) % len;
+    setCurrent(nextIdx);
+  }, [photos]);
 
   const handleTouchStart = (e) => {
     startX.current = e.touches[0].clientX;
@@ -18,7 +22,7 @@ export default function PhotoCarousel({ photos = [], alt = 'Product photo' }) {
   const handleTouchEnd = (e) => {
     if (startX.current === null) return;
     const dx = e.changedTouches[0].clientX - startX.current;
-    if (Math.abs(dx) > 40) {
+    if (Math.abs(dx) > 30) {
       goTo(dx < 0 ? current + 1 : current - 1);
     }
     startX.current = null;
@@ -54,6 +58,9 @@ export default function PhotoCarousel({ photos = [], alt = 'Product photo' }) {
               src={photo.url || photo}
               alt={`${alt} ${i + 1}`}
               draggable={false}
+              onError={(e) => {
+                e.currentTarget.src = 'https://images.unsplash.com/photo-1561181286-d3fee7d55364?auto=format&fit=crop&w=800&q=80';
+              }}
             />
           </div>
         ))}
@@ -65,11 +72,12 @@ export default function PhotoCarousel({ photos = [], alt = 'Product photo' }) {
             type="button"
             className="photo-carousel-arrow prev"
             onClick={(e) => {
+              e.preventDefault();
               e.stopPropagation();
               goTo(current - 1);
             }}
-            disabled={current === 0}
             aria-label="Previous photo"
+            style={{ touchAction: 'manipulation' }}
           >
             <i className="fa-solid fa-chevron-left"></i>
           </button>
@@ -77,11 +85,12 @@ export default function PhotoCarousel({ photos = [], alt = 'Product photo' }) {
             type="button"
             className="photo-carousel-arrow next"
             onClick={(e) => {
+              e.preventDefault();
               e.stopPropagation();
               goTo(current + 1);
             }}
-            disabled={current === photos.length - 1}
             aria-label="Next photo"
+            style={{ touchAction: 'manipulation' }}
           >
             <i className="fa-solid fa-chevron-right"></i>
           </button>

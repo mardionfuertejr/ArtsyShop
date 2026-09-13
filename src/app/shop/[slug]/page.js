@@ -3,8 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 import ProductDetailClient from './ProductDetailClient';
 import { getMockProductBySlug } from '@/lib/mockData';
 
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
+export const revalidate = 30;
 
 const getProduct = cache(async (slug) => {
   if (!slug) return null;

@@ -24,12 +24,17 @@ export default function ProductDetailClient({ product: initialProduct, photos: i
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 
-  // Dynamic Browser Tab Title
+  // Dynamic Browser Tab Title & Route Prefetching for Instant 0ms Navigation
   useEffect(() => {
     if (currentProduct?.name && typeof document !== 'undefined') {
       document.title = `${currentProduct.name} | M&M's Artsy`;
     }
-  }, [currentProduct?.name]);
+    try {
+      router.prefetch('/checkout');
+      router.prefetch('/cart');
+      router.prefetch('/shop');
+    } catch {}
+  }, [currentProduct?.name, router]);
 
   // Helper to build photo list
   const buildPhotoList = (prod) => {

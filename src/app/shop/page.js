@@ -7,8 +7,7 @@ import CartIconBtn from '@/components/customer/CartIconBtn';
 import { createClient } from '@/lib/supabase/server';
 import { formatCurrencyCompact } from '@/lib/utils/formatCurrency';
 
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
+export const revalidate = 30;
 
 export const metadata = {
   title: 'Collection & Catalog',

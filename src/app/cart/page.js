@@ -37,7 +37,10 @@ export default function CartPage() {
     if (typeof document !== 'undefined') {
       document.title = "Shopping Cart | M&M's Artsy";
     }
-  }, []);
+    try {
+      router.prefetch('/checkout');
+    } catch {}
+  }, [router]);
 
   // Initialize & sync selected items when cart items change (auto-select all by default)
   useEffect(() => {

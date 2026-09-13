@@ -17,7 +17,7 @@ export const VOUCHER_TIERS = {
   SILVER: {
     name: 'Silver Blossom',
     discount: 10,
-    minSpend: 199, // ₱10 off on ₱199+ spend
+    minSpend: 150, // ₱10 off on ₱150+ spend (Instantly works for small single item orders!)
     badge: '🥈',
     color: '#64748B',
     scoreRange: '140-199 pts',
@@ -25,7 +25,7 @@ export const VOUCHER_TIERS = {
   GOLD: {
     name: 'Gold Master Florist',
     discount: 20,
-    minSpend: 349, // ₱20 off on ₱349+ spend
+    minSpend: 280, // ₱20 off on ₱280+ spend
     badge: '🥇',
     color: '#EA580C',
     scoreRange: '200-249 pts',
@@ -33,7 +33,7 @@ export const VOUCHER_TIERS = {
   DIAMOND: {
     name: 'Diamond Artisan Legend',
     discount: 30,
-    minSpend: 499, // ₱30 off on ₱499+ spend
+    minSpend: 399, // ₱30 off on ₱399+ spend
     badge: '💎',
     color: '#7C3AED',
     scoreRange: '250+ pts',
@@ -93,45 +93,57 @@ function saveVoucherWallet(wallet) {
   } catch {}
 }
 
-// Issue a voucher to customer's wallet
+const TIER_KEYS_HIERARCHY = ['BRONZE', 'SILVER', 'GOLD', 'DIAMOND'];
+
+// Issue a voucher to customer's wallet (Cumulative: grants target tier AND all lower tiers so any cart size enjoys discounts!)
 export function issueVoucherForTier(tierKey) {
   const tier = VOUCHER_TIERS[tierKey];
   if (!tier) return null;
 
+  const targetIdx = TIER_KEYS_HIERARCHY.indexOf(tierKey);
+  const eligibleTierKeys = targetIdx >= 0
+    ? TIER_KEYS_HIERARCHY.slice(0, targetIdx + 1)
+    : [tierKey];
+
   const now = new Date();
   const expiresAt = new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString(); // 24 hours
-  const code = generateRandomVoucherCode(tier.discount);
 
-  const newVoucher = {
-    code,
-    tierKey,
-    tierName: tier.name,
-    discount: tier.discount,
-    minSpend: tier.minSpend,
-    badge: tier.badge,
-    color: tier.color,
-    label: `₱${tier.discount} OFF (Min. spend ₱${tier.minSpend})`,
-    createdAt: now.toISOString(),
-    expiresAt,
-    used: false,
-  };
+  const vouchersToIssue = eligibleTierKeys.map((k) => {
+    const t = VOUCHER_TIERS[k];
+    return {
+      code: generateRandomVoucherCode(t.discount),
+      tierKey: k,
+      tierName: t.name,
+      discount: t.discount,
+      minSpend: t.minSpend,
+      badge: t.badge,
+      color: t.color,
+      label: `₱${t.discount} OFF (Min. spend ₱${t.minSpend})`,
+      createdAt: now.toISOString(),
+      expiresAt,
+      used: false,
+    };
+  });
+
+  const mainVoucher = vouchersToIssue[vouchersToIssue.length - 1];
 
   try {
     const currentWallet = getVoucherWallet();
-    // Check if user already has an active voucher of this exact tier
-    const existingTierIndex = currentWallet.findIndex((v) => v.tierKey === tierKey);
-    let updatedWallet = [];
-    if (existingTierIndex >= 0) {
-      // Refresh expiry and code
-      updatedWallet = currentWallet.map((v, i) => (i === existingTierIndex ? newVoucher : v));
-    } else {
-      updatedWallet = [...currentWallet, newVoucher];
-    }
+    let updatedWallet = [...currentWallet];
+
+    vouchersToIssue.forEach((newV) => {
+      const existingIdx = updatedWallet.findIndex((v) => v.tierKey === newV.tierKey);
+      if (existingIdx >= 0) {
+        updatedWallet[existingIdx] = newV;
+      } else {
+        updatedWallet.push(newV);
+      }
+    });
 
     saveVoucherWallet(updatedWallet);
     // Also update active single voucher reference for quick compatibility
-    localStorage.setItem('mm_active_voucher', JSON.stringify(newVoucher));
-    window.dispatchEvent(new CustomEvent('mm_voucher_updated', { detail: newVoucher }));
+    localStorage.setItem('mm_active_voucher', JSON.stringify(mainVoucher));
+    window.dispatchEvent(new CustomEvent('mm_voucher_updated', { detail: mainVoucher }));
 
     if (typeof window !== 'undefined') {
       try {
@@ -139,8 +151,8 @@ export function issueVoucherForTier(tierKey) {
           new CustomEvent('likha_toast', {
             detail: {
               type: 'success',
-              title: `Voucher Claimed! ${tier.badge || '🎁'}`,
-              message: `₱${tier.discount} OFF (${tier.name}) added to wallet!`,
+              title: `Vouchers Unlocked! ${tier.badge || '🎁'}`,
+              message: `₱${tier.discount} OFF & all tier discounts added to your wallet!`,
               actionLabel: 'Shop Now',
               actionUrl: '/shop',
               duration: 3800,
@@ -150,9 +162,9 @@ export function issueVoucherForTier(tierKey) {
       } catch {}
     }
 
-    return { voucher: newVoucher, upgraded: true, message: 'Voucher saved to wallet' };
+    return { voucher: mainVoucher, upgraded: true, message: 'Vouchers saved to wallet' };
   } catch {
-    return { voucher: newVoucher, upgraded: true, message: 'Voucher created' };
+    return { voucher: mainVoucher, upgraded: true, message: 'Voucher created' };
   }
 }
 

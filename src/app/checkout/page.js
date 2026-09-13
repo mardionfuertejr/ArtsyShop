@@ -205,9 +205,9 @@ export default function CheckoutPage() {
     // Check standard promo codes
     let newVoucher = null;
     if (cleanCode === 'ARTSYWINNER' || cleanCode.endsWith('-30')) {
-      if (subtotal < 499) {
-        const lacking = (499 - subtotal);
-        const errMsg = `Min. spend ₱499 · Add ₱${lacking % 1 === 0 ? lacking.toFixed(0) : lacking.toFixed(2)} more`;
+      if (subtotal < 399) {
+        const lacking = (399 - subtotal);
+        const errMsg = `Min. spend ₱399 · Add ₱${lacking % 1 === 0 ? lacking.toFixed(0) : lacking.toFixed(2)} more`;
         setVoucherError(errMsg);
         if (typeof window !== 'undefined') {
           try {
@@ -219,13 +219,13 @@ export default function CheckoutPage() {
       newVoucher = {
         code: cleanCode,
         discount: 30,
-        minSpend: 499,
+        minSpend: 399,
         label: '₱30 OFF Mini-Game Champion Voucher',
       };
     } else if (cleanCode === 'MMARTSY20' || cleanCode.endsWith('-20')) {
-      if (subtotal < 349) {
-        const lacking = (349 - subtotal);
-        const errMsg = `Min. spend ₱349 · Add ₱${lacking % 1 === 0 ? lacking.toFixed(0) : lacking.toFixed(2)} more`;
+      if (subtotal < 280) {
+        const lacking = (280 - subtotal);
+        const errMsg = `Min. spend ₱280 · Add ₱${lacking % 1 === 0 ? lacking.toFixed(0) : lacking.toFixed(2)} more`;
         setVoucherError(errMsg);
         if (typeof window !== 'undefined') {
           try {
@@ -237,13 +237,13 @@ export default function CheckoutPage() {
       newVoucher = {
         code: cleanCode,
         discount: 20,
-        minSpend: 349,
+        minSpend: 280,
         label: '₱20 OFF Gold Tier Voucher',
       };
     } else if (cleanCode === 'MMARTSY10' || cleanCode.endsWith('-10')) {
-      if (subtotal < 199) {
-        const lacking = (199 - subtotal);
-        const errMsg = `Min. spend ₱199 · Add ₱${lacking % 1 === 0 ? lacking.toFixed(0) : lacking.toFixed(2)} more`;
+      if (subtotal < 150) {
+        const lacking = (150 - subtotal);
+        const errMsg = `Min. spend ₱150 · Add ₱${lacking % 1 === 0 ? lacking.toFixed(0) : lacking.toFixed(2)} more`;
         setVoucherError(errMsg);
         if (typeof window !== 'undefined') {
           try {
@@ -255,7 +255,7 @@ export default function CheckoutPage() {
       newVoucher = {
         code: cleanCode,
         discount: 10,
-        minSpend: 199,
+        minSpend: 150,
         label: '₱10 OFF Silver Tier Voucher',
       };
     } else if (cleanCode === 'MMARTSY5' || cleanCode.endsWith('-5') || cleanCode === 'ARTSYLOVE5') {

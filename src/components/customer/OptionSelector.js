@@ -2,20 +2,6 @@
 
 import { useState, useRef, useEffect } from 'react';
 
-function getColorSwatch(label = '') {
-  const l = label.toLowerCase();
-  if (l.includes('pink') || l.includes('blush') || l.includes('rose')) return '#F472B6';
-  if (l.includes('red') || l.includes('crimson') || l.includes('velvet') || l.includes('ruby')) return '#E11D48';
-  if (l.includes('purple') || l.includes('lilac') || l.includes('lavender') || l.includes('violet')) return '#A855F7';
-  if (l.includes('blue') || l.includes('sky') || l.includes('cyan') || l.includes('navy')) return '#38BDF8';
-  if (l.includes('yellow') || l.includes('sunflower') || l.includes('sunshine') || l.includes('gold')) return '#FACC15';
-  if (l.includes('green') || l.includes('sage') || l.includes('mint') || l.includes('emerald')) return '#34D399';
-  if (l.includes('white') || l.includes('cream') || l.includes('ivory')) return '#F1F5F9';
-  if (l.includes('brown') || l.includes('coffee') || l.includes('kraft') || l.includes('tan')) return '#A16207';
-  if (l.includes('orange') || l.includes('peach') || l.includes('coral')) return '#FB923C';
-  return null;
-}
-
 export default function OptionSelector({
   option,
   optionName,
@@ -32,7 +18,18 @@ export default function OptionSelector({
   const closeTimerRef = useRef(null);
 
   const name = optionName || option?.option_name || '';
-  const rawChoices = choices || option?.choices || [];
+  let rawChoices = choices || option?.choices || [];
+  if (typeof rawChoices === 'string') {
+    try {
+      rawChoices = JSON.parse(rawChoices);
+    } catch (e) {
+      rawChoices = rawChoices.split(',').map((s) => s.trim()).filter(Boolean);
+    }
+  }
+  if (!Array.isArray(rawChoices)) {
+    rawChoices = [];
+  }
+
   const activeSelected = selected ?? selectedValue ?? '';
   const isRequired = required !== undefined ? Boolean(required) : Boolean(option?.is_required);
 
@@ -71,11 +68,6 @@ export default function OptionSelector({
     return null;
   }
 
-  const isColorTheme =
-    name.toLowerCase().includes('color') ||
-    name.toLowerCase().includes('theme') ||
-    name.toLowerCase().includes('shade');
-
   const hasSelection = Boolean(
     activeSelected &&
     activeSelected !== '— Select —' &&
@@ -83,24 +75,33 @@ export default function OptionSelector({
     activeSelected.trim() !== ''
   );
 
-  const selectedSwatch = isColorTheme && hasSelection ? getColorSwatch(activeSelected) : null;
-
   // Find extra cost of currently selected item
   let selectedExtraCost = 0;
   if (hasSelection) {
     const currentChoiceObj = rawChoices.find((c) => {
-      const label = (typeof c === 'string' ? c : c.label || '')
+      let item = c;
+      if (typeof item === 'string' && item.startsWith('{') && item.endsWith('}')) {
+        try { item = JSON.parse(item); } catch (e) {}
+      }
+      const rawText = typeof item === 'string' ? item : (item?.name || item?.label || item?.title || item?.value || '');
+      const label = rawText
         .replace(/\s*\(\+?₱?[\d,.]+\)/gi, '')
         .replace(/\s*\+?₱[\d,.]+/gi, '')
         .trim();
       return label === activeSelected;
     });
     if (currentChoiceObj) {
-      if (typeof currentChoiceObj === 'object' && currentChoiceObj.extra_cost) {
-        selectedExtraCost = currentChoiceObj.extra_cost;
-      } else {
-        const orig = typeof currentChoiceObj === 'string' ? currentChoiceObj : currentChoiceObj.label || '';
-        const match = orig.match(/\+?\s*₱?\s*(\d+[\d,]*)/);
+      let item = currentChoiceObj;
+      if (typeof item === 'string' && item.startsWith('{') && item.endsWith('}')) {
+        try { item = JSON.parse(item); } catch (e) {}
+      }
+      if (typeof item === 'object' && item !== null) {
+        const costVal = item.price ?? item.extra_cost ?? item.additional_cost ?? 0;
+        selectedExtraCost = parseFloat(costVal) || 0;
+      }
+      if (!selectedExtraCost) {
+        const orig = typeof item === 'string' ? item : (item?.name || item?.label || '');
+        const match = String(orig).match(/\+?\s*₱?\s*(\d+[\d,]*)/);
         if (match) selectedExtraCost = parseFloat(match[1].replace(/,/g, '')) || 0;
       }
     }
@@ -153,11 +154,6 @@ export default function OptionSelector({
             opacity: 1;
             transform: scale(1) rotate(0deg);
           }
-        }
-        @keyframes swatchGlow {
-          0% { transform: scale(0.8); }
-          50% { transform: scale(1.15); }
-          100% { transform: scale(1); }
         }
         .option-selector-trigger {
           transition: border-color 0.22s ease, box-shadow 0.22s ease, background-color 0.2s ease, transform 0.15s cubic-bezier(0.16, 1, 0.3, 1);
@@ -233,21 +229,6 @@ export default function OptionSelector({
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flex: 1 }}>
-          {selectedSwatch && (
-            <span
-              style={{
-                width: '12px',
-                height: '12px',
-                borderRadius: '50%',
-                backgroundColor: selectedSwatch,
-                border: '1.5px solid rgba(255,255,255,0.9)',
-                boxShadow: '0 0 0 1px rgba(0,0,0,0.15)',
-                flexShrink: 0,
-                display: 'inline-block',
-                animation: 'swatchGlow 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
-              }}
-            />
-          )}
           <span
             style={{
               fontWeight: hasSelection ? '700' : '500',
@@ -353,22 +334,31 @@ export default function OptionSelector({
           </button>
 
           {/* Configured Choices */}
-          {rawChoices.map((choice, idx) => {
-            const originalLabel = typeof choice === 'string' ? choice : choice.label || '';
-            let extraCost = typeof choice === 'object' ? choice.extra_cost || 0 : 0;
+          {rawChoices.map((choiceItem, idx) => {
+            let choice = choiceItem;
+            if (typeof choice === 'string' && choice.startsWith('{') && choice.endsWith('}')) {
+              try { choice = JSON.parse(choice); } catch (e) {}
+            }
+            const originalLabel = typeof choice === 'string'
+              ? choice
+              : (choice?.name || choice?.label || choice?.title || choice?.value || '');
+            let extraCost = 0;
+            if (typeof choice === 'object' && choice !== null) {
+              const costVal = choice.price ?? choice.extra_cost ?? choice.additional_cost ?? 0;
+              extraCost = parseFloat(costVal) || 0;
+            }
 
             if (!extraCost && typeof originalLabel === 'string') {
-              const match = originalLabel.match(/\+?\s*₱?\s*(\d+[\d,]*)/);
+              const match = String(originalLabel).match(/\+?\s*₱?\s*(\d+[\d,]*)/);
               if (match) extraCost = parseFloat(match[1].replace(/,/g, '')) || 0;
             }
 
-            const cleanLabel = originalLabel
+            const cleanLabel = String(originalLabel)
               .replace(/\s*\(\+?₱?[\d,.]+\)/gi, '')
               .replace(/\s*\+?₱[\d,.]+/gi, '')
-              .trim();
+              .trim() || String(originalLabel || `Option ${idx + 1}`);
 
             const isSelected = activeSelected === cleanLabel || highlightedChoice === cleanLabel;
-            const swatchColor = isColorTheme ? getColorSwatch(cleanLabel) : null;
 
             return (
               <button
@@ -387,7 +377,7 @@ export default function OptionSelector({
                   background: isSelected
                     ? 'var(--color-primary-lighter, #FFF5F2)'
                     : 'transparent',
-                  color: isSelected ? 'var(--color-primary, #EA580C)' : 'var(--color-text)',
+                  color: isSelected ? 'var(--color-primary, #EA580C)' : 'var(--color-text, #0F172A)',
                   fontSize: '12.5px',
                   fontWeight: isSelected ? '700' : '500',
                   cursor: 'pointer',
@@ -397,25 +387,7 @@ export default function OptionSelector({
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flex: 1 }}>
-                  {swatchColor && (
-                    <span
-                      style={{
-                        width: '12px',
-                        height: '12px',
-                        borderRadius: '50%',
-                        backgroundColor: swatchColor,
-                        border: '1.5px solid rgba(255,255,255,0.9)',
-                        boxShadow: isSelected
-                          ? '0 0 0 1.5px var(--color-primary, #EA580C)'
-                          : '0 0 0 1px rgba(0,0,0,0.15)',
-                        flexShrink: 0,
-                        display: 'inline-block',
-                        transition: 'box-shadow 0.2s ease, transform 0.2s ease',
-                        transform: isSelected ? 'scale(1.1)' : 'scale(1)',
-                      }}
-                    />
-                  )}
-                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: 'inherit' }}>
                     {cleanLabel}
                   </span>
                 </div>
@@ -426,7 +398,7 @@ export default function OptionSelector({
                       style={{
                         fontSize: '10.5px',
                         fontWeight: '700',
-                        color: isSelected ? 'var(--color-primary, #EA580C)' : 'var(--color-text-secondary)',
+                        color: isSelected ? 'var(--color-primary, #EA580C)' : 'var(--color-text-secondary, #64748B)',
                         background: isSelected ? 'rgba(234, 88, 12, 0.15)' : 'var(--color-surface-warm, #F3F4F6)',
                         padding: '1.5px 5.5px',
                         borderRadius: '5px',

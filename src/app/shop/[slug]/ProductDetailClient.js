@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { CUSTOM_ORDER_MESSENGER_URL, MESSENGER_URL } from '@/lib/constants/customPrompts';
+import { openExternalSafe, openMessengerDirect } from '@/lib/utils/browserNav';
 import { useRouter } from 'next/navigation';
 import PhotoCarousel from '@/components/customer/PhotoCarousel';
 import OptionSelector from '@/components/customer/OptionSelector';
@@ -133,13 +134,27 @@ export default function ProductDetailClient({ product: initialProduct, photos: i
   const defaultHandmadeOptions = [
     {
       id: 'default-opt-color',
-      option_name: 'Color Theme',
+      option_name: 'Color',
       is_required: true,
       choices: [
-        { label: 'Pastel Blush Pink', extra_cost: 0 },
-        { label: 'Crimson Velvet Red', extra_cost: 0 },
-        { label: 'Lilac Lavender', extra_cost: 0 },
-        { label: 'Sunflower Warm Yellow', extra_cost: 0 },
+        { label: 'Pink', extra_cost: 0 },
+        { label: 'Red', extra_cost: 0 },
+        { label: 'Purple', extra_cost: 0 },
+        { label: 'Yellow', extra_cost: 0 },
+        { label: 'Blue', extra_cost: 0 },
+        { label: 'Pastel', extra_cost: 0 },
+        { label: 'Mixed Colors', extra_cost: 0 },
+      ],
+    },
+    {
+      id: 'default-opt-addons',
+      option_name: 'Add-ons',
+      is_required: false,
+      choices: [
+        { label: 'Message Card', extra_cost: 15 },
+        { label: 'Ribbon', extra_cost: 15 },
+        { label: 'Fairy Lights', extra_cost: 35 },
+        { label: 'Gift Box', extra_cost: 30 },
       ],
     },
   ];
@@ -581,6 +596,10 @@ export default function ProductDetailClient({ product: initialProduct, photos: i
                     href={`${MESSENGER_URL}?text=${encodeURIComponent(`Hi M&M Artsy! Inquire ko lang po kung kailan magkaka-stock ulit ng ${currentProduct.name}?`)}`}
                     target="_blank"
                     rel="noopener noreferrer"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      openMessengerDirect(`Hi M&M Artsy! Inquire ko lang po kung kailan magkaka-stock ulit ng ${currentProduct.name}?`);
+                    }}
                     className="btn btn-primary btn-full"
                     style={{
                       display: 'inline-flex',

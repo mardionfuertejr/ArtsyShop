@@ -656,7 +656,10 @@ textarea.input {
   align-items: center;
   justify-content: space-between;
   gap: var(--space-2);
-  padding: 10px 14px;
+  padding: 0 14px;
+  height: 44px;
+  min-height: 44px;
+  box-sizing: border-box;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
@@ -666,7 +669,6 @@ textarea.input {
               background-color 0.22s cubic-bezier(0.16, 1, 0.3, 1),
               box-shadow 0.22s cubic-bezier(0.16, 1, 0.3, 1),
               transform 0.15s ease;
-  min-height: 44px;
   user-select: none;
 }
 

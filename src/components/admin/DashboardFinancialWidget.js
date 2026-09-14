@@ -19,20 +19,18 @@ export default function DashboardFinancialWidget({ initialSales = 0, initialExpe
   const salesInputRef = useRef(null);
   const expensesInputRef = useRef(null);
 
-  // Load saved adjustments from localStorage on mount
+  // Load saved adjustments from localStorage on mount & sync with live database values
   useEffect(() => {
     try {
       if (typeof window !== 'undefined') {
         const saved = localStorage.getItem('mm_financial_adjustments');
         if (saved) {
           const parsed = JSON.parse(saved);
-          if (parsed && parsed.isCustom) {
-            setIsCustomMode(true);
-            const s = parsed.sales !== undefined ? parsed.sales : initialSales;
+          if (parsed) {
             const e = parsed.expenses !== undefined ? parsed.expenses : initialExpenses;
-            setSales(s);
+            setSales(initialSales);
             setExpenses(e);
-            setSalesInput(s);
+            setSalesInput(initialSales);
             setExpensesInput(e);
             return;
           }
@@ -147,14 +145,50 @@ export default function DashboardFinancialWidget({ initialSales = 0, initialExpe
         }}
       >
         {/* Top Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={{ fontSize: '13px', fontWeight: '800', color: '#0F172A', display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <i className="fa-solid fa-chart-pie" style={{ color: 'var(--color-primary, #b45309)' }}></i>
-            <span>Kita at Gastos</span>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+          <span style={{ fontSize: '13.5px', fontWeight: '800', color: '#0F172A', display: 'flex', alignItems: 'center', gap: '7px' }}>
+            <i className="fa-solid fa-chart-pie" style={{ color: 'var(--color-primary, #b45309)', fontSize: '14px' }}></i>
+            <span>Sales & Expenses</span>
           </span>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <button
+              type="button"
+              onClick={() => handleOpenModal('gastos')}
+              className="btn btn-secondary btn-sm"
+              style={{
+                height: '32px',
+                padding: '0 12px',
+                borderRadius: '8px',
+                fontWeight: '700',
+                fontSize: '12px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                background: '#F8FAFC',
+                border: '1px solid #E2E8F0',
+                color: '#334155',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = '#F1F5F9';
+                e.currentTarget.style.borderColor = '#CBD5E1';
+                e.currentTarget.style.color = '#0F172A';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = '#F8FAFC';
+                e.currentTarget.style.borderColor = '#E2E8F0';
+                e.currentTarget.style.color = '#334155';
+              }}
+            >
+              <i className="fa-solid fa-pen-to-square" style={{ fontSize: '11px', color: 'var(--color-primary, #b45309)' }}></i>
+              <span>Edit Values</span>
+            </button>
+          </div>
         </div>
 
-        {/* 2 Interactive Metric Columns: KITA vs GASTOS */}
+        {/* 2 Clean Metric Display Cards: SALES vs EXPENSES (Non-clickable) */}
         <div
           style={{
             display: 'grid',
@@ -162,79 +196,55 @@ export default function DashboardFinancialWidget({ initialSales = 0, initialExpe
             gap: '12px',
           }}
         >
-          {/* KITA (Clickable) */}
+          {/* SALES STAT CARD */}
           <div
-            onClick={() => handleOpenModal('kita')}
             style={{
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center',
-              padding: '12px 16px',
+              padding: '14px 18px',
               background: '#F0FDF4',
               borderRadius: '12px',
               border: '1px solid #DCFCE7',
-              cursor: 'pointer',
-              transition: 'all 0.15s ease',
             }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.borderColor = '#86EFAC';
-              e.currentTarget.style.transform = 'translateY(-1px)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = '#DCFCE7';
-              e.currentTarget.style.transform = 'translateY(0)';
-            }}
-            title="Pindutin para i-edit ang Kita"
           >
             <div>
-              <span style={{ fontSize: '11px', fontWeight: '800', color: '#166534', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'flex', alignItems: 'center', gap: '5px', marginBottom: '2px' }}>
+              <span style={{ fontSize: '11px', fontWeight: '800', color: '#166534', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'flex', alignItems: 'center', gap: '5px', marginBottom: '4px' }}>
                 <i className="fa-solid fa-coins"></i>
-                <span>Kita</span>
+                <span>Sales</span>
               </span>
               <p style={{ fontSize: '22px', fontWeight: '900', color: '#15803D', margin: 0, lineHeight: 1.1 }}>
                 {formatCurrency(currentSales)}
               </p>
             </div>
-            <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: '#DCFCE7', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#16A34A', fontSize: '14px' }}>
-              <i className="fa-solid fa-pen"></i>
+            <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: '#DCFCE7', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#16A34A', fontSize: '16px' }}>
+              <i className="fa-solid fa-arrow-trend-up"></i>
             </div>
           </div>
 
-          {/* GASTOS (Clickable) */}
+          {/* EXPENSES STAT CARD */}
           <div
-            onClick={() => handleOpenModal('gastos')}
             style={{
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center',
-              padding: '12px 16px',
+              padding: '14px 18px',
               background: '#FEF2F2',
               borderRadius: '12px',
               border: '1px solid #FEE2E2',
-              cursor: 'pointer',
-              transition: 'all 0.15s ease',
             }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.borderColor = '#FCA5A5';
-              e.currentTarget.style.transform = 'translateY(-1px)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.borderColor = '#FEE2E2';
-              e.currentTarget.style.transform = 'translateY(0)';
-            }}
-            title="Pindutin para i-edit ang Gastos"
           >
             <div>
-              <span style={{ fontSize: '11px', fontWeight: '800', color: '#991B1B', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'flex', alignItems: 'center', gap: '5px', marginBottom: '2px' }}>
+              <span style={{ fontSize: '11px', fontWeight: '800', color: '#991B1B', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'flex', alignItems: 'center', gap: '5px', marginBottom: '4px' }}>
                 <i className="fa-solid fa-receipt"></i>
-                <span>Gastos</span>
+                <span>Expenses</span>
               </span>
               <p style={{ fontSize: '22px', fontWeight: '900', color: '#DC2626', margin: 0, lineHeight: 1.1 }}>
                 {formatCurrency(currentExpenses)}
               </p>
             </div>
-            <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: '#FEE2E2', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#DC2626', fontSize: '14px' }}>
-              <i className="fa-solid fa-pen"></i>
+            <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: '#FEE2E2', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#DC2626', fontSize: '16px' }}>
+              <i className="fa-solid fa-arrow-trend-down"></i>
             </div>
           </div>
         </div>
@@ -242,8 +252,8 @@ export default function DashboardFinancialWidget({ initialSales = 0, initialExpe
         {/* Split Progress Bar */}
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px', fontSize: '11px', fontWeight: '700' }}>
-            <span style={{ color: '#15803D' }}>Kita: {salesPct}%</span>
-            <span style={{ color: '#DC2626' }}>Gastos: {expensesPct}%</span>
+            <span style={{ color: '#15803D' }}>Sales: {salesPct}%</span>
+            <span style={{ color: '#DC2626' }}>Expenses: {expensesPct}%</span>
           </div>
 
           <div
@@ -264,7 +274,7 @@ export default function DashboardFinancialWidget({ initialSales = 0, initialExpe
                 borderRadius: '9999px 0 0 9999px',
                 transition: 'width 0.4s ease',
               }}
-              title={`Kita: ${formatCurrency(currentSales)} (${salesPct}%)`}
+              title={`Sales: ${formatCurrency(currentSales)} (${salesPct}%)`}
             />
             <div
               style={{
@@ -273,7 +283,7 @@ export default function DashboardFinancialWidget({ initialSales = 0, initialExpe
                 borderRadius: '0 9999px 9999px 0',
                 transition: 'width 0.4s ease',
               }}
-              title={`Gastos: ${formatCurrency(currentExpenses)} (${expensesPct}%)`}
+              title={`Expenses: ${formatCurrency(currentExpenses)} (${expensesPct}%)`}
             />
           </div>
         </div>
@@ -282,38 +292,41 @@ export default function DashboardFinancialWidget({ initialSales = 0, initialExpe
       {/* Clean & Balanced Financial Modal */}
       {isModalOpen && (
         <div
+          className="modal-backdrop-animate"
           style={{
             position: 'fixed',
             inset: 0,
-            background: 'rgba(15, 23, 42, 0.55)',
-            backdropFilter: 'blur(6px)',
-            WebkitBackdropFilter: 'blur(6px)',
+            background: 'rgba(15, 23, 42, 0.65)',
+            backdropFilter: 'blur(8px)',
+            WebkitBackdropFilter: 'blur(8px)',
             zIndex: 99999,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             padding: '16px',
-            animation: 'fadeIn 0.12s ease',
+            animation: 'adminModalFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
           }}
           onClick={(e) => { if (e.target === e.currentTarget) setIsModalOpen(false); }}
         >
           <div
+            className="modal-dialog-animate"
             style={{
               background: '#FFFFFF',
-              borderRadius: '16px',
+              borderRadius: '18px',
               width: '100%',
               maxWidth: '380px',
-              boxShadow: '0 20px 40px -12px rgba(0, 0, 0, 0.2)',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
               border: '1px solid #E2E8F0',
               overflow: 'hidden',
               display: 'flex',
               flexDirection: 'column',
+              animation: 'adminModalScaleIn 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
             }}
           >
             {/* Modal Header */}
             <div
               style={{
-                padding: '14px 18px',
+                padding: '16px 20px',
                 borderBottom: '1px solid #F1F5F9',
                 display: 'flex',
                 alignItems: 'center',
@@ -323,7 +336,7 @@ export default function DashboardFinancialWidget({ initialSales = 0, initialExpe
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <i className="fa-solid fa-pen-to-square" style={{ color: 'var(--color-primary, #b45309)', fontSize: '15px' }}></i>
                 <h3 style={{ margin: 0, fontSize: '15px', fontWeight: '800', color: '#0F172A' }}>
-                  I-edit Kita at Gastos
+                  Edit Values
                 </h3>
               </div>
               <button
@@ -338,11 +351,11 @@ export default function DashboardFinancialWidget({ initialSales = 0, initialExpe
             {/* Modal Body Form */}
             <form onSubmit={handleSave} style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
               
-              {/* Field 1: Kita */}
+              {/* Field 1: Sales */}
               <div>
                 <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: '800', color: '#166534', marginBottom: '6px' }}>
                   <i className="fa-solid fa-coins" style={{ fontSize: '11px' }}></i>
-                  <span>Kita</span>
+                  <span>Sales</span>
                 </label>
                 <div style={{ position: 'relative' }}>
                   <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', fontWeight: '800', color: '#15803D', fontSize: '14px' }}>₱</span>
@@ -370,11 +383,11 @@ export default function DashboardFinancialWidget({ initialSales = 0, initialExpe
                 </div>
               </div>
 
-              {/* Field 2: Gastos */}
+              {/* Field 2: Expenses */}
               <div>
                 <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: '800', color: '#991B1B', marginBottom: '6px' }}>
                   <i className="fa-solid fa-receipt" style={{ fontSize: '11px' }}></i>
-                  <span>Gastos</span>
+                  <span>Expenses</span>
                 </label>
                 <div style={{ position: 'relative' }}>
                   <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', fontWeight: '800', color: '#DC2626', fontSize: '14px' }}>₱</span>
@@ -402,7 +415,7 @@ export default function DashboardFinancialWidget({ initialSales = 0, initialExpe
                 </div>
               </div>
 
-              {/* Live Tubo Result Banner */}
+              {/* Live Net Profit Result Banner */}
               <div style={{
                 background: liveNetProfit >= 0 ? '#F0FDF4' : '#FEF2F2',
                 border: `1px solid ${liveNetProfit >= 0 ? '#DCFCE7' : '#FEE2E2'}`,
@@ -414,7 +427,7 @@ export default function DashboardFinancialWidget({ initialSales = 0, initialExpe
                 marginTop: '2px',
               }}>
                 <span style={{ fontSize: '12px', fontWeight: '700', color: '#475569' }}>
-                  Tubo (Net):
+                  Net Profit:
                 </span>
                 <span style={{ fontSize: '15px', fontWeight: '900', color: liveNetProfit >= 0 ? '#15803D' : '#DC2626' }}>
                   {formatCurrency(liveNetProfit)}
@@ -448,7 +461,7 @@ export default function DashboardFinancialWidget({ initialSales = 0, initialExpe
                   onMouseEnter={(e) => { e.currentTarget.style.background = '#E2E8F0'; }}
                   onMouseLeave={(e) => { e.currentTarget.style.background = '#F1F5F9'; }}
                 >
-                  Kanselahin
+                  Cancel
                 </button>
                 <button
                   type="submit"
@@ -475,7 +488,7 @@ export default function DashboardFinancialWidget({ initialSales = 0, initialExpe
                   onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.9'; }}
                   onMouseLeave={(e) => { e.currentTarget.style.opacity = '1'; }}
                 >
-                  I-save
+                  Save
                 </button>
               </div>
             </form>

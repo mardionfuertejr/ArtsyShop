@@ -36,8 +36,8 @@ export default function AdminProductsClient({ initialProducts, categories = [] }
         setOpenActionMenuId(null);
       }
     }
-    document.addEventListener('click', handleDocClick);
-    return () => document.removeEventListener('click', handleDocClick);
+    document.addEventListener('mousedown', handleDocClick);
+    return () => document.removeEventListener('mousedown', handleDocClick);
   }, []);
 
   // Sync custom categories & products on mount
@@ -50,7 +50,14 @@ export default function AdminProductsClient({ initialProducts, categories = [] }
           if (Array.isArray(parsed) && parsed.length > 0) {
             setCategoriesList((prev) => {
               const map = new Map();
-              [...prev, ...parsed].forEach((c) => map.set(c.id || c.slug, c));
+              (prev || []).forEach((c) => {
+                const key = String(c.id || c.slug || '').trim();
+                if (key) map.set(key, c);
+              });
+              (parsed || []).forEach((c) => {
+                const key = String(c.id || c.slug || '').trim();
+                if (key) map.set(key, c);
+              });
               return Array.from(map.values());
             });
           }
@@ -60,11 +67,25 @@ export default function AdminProductsClient({ initialProducts, categories = [] }
         if (savedProds) {
           const parsed = JSON.parse(savedProds);
           if (Array.isArray(parsed) && parsed.length > 0) {
-            setProducts((prev) => {
-              const map = new Map();
-              [...parsed, ...prev].forEach((p) => map.set(p.id, p));
-              return Array.from(map.values());
-            });
+            // Keep only user-created custom products, ignore old seeded mock products
+            const cleanCustom = parsed.filter((p) => p && p.id && !p.id.startsWith('prod-0') && !p.id.startsWith('prod-1') && !p.id.startsWith('prod-2') && !p.id.startsWith('prod-3'));
+            if (cleanCustom.length !== parsed.length) {
+              localStorage.setItem('likha_custom_products', JSON.stringify(cleanCustom));
+            }
+            if (cleanCustom.length > 0) {
+              setProducts((prev) => {
+                const map = new Map();
+                (prev || []).forEach((p) => {
+                  const key = String(p.id || p.slug || '').trim();
+                  if (key) map.set(key, p);
+                });
+                cleanCustom.forEach((p) => {
+                  const key = String(p.id || p.slug || '').trim();
+                  if (key) map.set(key, p);
+                });
+                return Array.from(map.values());
+              });
+            }
           }
         }
       }
@@ -73,22 +94,6 @@ export default function AdminProductsClient({ initialProducts, categories = [] }
 
   // Delete Confirmation State
   const [productToDelete, setProductToDelete] = useState(null);
-
-  // Lock body scroll and listen for ESC key when modal is open
-  useEffect(() => {
-    if (productToDelete) {
-      const origOverflow = document.body.style.overflow;
-      document.body.style.overflow = 'hidden';
-      const handleKeyDown = (e) => {
-        if (e.key === 'Escape') setProductToDelete(null);
-      };
-      window.addEventListener('keydown', handleKeyDown);
-      return () => {
-        document.body.style.overflow = origOverflow;
-        window.removeEventListener('keydown', handleKeyDown);
-      };
-    }
-  }, [productToDelete]);
 
   // Form State
   const [formData, setFormData] = useState({
@@ -117,6 +122,10 @@ export default function AdminProductsClient({ initialProducts, categories = [] }
   const [isAddingNewCat, setIsAddingNewCat] = useState(false);
   const [newCatName, setNewCatName] = useState('');
   const [isCatDropdownOpen, setIsCatDropdownOpen] = useState(false);
+  const [isManageCategoriesOpen, setIsManageCategoriesOpen] = useState(false);
+  const [editingCatId, setEditingCatId] = useState(null);
+  const [editingCatName, setEditingCatName] = useState('');
+  const [catToDelete, setCatToDelete] = useState(null);
   const catDropdownRef = useRef(null);
 
   // Close Category Dropdown on Click Outside
@@ -136,6 +145,40 @@ export default function AdminProductsClient({ initialProducts, categories = [] }
   const [isDraggingPhoto, setIsDraggingPhoto] = useState(false);
   const [zoomedPhotoUrl, setZoomedPhotoUrl] = useState(null);
 
+  // Lock background scroll (body & html) and listen for ESC key when any modal is open
+  const isAnyModalOpen = Boolean(productToDelete || isManageCategoriesOpen || catToDelete || zoomedPhotoUrl);
+
+  useEffect(() => {
+    if (isAnyModalOpen) {
+      const origBodyOverflow = document.body.style.overflow;
+      const origDocOverflow = document.documentElement.style.overflow;
+      document.body.style.overflow = 'hidden';
+      document.documentElement.style.overflow = 'hidden';
+
+      const handleKeyDown = (e) => {
+        if (e.key === 'Escape') {
+          if (catToDelete) {
+            setCatToDelete(null);
+          } else if (isManageCategoriesOpen) {
+            setIsManageCategoriesOpen(false);
+            setEditingCatId(null);
+          } else if (productToDelete) {
+            setProductToDelete(null);
+          } else if (zoomedPhotoUrl) {
+            setZoomedPhotoUrl(null);
+          }
+        }
+      };
+
+      window.addEventListener('keydown', handleKeyDown);
+      return () => {
+        document.body.style.overflow = origBodyOverflow;
+        document.documentElement.style.overflow = origDocOverflow;
+        window.removeEventListener('keydown', handleKeyDown);
+      };
+    }
+  }, [isAnyModalOpen, catToDelete, isManageCategoriesOpen, productToDelete, zoomedPhotoUrl]);
+
   const showToast = (msg) => {
     setToastMsg(msg);
     setTimeout(() => setToastMsg(''), 3000);
@@ -150,9 +193,10 @@ export default function AdminProductsClient({ initialProducts, categories = [] }
   };
 
   // Create New Category dynamically
-  const handleCreateNewCategory = async () => {
-    if (!newCatName.trim()) return;
-    const name = newCatName.trim();
+  const handleCreateNewCategory = async (customName = null) => {
+    const rawName = customName || newCatName;
+    if (!rawName || !rawName.trim()) return;
+    const name = rawName.trim();
     const slug = name.toLowerCase().replace(/[^\w\s-]/g, '').replace(/\s+/g, '-').trim();
     const catId = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `cat-${Date.now()}`;
     const newCat = {
@@ -198,6 +242,102 @@ export default function AdminProductsClient({ initialProducts, categories = [] }
     showToast(`Added new category "${name}"`);
   };
 
+  // Update / Rename Category
+  const handleUpdateCategory = async (id, updatedName) => {
+    if (!updatedName || !updatedName.trim()) return;
+    const cleanName = updatedName.trim();
+    const cleanSlug = cleanName.toLowerCase().replace(/[^\w\s-]/g, '').replace(/\s+/g, '-').trim();
+
+    const updatedList = categoriesList.map((c) =>
+      c.id === id || c.slug === id ? { ...c, name: cleanName, slug: cleanSlug } : c
+    );
+    setCategoriesList(updatedList);
+    setEditingCatId(null);
+    setEditingCatName('');
+
+    // Update products that reference this category in state
+    setProducts((prev) =>
+      prev.map((p) => {
+        if (p.category_id === id || p.category?.id === id || p.category?.slug === id) {
+          return {
+            ...p,
+            category: { ...(p.category || {}), name: cleanName, slug: cleanSlug },
+          };
+        }
+        return p;
+      })
+    );
+
+    try {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('likha_custom_categories', JSON.stringify(updatedList));
+      }
+    } catch {}
+
+    try {
+      await fetch('/api/categories', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, name: cleanName, slug: cleanSlug }),
+      });
+    } catch {}
+
+    try {
+      const supabase = createClient();
+      if (supabase) {
+        await supabase.from('categories').update({ name: cleanName, slug: cleanSlug }).eq('id', id);
+      }
+    } catch {}
+
+    showToast(`Updated category "${cleanName}"`);
+  };
+
+  // Delete Category
+  const handleDeleteCategory = async (cat) => {
+    if (!cat) return;
+    const catId = cat.id || cat.slug;
+
+    const nextCats = categoriesList.filter((c) => c.id !== catId && c.slug !== catId);
+    setCategoriesList(nextCats);
+    setCatToDelete(null);
+
+    if (activeCategory === cat.slug || activeCategory === cat.id) {
+      setActiveCategory('all');
+    }
+
+    // Unlink products referencing this category in local state
+    setProducts((prev) =>
+      prev.map((p) => {
+        if (p.category_id === catId || p.category?.id === catId || p.category?.slug === catId) {
+          return { ...p, category_id: null, category: null };
+        }
+        return p;
+      })
+    );
+
+    try {
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('likha_custom_categories', JSON.stringify(nextCats));
+      }
+    } catch {}
+
+    try {
+      await fetch(`/api/categories?id=${encodeURIComponent(cat.id || cat.slug)}`, {
+        method: 'DELETE',
+      });
+    } catch {}
+
+    try {
+      const supabase = createClient();
+      if (supabase) {
+        await supabase.from('products').update({ category_id: null }).eq('category_id', cat.id);
+        await supabase.from('categories').delete().eq('id', cat.id);
+      }
+    } catch {}
+
+    showToast(`Deleted category "${cat.name}"`);
+  };
+
   // Open Form for New Product
   const handleOpenNew = () => {
     setEditingProduct(null);
@@ -220,13 +360,15 @@ export default function AdminProductsClient({ initialProducts, categories = [] }
       product_options: [
         {
           id: `opt-${Date.now()}-1`,
-          option_name: 'Color Theme',
+          option_name: 'Color',
           is_required: true,
           display_order: 1,
           choices: [
-            { label: 'Pastel Blush Pink', extra_cost: 0 },
-            { label: 'Crimson Velvet Red', extra_cost: 0 },
-            { label: 'Lilac Lavender', extra_cost: 0 },
+            { label: 'Pink', extra_cost: 0 },
+            { label: 'Red', extra_cost: 0 },
+            { label: 'Purple', extra_cost: 0 },
+            { label: 'Yellow', extra_cost: 0 },
+            { label: 'Mixed Colors', extra_cost: 0 },
           ],
         },
       ],
@@ -405,6 +547,7 @@ export default function AdminProductsClient({ initialProducts, categories = [] }
       });
 
       let storagePath = null;
+      let photoUrl = localUrl;
       try {
         const supabase = createClient();
         if (supabase) {
@@ -412,16 +555,20 @@ export default function AdminProductsClient({ initialProducts, categories = [] }
           const fileName = `prod-${Date.now()}-${Math.random().toString(36).slice(2, 7)}.${fileExt}`;
           const { data, error } = await supabase.storage
             .from('product-photos')
-            .upload(fileName, file);
+            .upload(fileName, file, { cacheControl: '3600', upsert: true });
           if (!error && data) {
             storagePath = data.path;
+            const { data: pubData } = supabase.storage.from('product-photos').getPublicUrl(data.path);
+            if (pubData?.publicUrl) {
+              photoUrl = pubData.publicUrl;
+            }
           }
         }
       } catch {}
 
       newPhotos.push({
         id: `photo-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-        url: localUrl,
+        url: photoUrl,
         storage_path: storagePath,
         is_cover: formData.product_photos.length === 0 && newPhotos.length === 0,
         display_order: formData.product_photos.length + newPhotos.length + 1,
@@ -647,10 +794,14 @@ export default function AdminProductsClient({ initialProducts, categories = [] }
         const actualId = upserted?.id || (isValidUUID(saved.id) ? saved.id : null);
 
         if (actualId && Array.isArray(saved.product_photos)) {
+          try {
+            await supabase.from('product_photos').delete().eq('product_id', actualId);
+          } catch {}
           for (const photo of saved.product_photos) {
-            await supabase.from('product_photos').upsert({
+            await supabase.from('product_photos').insert({
               product_id: actualId,
-              storage_path: photo.storage_path || photo.url || '',
+              storage_path: photo.storage_path || '',
+              url: photo.url || '',
               is_cover: Boolean(photo.is_cover),
               display_order: photo.display_order || 0,
             });
@@ -729,23 +880,25 @@ export default function AdminProductsClient({ initialProducts, categories = [] }
   const activeCatObj = allKnownCategories.find((c) => c.slug === activeCategory || c.id === activeCategory);
   const activeCatLabel = activeCategory === 'all' ? 'All Categories' : activeCatObj?.name || activeCategory;
 
-  const filteredProducts = products.filter((p) => {
-    const pCatSlug = (p.category?.slug || p.category?.name || p.category_id || '').toString().toLowerCase();
-    const pCatId = (p.category?.id || p.category_id || '').toString().toLowerCase();
-    const targetCat = activeCategory.toLowerCase();
+  const filteredProducts = products
+    .filter((p) => {
+      const pCatSlug = (p.category?.slug || p.category?.name || p.category_id || '').toString().toLowerCase();
+      const pCatId = (p.category?.id || p.category_id || '').toString().toLowerCase();
+      const targetCat = activeCategory.toLowerCase();
 
-    const matchesCategory =
-      activeCategory === 'all' ||
-      pCatSlug === targetCat ||
-      pCatId === targetCat ||
-      (p.category?.name && p.category.name.toLowerCase() === targetCat);
+      const matchesCategory =
+        activeCategory === 'all' ||
+        pCatSlug === targetCat ||
+        pCatId === targetCat ||
+        (p.category?.name && p.category.name.toLowerCase() === targetCat);
 
-    const matchesSearch =
-      !searchQuery.trim() ||
-      p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.slug.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesCategory && matchesSearch;
-  });
+      const matchesSearch =
+        !searchQuery.trim() ||
+        p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        p.slug.toLowerCase().includes(searchQuery.toLowerCase());
+      return matchesCategory && matchesSearch;
+    })
+    .sort((a, b) => (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base' }));
 
   const totalProducts = filteredProducts.length;
   const totalPages = Math.max(1, Math.ceil(totalProducts / pageSize));
@@ -971,10 +1124,70 @@ export default function AdminProductsClient({ initialProducts, categories = [] }
                           </button>
                         );
                       })}
+
+                      <div style={{ height: '1px', background: '#f1f5f9', margin: '3px 0' }}></div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsFilterOpen(false);
+                          setIsManageCategoriesOpen(true);
+                        }}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          width: '100%',
+                          padding: '7px 10px',
+                          borderRadius: '6px',
+                          border: 'none',
+                          background: '#f8fafc',
+                          color: 'var(--color-primary, #b45309)',
+                          fontSize: '11.5px',
+                          fontWeight: '700',
+                          cursor: 'pointer',
+                          textAlign: 'left',
+                        }}
+                      >
+                        <i className="fa-solid fa-gear" style={{ fontSize: '11px' }}></i>
+                        <span>Manage Categories...</span>
+                      </button>
                     </div>
                   )}
                 </div>
               </div>
+
+              {/* Manage Categories Button */}
+              <button
+                type="button"
+                id="manage-categories-btn"
+                onClick={() => setIsManageCategoriesOpen(true)}
+                style={{
+                  height: '38px',
+                  padding: '0 14px',
+                  borderRadius: '10px',
+                  fontWeight: '700',
+                  fontSize: '12.5px',
+                  cursor: 'pointer',
+                  border: '1px solid #e2e8f0',
+                  background: '#ffffff',
+                  color: '#334155',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  transition: 'all 0.15s ease',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = '#f8fafc';
+                  e.currentTarget.style.borderColor = '#cbd5e1';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = '#ffffff';
+                  e.currentTarget.style.borderColor = '#e2e8f0';
+                }}
+              >
+                <i className="fa-solid fa-layer-group" style={{ color: 'var(--color-primary, #b45309)', fontSize: '13px' }}></i>
+                <span>Categories</span>
+              </button>
 
               {/* + New Product Button */}
               <button
@@ -1030,7 +1243,8 @@ export default function AdminProductsClient({ initialProducts, categories = [] }
                     </td>
                   </tr>
                 ) : (
-                  paginatedProducts.map((p, idx) => {
+                    paginatedProducts.map((p, idx) => {
+                    const rowKey = `${p.id || p.slug || 'prod'}-${idx}`;
                     const isNearBottom = paginatedProducts.length <= 3 ? idx >= 1 : idx >= paginatedProducts.length - 2;
                     const coverPhoto =
                       p.product_photos?.find((ph) => ph.is_cover)?.url ||
@@ -1038,7 +1252,7 @@ export default function AdminProductsClient({ initialProducts, categories = [] }
                       'https://images.unsplash.com/photo-1561181286-d3fee7d55364?auto=format&fit=crop&w=400&q=80';
 
                     return (
-                      <tr key={p.id} style={{ borderBottom: '1px solid #E2E8F0', transition: 'background 0.12s ease' }}>
+                      <tr key={rowKey} style={{ borderBottom: '1px solid #E2E8F0', transition: 'background 0.12s ease' }}>
                         <td style={{ padding: '13px 18px', borderBottom: '1px solid #E2E8F0' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -1079,7 +1293,7 @@ export default function AdminProductsClient({ initialProducts, categories = [] }
                           </div>
                         </td>
                         <td style={{ padding: '13px 16px' }}>
-                          <span style={{ background: '#f1f5f9', color: '#475569', fontWeight: '700', fontSize: '11px', padding: '3px 8px', borderRadius: '6px' }}>
+                          <span style={{ color: '#475569', fontWeight: '600', fontSize: '13px' }}>
                             {p.category?.name || categoriesList.find((c) => c.id === p.category_id)?.name || 'Unassigned'}
                           </span>
                         </td>
@@ -1119,15 +1333,15 @@ export default function AdminProductsClient({ initialProducts, categories = [] }
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                setOpenActionMenuId(openActionMenuId === p.id ? null : p.id);
+                                setOpenActionMenuId(openActionMenuId === rowKey ? null : rowKey);
                               }}
                               style={{
                                 width: '28px',
                                 height: '28px',
                                 borderRadius: '6px',
                                 border: 'none',
-                                background: openActionMenuId === p.id ? '#f1f5f9' : 'transparent',
-                                color: openActionMenuId === p.id ? '#0f172a' : '#64748b',
+                                background: openActionMenuId === rowKey ? '#f1f5f9' : 'transparent',
+                                color: openActionMenuId === rowKey ? '#0f172a' : '#64748b',
                                 display: 'inline-flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
@@ -1136,13 +1350,13 @@ export default function AdminProductsClient({ initialProducts, categories = [] }
                                 transition: 'all 0.12s ease',
                               }}
                               onMouseEnter={(e) => {
-                                if (openActionMenuId !== p.id) {
+                                if (openActionMenuId !== rowKey) {
                                   e.currentTarget.style.background = '#f1f5f9';
                                   e.currentTarget.style.color = '#0f172a';
                                 }
                               }}
                               onMouseLeave={(e) => {
-                                if (openActionMenuId !== p.id) {
+                                if (openActionMenuId !== rowKey) {
                                   e.currentTarget.style.background = 'transparent';
                                   e.currentTarget.style.color = '#64748b';
                                 }
@@ -1153,7 +1367,7 @@ export default function AdminProductsClient({ initialProducts, categories = [] }
                             </button>
 
                             {/* Dropdown Menu with Icons and Divider */}
-                            {openActionMenuId === p.id && (
+                            {openActionMenuId === rowKey && (
                               <div
                                 style={{
                                   position: 'absolute',
@@ -1660,6 +1874,40 @@ export default function AdminProductsClient({ initialProducts, categories = [] }
                               >
                                 <i className="fa-solid fa-plus" style={{ fontSize: '10.5px' }}></i>
                                 <span>Add New Category...</span>
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setIsCatDropdownOpen(false);
+                                  setIsManageCategoriesOpen(true);
+                                }}
+                                style={{
+                                  width: '100%',
+                                  padding: '8px 12px',
+                                  borderRadius: '7px',
+                                  border: 'none',
+                                  background: 'transparent',
+                                  color: '#64748b',
+                                  fontWeight: '700',
+                                  fontSize: '11.5px',
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '6px',
+                                  textAlign: 'left',
+                                }}
+                                onMouseEnter={(e) => {
+                                  e.currentTarget.style.background = '#F8FAFC';
+                                  e.currentTarget.style.color = 'var(--color-primary, #b45309)';
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.style.background = 'transparent';
+                                  e.currentTarget.style.color = '#64748b';
+                                }}
+                              >
+                                <i className="fa-solid fa-gear" style={{ fontSize: '10.5px' }}></i>
+                                <span>Manage Categories...</span>
                               </button>
                             </div>
                           )}
@@ -2523,30 +2771,73 @@ export default function AdminProductsClient({ initialProducts, categories = [] }
           </div>
 
           {/* Floating Sticky Quick-Save Action Bar */}
-          <div style={{
-            position: 'sticky',
-            bottom: '16px',
-            zIndex: 100,
-            marginTop: '24px',
-            background: 'rgba(255, 255, 255, 0.96)',
-            backdropFilter: 'blur(10px)',
-            WebkitBackdropFilter: 'blur(10px)',
-            border: '1.5px solid #E2E8F0',
-            borderRadius: '12px',
-            padding: '10px 18px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--color-primary, #b45309)', display: 'inline-block' }}></span>
-              <span style={{ fontSize: '12.5px', fontWeight: '700', color: '#0F172A' }}>
-                {editingProduct ? `Editing "${formData.name || 'Product'}"` : 'New Product Draft'}
-              </span>
+          <div
+            className="floating-save-dock"
+            style={{
+              position: 'sticky',
+              bottom: '18px',
+              zIndex: 100,
+              marginTop: '28px',
+              background: 'rgba(255, 255, 255, 0.94)',
+              backdropFilter: 'blur(16px)',
+              WebkitBackdropFilter: 'blur(16px)',
+              border: '1px solid rgba(226, 232, 240, 0.9)',
+              borderRadius: '16px',
+              padding: '12px 20px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              boxShadow: '0 20px 35px -10px rgba(15, 23, 42, 0.12), 0 4px 12px rgba(0, 0, 0, 0.04)',
+              transition: 'all 0.2s ease',
+              animation: 'adminModalScaleIn 0.22s cubic-bezier(0.16, 1, 0.3, 1)',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div
+                style={{
+                  width: '34px',
+                  height: '34px',
+                  borderRadius: '10px',
+                  background: editingProduct ? 'rgba(180, 83, 9, 0.1)' : 'rgba(34, 197, 94, 0.1)',
+                  color: editingProduct ? 'var(--color-primary, #b45309)' : '#16a34a',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '13px',
+                  flexShrink: 0,
+                }}
+              >
+                <i className={editingProduct ? 'fa-solid fa-pen-nib' : 'fa-solid fa-sparkles'}></i>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '13px', fontWeight: '800', color: '#0F172A' }}>
+                    {editingProduct ? 'Editing Product' : 'New Product Draft'}
+                  </span>
+                  <span
+                    style={{
+                      fontSize: '10px',
+                      fontWeight: '700',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.04em',
+                      padding: '2px 7px',
+                      borderRadius: '9999px',
+                      background: formData.is_available !== false ? '#DCFCE7' : '#F1F5F9',
+                      color: formData.is_available !== false ? '#166534' : '#64748B',
+                    }}
+                  >
+                    {formData.is_available !== false ? 'Active' : 'Draft / Inactive'}
+                  </span>
+                </div>
+                <span style={{ fontSize: '11.5px', color: '#64748B', marginTop: '1px', maxWidth: '380px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {editingProduct
+                    ? (formData.name ? `"${formData.name}"` : 'Update details and save')
+                    : (formData.name ? `"${formData.name}"` : 'Configure your product info and publish')}
+                </span>
+              </div>
             </div>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <button
                 type="button"
                 onClick={() => {
@@ -2554,9 +2845,34 @@ export default function AdminProductsClient({ initialProducts, categories = [] }
                   scrollToTop();
                 }}
                 className="btn btn-secondary btn-sm"
-                style={{ height: '34px', padding: '0 14px', borderRadius: '8px', fontWeight: '700', fontSize: '12px', border: 'none', background: '#F1F5F9' }}
+                style={{
+                  height: '38px',
+                  padding: '0 16px',
+                  borderRadius: '10px',
+                  fontWeight: '700',
+                  fontSize: '12.5px',
+                  border: '1px solid #E2E8F0',
+                  background: '#FFFFFF',
+                  color: '#475569',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  transition: 'all 0.15s ease',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = '#F8FAFC';
+                  e.currentTarget.style.color = '#0F172A';
+                  e.currentTarget.style.borderColor = '#CBD5E1';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = '#FFFFFF';
+                  e.currentTarget.style.color = '#475569';
+                  e.currentTarget.style.borderColor = '#E2E8F0';
+                }}
               >
-                Cancel
+                <i className="fa-solid fa-xmark" style={{ fontSize: '11.5px' }}></i>
+                <span>Cancel</span>
               </button>
 
               <button
@@ -2564,15 +2880,46 @@ export default function AdminProductsClient({ initialProducts, categories = [] }
                 disabled={saving}
                 className="btn btn-primary btn-sm"
                 style={{
-                  height: '34px',
-                  padding: '0 18px',
-                  borderRadius: '8px',
+                  height: '38px',
+                  padding: '0 20px',
+                  borderRadius: '10px',
                   fontWeight: '800',
-                  fontSize: '12px',
+                  fontSize: '12.5px',
                   border: 'none',
+                  background: 'linear-gradient(135deg, #b45309 0%, #92400e 100%)',
+                  color: '#FFFFFF',
+                  cursor: saving ? 'not-allowed' : 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  boxShadow: '0 4px 14px rgba(180, 83, 9, 0.28)',
+                  transition: 'all 0.15s cubic-bezier(0.4, 0, 0.2, 1)',
+                  opacity: saving ? 0.75 : 1,
+                }}
+                onMouseEnter={(e) => {
+                  if (!saving) {
+                    e.currentTarget.style.transform = 'translateY(-1px)';
+                    e.currentTarget.style.boxShadow = '0 6px 18px rgba(180, 83, 9, 0.38)';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!saving) {
+                    e.currentTarget.style.transform = 'none';
+                    e.currentTarget.style.boxShadow = '0 4px 14px rgba(180, 83, 9, 0.28)';
+                  }
                 }}
               >
-                {saving ? 'Saving...' : (editingProduct ? 'Save Changes' : 'Create Product')}
+                {saving ? (
+                  <>
+                    <i className="fa-solid fa-spinner fa-spin" style={{ fontSize: '12px' }}></i>
+                    <span>Saving...</span>
+                  </>
+                ) : (
+                  <>
+                    <i className={editingProduct ? 'fa-solid fa-check' : 'fa-solid fa-plus'} style={{ fontSize: '12px' }}></i>
+                    <span>{editingProduct ? 'Save Changes' : 'Create Product'}</span>
+                  </>
+                )}
               </button>
             </div>
           </div>
@@ -2650,9 +2997,10 @@ export default function AdminProductsClient({ initialProducts, categories = [] }
         </div>
       )}
 
-      {/* Delete Confirmation Modal */}
+      {/* Delete Product Confirmation Modal */}
       {productToDelete && (
         <div
+          className="modal-backdrop-animate"
           style={{
             position: 'fixed',
             top: 0,
@@ -2662,27 +3010,30 @@ export default function AdminProductsClient({ initialProducts, categories = [] }
             width: '100vw',
             height: '100vh',
             background: 'rgba(15, 23, 42, 0.65)',
-            backdropFilter: 'blur(6px)',
-            WebkitBackdropFilter: 'blur(6px)',
+            backdropFilter: 'blur(8px)',
+            WebkitBackdropFilter: 'blur(8px)',
             zIndex: 999999,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             padding: '16px',
             boxSizing: 'border-box',
+            animation: 'adminModalFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
           }}
           onClick={() => setProductToDelete(null)}
         >
           <div
+            className="modal-dialog-animate"
             style={{
               background: '#ffffff',
-              borderRadius: '16px',
+              borderRadius: '18px',
               padding: '24px',
               maxWidth: '380px',
               width: '100%',
               boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
               border: '1px solid #f1f5f9',
               textAlign: 'center',
+              animation: 'adminModalScaleIn 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
             }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -2758,6 +3109,546 @@ export default function AdminProductsClient({ initialProducts, categories = [] }
                 onMouseLeave={(e) => (e.currentTarget.style.background = '#dc2626')}
               >
                 Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════════
+          MODAL: MANAGE CATEGORIES (ADD, EDIT / RENAME, DELETE)
+         ══════════════════════════════════════════════════════════════ */}
+      {isManageCategoriesOpen && (
+        <div
+          className="modal-backdrop-animate"
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            width: '100vw',
+            height: '100vh',
+            background: 'rgba(15, 23, 42, 0.65)',
+            backdropFilter: 'blur(8px)',
+            WebkitBackdropFilter: 'blur(8px)',
+            zIndex: 999998,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '16px',
+            boxSizing: 'border-box',
+            animation: 'adminModalFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+          }}
+          onClick={() => {
+            setIsManageCategoriesOpen(false);
+            setEditingCatId(null);
+          }}
+        >
+          <div
+            style={{
+              background: '#ffffff',
+              borderRadius: '16px',
+              padding: '24px',
+              maxWidth: '520px',
+              width: '100%',
+              maxHeight: '90vh',
+              display: 'flex',
+              flexDirection: 'column',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+              border: '1px solid #f1f5f9',
+              boxSizing: 'border-box',
+              animation: 'adminModalScaleIn 0.22s cubic-bezier(0.16, 1, 0.3, 1)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+              <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '800', color: '#0f172a', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <i className="fa-solid fa-layer-group" style={{ color: 'var(--color-primary, #b45309)', fontSize: '16px' }}></i>
+                <span>Manage Categories</span>
+              </h3>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsManageCategoriesOpen(false);
+                  setEditingCatId(null);
+                }}
+                style={{
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '8px',
+                  border: 'none',
+                  background: '#f1f5f9',
+                  color: '#64748b',
+                  fontSize: '14px',
+                  fontWeight: '700',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'all 0.15s ease',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = '#e2e8f0';
+                  e.currentTarget.style.color = '#0f172a';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = '#f1f5f9';
+                  e.currentTarget.style.color = '#64748b';
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Quick Add Bar */}
+            <div style={{
+              display: 'flex',
+              gap: '8px',
+              padding: '12px',
+              background: '#FAF6F0',
+              borderRadius: '12px',
+              marginBottom: '16px',
+              border: '1px solid #EADDC9',
+              transition: 'all 0.2s ease',
+            }}>
+              <input
+                type="text"
+                placeholder="New category name (e.g. Mini Bouquets)..."
+                value={newCatName}
+                onChange={(e) => setNewCatName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleCreateNewCategory();
+                  }
+                }}
+                style={{
+                  flex: 1,
+                  height: '38px',
+                  padding: '0 12px',
+                  borderRadius: '8px',
+                  border: '1px solid #CBD5E1',
+                  background: '#ffffff',
+                  fontSize: '12.5px',
+                  fontWeight: '600',
+                  color: '#0f172a',
+                  boxSizing: 'border-box',
+                  outline: 'none',
+                  transition: 'all 0.15s ease',
+                }}
+                onFocus={(e) => {
+                  e.target.style.borderColor = 'var(--color-primary, #b45309)';
+                  e.target.style.boxShadow = '0 0 0 3px rgba(180, 83, 9, 0.12)';
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = '#CBD5E1';
+                  e.target.style.boxShadow = 'none';
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => handleCreateNewCategory()}
+                style={{
+                  height: '38px',
+                  padding: '0 16px',
+                  borderRadius: '8px',
+                  border: 'none',
+                  background: 'var(--color-primary, #b45309)',
+                  color: '#ffffff',
+                  fontSize: '12.5px',
+                  fontWeight: '800',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  whiteSpace: 'nowrap',
+                  transition: 'all 0.15s cubic-bezier(0.16, 1, 0.3, 1)',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.filter = 'brightness(1.08)';
+                  e.currentTarget.style.transform = 'translateY(-1px)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.filter = 'none';
+                  e.currentTarget.style.transform = 'none';
+                }}
+              >
+                <i className="fa-solid fa-plus" style={{ fontSize: '11px' }}></i>
+                <span>Add</span>
+              </button>
+            </div>
+
+            {/* Categories List */}
+            <div style={{
+              flex: 1,
+              overflowY: 'auto',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '8px',
+              paddingRight: '2px',
+              minHeight: '180px',
+              maxHeight: '380px',
+            }}>
+              {allKnownCategories.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '30px 10px', color: '#94a3b8' }}>
+                  <i className="fa-solid fa-folder-open" style={{ fontSize: '28px', marginBottom: '8px', display: 'block' }}></i>
+                  <p style={{ margin: 0, fontSize: '13px', fontWeight: '600' }}>No categories found</p>
+                </div>
+              ) : (
+                allKnownCategories.map((c) => {
+                  const isEditing = editingCatId === c.id || editingCatId === c.slug;
+                  const catId = c.id || c.slug;
+                  const count = products.filter((p) => {
+                    const pCatSlug = (p.category?.slug || p.category?.name || p.category_id || '').toString().toLowerCase();
+                    const pCatId = (p.category?.id || p.category_id || '').toString().toLowerCase();
+                    const target = (c.slug || c.id || c.name || '').toString().toLowerCase();
+                    return pCatSlug === target || pCatId === target || (p.category?.name && p.category.name.toLowerCase() === target);
+                  }).length;
+
+                  return (
+                    <div
+                      key={catId}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '10px 14px',
+                        borderRadius: '10px',
+                        background: isEditing ? '#FAF6F0' : '#f8fafc',
+                        border: isEditing ? '1.5px solid var(--color-primary, #b45309)' : '1px solid #e2e8f0',
+                        gap: '10px',
+                        transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!isEditing) {
+                          e.currentTarget.style.background = '#f1f5f9';
+                          e.currentTarget.style.borderColor = '#cbd5e1';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!isEditing) {
+                          e.currentTarget.style.background = '#f8fafc';
+                          e.currentTarget.style.borderColor = '#e2e8f0';
+                        }
+                      }}
+                    >
+                      {isEditing ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1 }}>
+                          <input
+                            type="text"
+                            value={editingCatName}
+                            onChange={(e) => setEditingCatName(e.target.value)}
+                            autoFocus
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                handleUpdateCategory(c.id || c.slug, editingCatName);
+                              } else if (e.key === 'Escape') {
+                                setEditingCatId(null);
+                                setEditingCatName('');
+                              }
+                            }}
+                            style={{
+                              flex: 1,
+                              height: '34px',
+                              padding: '0 10px',
+                              borderRadius: '6px',
+                              border: '1.5px solid var(--color-primary, #b45309)',
+                              fontSize: '12.5px',
+                              fontWeight: '700',
+                              color: '#0f172a',
+                              background: '#ffffff',
+                              boxSizing: 'border-box',
+                              outline: 'none',
+                            }}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleUpdateCategory(c.id || c.slug, editingCatName)}
+                            style={{
+                              height: '34px',
+                              padding: '0 12px',
+                              borderRadius: '6px',
+                              border: 'none',
+                              background: '#16a34a',
+                              color: '#ffffff',
+                              fontSize: '12px',
+                              fontWeight: '800',
+                              cursor: 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              transition: 'all 0.15s ease',
+                            }}
+                            onMouseEnter={(e) => (e.currentTarget.style.filter = 'brightness(1.1)')}
+                            onMouseLeave={(e) => (e.currentTarget.style.filter = 'none')}
+                            title="Save Rename"
+                          >
+                            <i className="fa-solid fa-check"></i>
+                            <span>Save</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingCatId(null);
+                              setEditingCatName('');
+                            }}
+                            style={{
+                              height: '34px',
+                              padding: '0 10px',
+                              borderRadius: '6px',
+                              border: '1px solid #cbd5e1',
+                              background: '#ffffff',
+                              color: '#64748b',
+                              fontSize: '12px',
+                              cursor: 'pointer',
+                              transition: 'all 0.15s ease',
+                            }}
+                            onMouseEnter={(e) => (e.currentTarget.style.background = '#f1f5f9')}
+                            onMouseLeave={(e) => (e.currentTarget.style.background = '#ffffff')}
+                            title="Cancel"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ) : (
+                        <>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, flex: 1 }}>
+                            <i className="fa-regular fa-folder" style={{ color: 'var(--color-primary, #b45309)', fontSize: '14px', flexShrink: 0 }}></i>
+                            <span style={{ fontWeight: '700', fontSize: '13px', color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {c.name}
+                            </span>
+                            <span style={{
+                              fontSize: '11px',
+                              fontWeight: '700',
+                              color: '#64748b',
+                              background: '#e2e8f0',
+                              padding: '2px 7px',
+                              borderRadius: '999px',
+                              flexShrink: 0,
+                            }}>
+                              {count} {count === 1 ? 'item' : 'items'}
+                            </span>
+                          </div>
+
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingCatId(c.id || c.slug);
+                                setEditingCatName(c.name);
+                              }}
+                              style={{
+                                width: '32px',
+                                height: '32px',
+                                borderRadius: '8px',
+                                border: '1px solid #e2e8f0',
+                                background: '#ffffff',
+                                color: '#475569',
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontSize: '12.5px',
+                                transition: 'all 0.15s cubic-bezier(0.16, 1, 0.3, 1)',
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.background = '#f1f5f9';
+                                e.currentTarget.style.color = '#0f172a';
+                                e.currentTarget.style.borderColor = '#cbd5e1';
+                                e.currentTarget.style.transform = 'translateY(-1px)';
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.background = '#ffffff';
+                                e.currentTarget.style.color = '#475569';
+                                e.currentTarget.style.borderColor = '#e2e8f0';
+                                e.currentTarget.style.transform = 'none';
+                              }}
+                              title="Rename Category"
+                            >
+                              <i className="fa-regular fa-pen-to-square"></i>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => setCatToDelete(c)}
+                              style={{
+                                width: '32px',
+                                height: '32px',
+                                borderRadius: '8px',
+                                border: '1px solid #fecaca',
+                                background: '#ffffff',
+                                color: '#dc2626',
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontSize: '12.5px',
+                                transition: 'all 0.15s cubic-bezier(0.16, 1, 0.3, 1)',
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.background = '#fef2f2';
+                                e.currentTarget.style.borderColor = '#fca5a5';
+                                e.currentTarget.style.transform = 'translateY(-1px)';
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.background = '#ffffff';
+                                e.currentTarget.style.borderColor = '#fecaca';
+                                e.currentTarget.style.transform = 'none';
+                              }}
+                              title="Delete Category"
+                            >
+                              <i className="fa-regular fa-trash-can"></i>
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            {/* Footer */}
+            <div style={{ marginTop: '16px', paddingTop: '12px', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'flex-end' }}>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsManageCategoriesOpen(false);
+                  setEditingCatId(null);
+                }}
+                className="btn btn-secondary btn-sm"
+                style={{
+                  height: '36px',
+                  padding: '0 18px',
+                  borderRadius: '8px',
+                  fontWeight: '700',
+                  fontSize: '12.5px',
+                  border: 'none',
+                  background: '#f1f5f9',
+                  color: '#334155',
+                  cursor: 'pointer',
+                }}
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════════
+          MODAL: DELETE CATEGORY CONFIRMATION
+         ══════════════════════════════════════════════════════════════ */}
+      {catToDelete && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            width: '100vw',
+            height: '100vh',
+            background: 'rgba(15, 23, 42, 0.7)',
+            backdropFilter: 'blur(6px)',
+            WebkitBackdropFilter: 'blur(6px)',
+            zIndex: 999999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '16px',
+            boxSizing: 'border-box',
+          }}
+          onClick={() => setCatToDelete(null)}
+        >
+          <div
+            style={{
+              background: '#ffffff',
+              borderRadius: '16px',
+              padding: '24px',
+              maxWidth: '400px',
+              width: '100%',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.3)',
+              border: '1px solid #f1f5f9',
+              textAlign: 'center',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{
+              width: '50px',
+              height: '50px',
+              borderRadius: '50%',
+              background: '#FEE2E2',
+              color: '#DC2626',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '22px',
+              margin: '0 auto 14px',
+            }}>
+              <i className="fa-regular fa-trash-can"></i>
+            </div>
+            <h3 style={{ margin: '0 0 8px', fontSize: '18px', fontWeight: '800', color: '#0f172a' }}>
+              Delete Category &quot;{catToDelete.name}&quot;?
+            </h3>
+            <p style={{ margin: '0 0 20px', fontSize: '13px', color: '#64748b', lineHeight: 1.5 }}>
+              Are you sure you want to delete this category? Any existing products assigned to this category will remain safe in your store and be marked as <strong style={{ color: '#0f172a' }}>Unassigned</strong>.
+            </p>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', width: '100%' }}>
+              <button
+                type="button"
+                onClick={() => setCatToDelete(null)}
+                style={{
+                  height: '38px',
+                  boxSizing: 'border-box',
+                  padding: '0 16px',
+                  fontSize: '12.5px',
+                  fontWeight: '700',
+                  borderRadius: '999px',
+                  border: '1px solid #e2e8f0',
+                  background: '#f1f5f9',
+                  color: '#475569',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  lineHeight: 1,
+                  margin: 0,
+                  transition: 'background 0.12s ease',
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = '#e2e8f0')}
+                onMouseLeave={(e) => (e.currentTarget.style.background = '#f1f5f9')}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => handleDeleteCategory(catToDelete)}
+                style={{
+                  height: '38px',
+                  boxSizing: 'border-box',
+                  padding: '0 16px',
+                  fontSize: '12.5px',
+                  fontWeight: '800',
+                  borderRadius: '999px',
+                  border: 'none',
+                  background: '#dc2626',
+                  color: '#ffffff',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  lineHeight: 1,
+                  margin: 0,
+                  transition: 'background 0.12s ease',
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = '#b91c1c')}
+                onMouseLeave={(e) => (e.currentTarget.style.background = '#dc2626')}
+              >
+                Delete Category
               </button>
             </div>
           </div>

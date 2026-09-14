@@ -2,19 +2,18 @@
  * Short, punchy, catchy & hilarious craft-inspired prompts for Messenger Custom Orders.
  * Zero emojis/icons — clean, short modern Taglish humor with diverse relatable scenarios.
  */
-export const MESSENGER_URL = process.env.NEXT_PUBLIC_MESSENGER_URL || 'https://www.facebook.com/messages/t/61587268312750';
+export const MESSENGER_URL = process.env.NEXT_PUBLIC_MESSENGER_URL || 'https://m.me/61587268312750';
 
-export const CUSTOM_ORDER_TEMPLATE = `Hi M&M's Artsy! I'd like to order a custom handcrafted piece 🌸
+export const CUSTOM_ORDER_TEMPLATE = `Hi M&M's Artsy! Inquire po sana ako for a custom handmade order.
 
-Type: [Bouquet / Resin / Other]
-Occasion: [Birthday / Anniversary / Gift / Other]
-Preferred Colors: 
-Budget Range: 
-Target Date: 
+Type: Bouquet / Box / Resin / Keychain
+Occasion: Birthday / Anniversary / Special Gift
+Colors/Theme: 
+Target Date & Time Needed: 
 
 Thank you!`;
 
-export const CUSTOM_ORDER_MESSENGER_URL = `https://www.facebook.com/messages/t/61587268312750?text=${encodeURIComponent(CUSTOM_ORDER_TEMPLATE)}`;
+export const CUSTOM_ORDER_MESSENGER_URL = `https://m.me/61587268312750?text=${encodeURIComponent(CUSTOM_ORDER_TEMPLATE)}`;
 
 export const FUN_CUSTOM_PROMPTS = [
   {
@@ -94,6 +93,21 @@ export const FUN_CUSTOM_PROMPTS = [
 export function getPromptMessengerUrl(prompt) {
   const text = prompt?.templateText || 'Hi M&M Artsy! Inquire po sana ako for a custom handmade order.';
   return `${MESSENGER_URL}?text=${encodeURIComponent(text)}`;
+}
+
+export function getProductCustomOrderTemplate(product) {
+  const prodName = typeof product === 'string' ? product : (product?.name || 'Handmade Craft');
+  return `Hi M&M's Artsy! Inquire po sana ako for a custom order inspired by "${prodName}".
+
+Peg/Reference Details: 
+Preferred Colors/Theme: 
+Target Date & Time Needed: 
+
+Thank you!`;
+}
+
+export function getProductCustomOrderMessengerUrl(product) {
+  return `${MESSENGER_URL}?text=${encodeURIComponent(getProductCustomOrderTemplate(product))}`;
 }
 
 export function getRandomCustomPrompt() {

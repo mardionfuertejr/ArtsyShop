@@ -6,13 +6,14 @@ import BottomNav from '@/components/customer/BottomNav';
 import BrandLogo from '@/components/common/BrandLogo';
 import HeaderSearchBar from '@/components/customer/HeaderSearchBar';
 import CartIconBtn from '@/components/customer/CartIconBtn';
-import { CUSTOM_ORDER_MESSENGER_URL } from '@/lib/constants/customPrompts';
+import { CUSTOM_ORDER_TEMPLATE, CUSTOM_ORDER_MESSENGER_URL } from '@/lib/constants/customPrompts';
+import { openMessengerDirect } from '@/lib/utils/browserNav';
 
 export default function CustomRequestPage() {
   useEffect(() => {
     // Attempt automatic redirect to Facebook Messenger
     const timer = setTimeout(() => {
-      window.location.href = CUSTOM_ORDER_MESSENGER_URL;
+      openMessengerDirect(CUSTOM_ORDER_TEMPLATE);
     }, 400);
 
     return () => clearTimeout(timer);
@@ -107,10 +108,9 @@ export default function CustomRequestPage() {
             </p>
           </div>
 
-          <a
-            href={CUSTOM_ORDER_MESSENGER_URL}
-            target="_blank"
-            rel="noopener noreferrer"
+          <button
+            type="button"
+            onClick={() => openMessengerDirect(CUSTOM_ORDER_TEMPLATE)}
             className="btn btn-primary ripple"
             style={{
               width: '100%',
@@ -124,13 +124,14 @@ export default function CustomRequestPage() {
               gap: '8px',
               background: '#0084FF',
               color: '#ffffff',
-              textDecoration: 'none',
+              border: 'none',
+              cursor: 'pointer',
               marginTop: 'var(--space-2)',
             }}
           >
             <i className="fa-brands fa-facebook-messenger" style={{ fontSize: '16px' }}></i>
             Open Messenger Now
-          </a>
+          </button>
 
           <Link
             href="/shop"

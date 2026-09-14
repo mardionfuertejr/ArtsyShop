@@ -17,7 +17,7 @@ export default async function AdminProductsPage() {
           .select(`
             id, name, slug, base_price, description, pricing_method, is_available, display_order, category_id,
             category:categories(id, name, slug),
-            product_photos(id, storage_path, is_cover, display_order),
+            product_photos(id, url, storage_path, is_cover, display_order),
             product_options(id, option_name, choices, is_required, display_order)
           `)
           .order('display_order', { ascending: true }),

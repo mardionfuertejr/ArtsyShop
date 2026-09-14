@@ -88,10 +88,14 @@ export async function POST(request) {
         const actualProdId = upsertedProd?.id || (isUUID(saved.id) ? saved.id : null);
 
         if (actualProdId && Array.isArray(saved.product_photos)) {
+          try {
+            await supabase.from('product_photos').delete().eq('product_id', actualProdId);
+          } catch {}
           for (const photo of saved.product_photos) {
-            await supabase.from('product_photos').upsert({
+            await supabase.from('product_photos').insert({
               product_id: actualProdId,
-              storage_path: photo.storage_path || photo.url || '',
+              storage_path: photo.storage_path || '',
+              url: photo.url || '',
               is_cover: Boolean(photo.is_cover),
               display_order: photo.display_order || 0,
             });

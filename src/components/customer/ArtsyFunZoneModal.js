@@ -17,16 +17,24 @@ class FunZoneAudio {
   }
 
   init() {
-    if (!this.ctx && typeof window !== 'undefined') {
-      const AudioCtx = window.AudioContext || window.webkitAudioContext;
-      if (AudioCtx) this.ctx = new AudioCtx();
-    }
+    if (typeof window === 'undefined') return;
+    try {
+      if (!this.ctx) {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (AudioCtx) this.ctx = new AudioCtx();
+      }
+      if (this.ctx && this.ctx.state === 'suspended') {
+        this.ctx.resume().catch(() => {});
+      }
+    } catch {}
   }
 
   playTone(freq, type, duration, startVol = 0.12) {
     if (this.muted || !this.ctx) return;
     try {
-      if (this.ctx.state === 'suspended') this.ctx.resume();
+      if (this.ctx.state === 'suspended') {
+        this.ctx.resume().catch(() => {});
+      }
       const osc = this.ctx.createOscillator();
       const gain = this.ctx.createGain();
       osc.type = type;
@@ -126,36 +134,37 @@ function saveGameHighScore(gameKey, score) {
 // GAME 1: PETAL RUSH (Catching Arcade - Fast Pacing & Tricky Hazards)
 // ─────────────────────────────────────────────────────────────
 const RUSH_ITEMS = [
-  { id: 'tulip', emoji: '🌷', points: 5, speed: 2.7, size: 30, weight: 28, isHarmful: false },
-  { id: 'sunflower', emoji: '🌻', points: 10, speed: 3.1, size: 34, weight: 24, isHarmful: false },
-  { id: 'bouquet', emoji: '💐', points: 20, speed: 3.6, size: 32, weight: 14, isHarmful: false },
-  { id: 'star', emoji: '⭐', points: 30, speed: 4.2, size: 30, weight: 8, isHarmful: false, isSpecial: true },
-  { id: 'thorn', emoji: '🥀', points: -10, speed: 2.9, size: 28, weight: 12, isHarmful: true },
-  { id: 'bomb', emoji: '💣', points: -25, speed: 3.5, size: 32, weight: 12, isHarmful: true, isBomb: true },
-  { id: 'bee', emoji: '🐝', points: -15, speed: 3.3, size: 28, weight: 12, isHarmful: true, isZigzag: true },
-  { id: 'rock', emoji: '🪨', points: -15, speed: 4.1, size: 28, weight: 10, isHarmful: true },
+  { id: 'tulip', emoji: '🌷', points: 5, speed: 3.5, size: 30, weight: 26, isHarmful: false },
+  { id: 'sunflower', emoji: '🌻', points: 10, speed: 4.0, size: 34, weight: 22, isHarmful: false },
+  { id: 'bouquet', emoji: '💐', points: 20, speed: 4.6, size: 32, weight: 12, isHarmful: false },
+  { id: 'star', emoji: '⭐', points: 30, speed: 5.4, size: 30, weight: 8, isHarmful: false, isSpecial: true },
+  { id: 'thorn', emoji: '🥀', points: -15, speed: 3.8, size: 28, weight: 14, isHarmful: true },
+  { id: 'bomb', emoji: '💣', points: -40, speed: 4.5, size: 32, weight: 14, isHarmful: true, isBomb: true },
+  { id: 'bee', emoji: '🐝', points: -25, speed: 4.2, size: 28, weight: 14, isHarmful: true, isZigzag: true },
+  { id: 'rock', emoji: '🪨', points: -25, speed: 5.2, size: 28, weight: 12, isHarmful: true },
 ];
 
 function PetalRushGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
   const [gameState, setGameState] = useState('ready');
   const [score, setScore] = useState(0);
   const [timeLeft, setTimeLeft] = useState(20);
-  const [floatingTexts, setFloatingTexts] = useState([]);
-  const [basketX, setBasketX] = useState(50);
   const [resultData, setResultData] = useState(null);
   const [playsLeft, setPlaysLeft] = useState(3);
   const [highScore, setHighScore] = useState(0);
   const [isShaking, setIsShaking] = useState(false);
   const [isHitFlashing, setIsHitFlashing] = useState(false);
 
-  const gameAreaRef = useRef(null);
+  const canvasRef = useRef(null);
   const animFrameRef = useRef(null);
+  const timerIntervalRef = useRef(null);
+  const isPlayingRef = useRef(false);
   const itemsRef = useRef([]);
+  const floatersRef = useRef([]);
   const lastSpawnRef = useRef(0);
   const scoreRef = useRef(0);
   const timeLeftRef = useRef(20);
-  const targetBasketXRef = useRef(50);
-  const currentBasketXRef = useRef(50);
+  const targetBasketXRef = useRef(180);
+  const currentBasketXRef = useRef(180);
   const hadVoucherChanceRef = useRef(true);
 
   useEffect(() => {
@@ -164,31 +173,35 @@ function PetalRushGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
     setHighScore(getGameHighScore('rush'));
   }, []);
 
-  const handlePointerMove = useCallback((clientX) => {
-    if (!gameAreaRef.current) return;
-    const rect = gameAreaRef.current.getBoundingClientRect();
-    const relativeX = clientX - rect.left;
-    const percentage = Math.max(12, Math.min(88, (relativeX / rect.width) * 100));
-    targetBasketXRef.current = percentage;
+  const updateBasketPosition = useCallback((clientX) => {
+    if (!canvasRef.current || !isPlayingRef.current) return;
+    const rect = canvasRef.current.getBoundingClientRect();
+    const relativeX = ((clientX - rect.left) / rect.width) * 360;
+    targetBasketXRef.current = Math.max(30, Math.min(330, relativeX));
   }, []);
 
   useEffect(() => {
     const handleKeyDown = (e) => {
-      if (gameState !== 'playing') return;
-      if (e.key === 'ArrowLeft' || e.key === 'a') targetBasketXRef.current = Math.max(12, targetBasketXRef.current - 14);
-      else if (e.key === 'ArrowRight' || e.key === 'd') targetBasketXRef.current = Math.min(88, targetBasketXRef.current + 14);
+      if (!isPlayingRef.current) return;
+      if (e.key === 'ArrowLeft' || e.key === 'a') targetBasketXRef.current = Math.max(30, targetBasketXRef.current - 38);
+      else if (e.key === 'ArrowRight' || e.key === 'd') targetBasketXRef.current = Math.min(330, targetBasketXRef.current + 38);
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [gameState]);
+  }, []);
 
   const addFloatingText = (text, x, y, color = '#EA580C') => {
-    const id = Date.now() + Math.random();
-    setFloatingTexts((prev) => [...prev.slice(-3), { id, text, x, y, color }]);
-    setTimeout(() => setFloatingTexts((prev) => prev.filter((item) => item.id !== id)), 650);
+    floatersRef.current.push({
+      id: Math.random(),
+      text,
+      x,
+      y,
+      color,
+      alpha: 1,
+    });
   };
 
-  const triggerHazardFeedback = (isBomb = false) => {
+  const triggerHazardFeedback = () => {
     setIsShaking(true);
     setIsHitFlashing(true);
     setTimeout(() => setIsShaking(false), 320);
@@ -204,24 +217,29 @@ function PetalRushGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
       random -= item.weight;
     }
 
-    // Dynamic speed ramp as game progresses
-    const timeProgress = (20 - timeLeftRef.current) / 20; // 0 to 1
-    const speedBoost = 1 + timeProgress * 0.45;
+    // Dynamic speed ramp as game progresses (starts brisk at 1.0x, scales up to 1.6x)
+    const timeProgress = (20 - timeLeftRef.current) / 20;
+    const speedBoost = 1.0 + timeProgress * 0.60;
 
     return {
       id: `${now}_${Math.random().toString(36).substr(2, 5)}`,
       type: selected,
-      x: Math.floor(Math.random() * 74) + 13,
-      y: -6,
-      speed: selected.speed * (0.92 + Math.random() * 0.25) * speedBoost,
+      x: 35 + Math.random() * 290,
+      y: -20,
+      speed: (selected.speed * 1.05) * (0.95 + Math.random() * 0.3) * speedBoost,
       wobble: Math.random() * Math.PI * 2,
-      wobbleSpeed: selected.isZigzag ? 0.12 : 0.05,
-      wobbleAmp: selected.isZigzag ? 3.5 : 1.5,
+      wobbleSpeed: selected.isZigzag ? 0.16 : 0.06,
+      wobbleAmp: selected.isZigzag ? 16 : 7,
     };
   };
 
   const startRush = () => {
     if (audio) audio.init();
+
+    // Clean any previous running game
+    isPlayingRef.current = false;
+    if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+    if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
 
     const canWin = playsLeft > 0;
     hadVoucherChanceRef.current = canWin;
@@ -235,58 +253,69 @@ function PetalRushGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
     setTimeLeft(20);
     timeLeftRef.current = 20;
     itemsRef.current = [];
-    setFloatingTexts([]);
+    floatersRef.current = [];
     setResultData(null);
-    currentBasketXRef.current = 50;
-    targetBasketXRef.current = 50;
-    setBasketX(50);
+    currentBasketXRef.current = 180;
+    targetBasketXRef.current = 180;
+    isPlayingRef.current = true;
     setGameState('playing');
     lastSpawnRef.current = performance.now();
 
-    const timerInterval = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 1) {
-          clearInterval(timerInterval);
-          finishRush();
-          return 0;
-        }
-        return prev - 1;
-      });
+    timerIntervalRef.current = setInterval(() => {
+      timeLeftRef.current -= 1;
+      setTimeLeft(timeLeftRef.current);
+      if (timeLeftRef.current <= 0) {
+        clearInterval(timerIntervalRef.current);
+        finishRush();
+      }
     }, 1000);
 
     let lastFrame = performance.now();
     const loop = (ts) => {
+      if (!isPlayingRef.current || timeLeftRef.current <= 0) return;
+
       const delta = Math.min((ts - lastFrame) / 16.66, 2.0);
       lastFrame = ts;
 
-      // Ultra responsive LERP with smooth dampening
-      currentBasketXRef.current += (targetBasketXRef.current - currentBasketXRef.current) * 0.35 * delta;
-      setBasketX(currentBasketXRef.current);
+      const canvas = canvasRef.current;
+      if (!canvas) {
+        if (isPlayingRef.current && timeLeftRef.current > 0) {
+          animFrameRef.current = requestAnimationFrame(loop);
+        }
+        return;
+      }
 
-      // Dynamic spawn rate: accelerates from 420ms down to 260ms in late game!
-      const currentSpawnDelay = Math.max(260, 420 - (20 - timeLeftRef.current) * 8);
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Snappy responsive LERP
+      currentBasketXRef.current += (targetBasketXRef.current - currentBasketXRef.current) * 0.42 * delta;
+      const basketPos = currentBasketXRef.current;
+
+      // Dynamic spawn rate: starts at 420ms, accelerates down to 190ms in final seconds
+      const currentSpawnDelay = Math.max(190, 420 - (20 - timeLeftRef.current) * 14);
       if (ts - lastSpawnRef.current > currentSpawnDelay) {
         itemsRef.current.push(spawnItem(ts));
         lastSpawnRef.current = ts;
       }
 
-      const basketPos = currentBasketXRef.current;
       const currentItems = itemsRef.current;
       const remaining = [];
 
       for (let i = 0; i < currentItems.length; i++) {
         const item = currentItems[i];
-        item.y += item.speed * delta;
+        item.y += item.speed * delta * 1.1;
         item.wobble += item.wobbleSpeed * delta;
         const currentX = item.x + Math.sin(item.wobble) * item.wobbleAmp;
 
-        if (item.y >= 78 && item.y <= 90) {
-          if (Math.abs(currentX - basketPos) <= 15) {
+        // Catch Hitbox (Basket is at y=320..355)
+        if (item.y >= 305 && item.y <= 345) {
+          if (Math.abs(currentX - basketPos) <= 38) {
             if (item.type.isHarmful) {
               scoreRef.current = Math.max(0, scoreRef.current + item.type.points);
               setScore(scoreRef.current);
-              addFloatingText(`${item.type.points}`, basketPos, 72, '#DC2626');
-              triggerHazardFeedback(item.type.isBomb);
+              addFloatingText(`${item.type.points}`, basketPos, 290, '#DC2626');
+              triggerHazardFeedback();
               if (item.type.isBomb) {
                 if (audio) audio.playBomb();
               } else {
@@ -296,33 +325,92 @@ function PetalRushGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
               const gained = item.type.points;
               scoreRef.current += gained;
               setScore(scoreRef.current);
-              addFloatingText(`+${gained}`, basketPos, 72, item.type.isSpecial ? '#D97706' : '#16A34A');
+              addFloatingText(`+${gained}`, basketPos, 290, item.type.isSpecial ? '#D97706' : '#16A34A');
               if (audio) audio.playCatch();
             }
             continue;
           }
         }
-        if (item.y < 102) remaining.push(item);
+
+        // Draw falling item
+        ctx.save();
+        ctx.translate(currentX, item.y);
+        ctx.rotate(Math.sin(item.wobble) * 0.25);
+        if (item.type.isBomb) {
+          ctx.shadowColor = 'rgba(239, 68, 68, 0.7)';
+          ctx.shadowBlur = 10;
+        } else if (item.type.isSpecial) {
+          ctx.shadowColor = 'rgba(251, 191, 36, 0.8)';
+          ctx.shadowBlur = 12;
+        }
+        ctx.font = `${item.type.size}px sans-serif`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(item.type.emoji, 0, 0);
+        ctx.restore();
+
+        if (item.y < canvas.height + 30) remaining.push(item);
       }
 
       itemsRef.current = remaining;
-      if (timeLeftRef.current > 0) animFrameRef.current = requestAnimationFrame(loop);
+
+      // Draw Basket
+      ctx.save();
+      ctx.translate(basketPos, 340);
+      ctx.font = '38px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('🧺', 0, 0);
+
+      // Basket badge
+      ctx.fillStyle = '#FED7AA';
+      ctx.beginPath();
+      ctx.roundRect(-20, 16, 40, 14, 4);
+      ctx.fill();
+      ctx.fillStyle = '#9A3412';
+      ctx.font = 'bold 9px sans-serif';
+      ctx.fillText('M&M', 0, 24);
+      ctx.restore();
+
+      // Render floating scores
+      const nextFloaters = [];
+      for (const f of floatersRef.current) {
+        f.y -= 1.3 * delta;
+        f.alpha -= 0.035 * delta;
+        if (f.alpha > 0) {
+          ctx.save();
+          ctx.globalAlpha = Math.max(0, f.alpha);
+          ctx.fillStyle = f.color;
+          ctx.font = '900 17px sans-serif';
+          ctx.textAlign = 'center';
+          ctx.fillText(f.text, f.x, f.y);
+          ctx.restore();
+          nextFloaters.push(f);
+        }
+      }
+      floatersRef.current = nextFloaters;
+
+      if (isPlayingRef.current && timeLeftRef.current > 0) {
+        animFrameRef.current = requestAnimationFrame(loop);
+      }
     };
 
     animFrameRef.current = requestAnimationFrame(loop);
   };
 
   const finishRush = () => {
-    cancelAnimationFrame(animFrameRef.current);
+    isPlayingRef.current = false;
+    if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+    if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+
     const finalScore = scoreRef.current;
     const hsResult = saveGameHighScore('rush', finalScore);
     setHighScore(hsResult.highScore);
 
     let tierKey = null;
-    if (finalScore >= 220) tierKey = 'DIAMOND';      // ₱30 OFF
-    else if (finalScore >= 160) tierKey = 'GOLD';     // ₱20 OFF
-    else if (finalScore >= 100) tierKey = 'SILVER';   // ₱10 OFF
-    else if (finalScore >= 50) tierKey = 'BRONZE';    // ₱5 OFF
+    if (finalScore >= 300) tierKey = 'DIAMOND';     // ₱50 OFF (Min. spend ₱1200)
+    else if (finalScore >= 200) tierKey = 'GOLD';   // ₱20 OFF (Min. spend ₱600)
+    else if (finalScore >= 100) tierKey = 'SILVER'; // ₱10 OFF (Min. spend ₱350)
 
     if (hadVoucherChanceRef.current && tierKey) {
       const res = issueVoucherForTier(tierKey);
@@ -353,7 +441,11 @@ function PetalRushGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
   };
 
   useEffect(() => {
-    return () => { if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current); };
+    return () => {
+      isPlayingRef.current = false;
+      if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+      if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+    };
   }, []);
 
   return (
@@ -371,24 +463,11 @@ function PetalRushGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
       )}
 
       <div
-        ref={gameAreaRef}
         className={`${isShaking ? 'arcade-shake' : ''} ${isHitFlashing ? 'arcade-hit-flash' : ''}`}
-        onPointerDown={(e) => {
-          if (gameState === 'playing') handlePointerMove(e.clientX);
-        }}
-        onPointerMove={(e) => {
-          if (gameState === 'playing') handlePointerMove(e.clientX);
-        }}
-        onTouchStart={(e) => {
-          if (gameState === 'playing' && e.touches && e.touches[0]) handlePointerMove(e.touches[0].clientX);
-        }}
-        onTouchMove={(e) => {
-          if (gameState === 'playing' && e.touches && e.touches[0]) handlePointerMove(e.touches[0].clientX);
-        }}
         style={{
           position: 'relative',
           height: '380px',
-          background: 'radial-gradient(circle at center, #FFFDFB 0%, #FEF3EB 100%)',
+          background: '#FFFFFF',
           overflow: 'hidden',
           touchAction: 'none',
           userSelect: 'none',
@@ -396,115 +475,108 @@ function PetalRushGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
         }}
       >
         {gameState === 'ready' && (
-          <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px 20px', textAlign: 'center', gap: '10px' }}>
-            <div
-              style={{
-                width: '52px',
-                height: '52px',
-                borderRadius: '16px',
-                background: 'linear-gradient(135deg, #FB923C 0%, #EA580C 100%)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '26px',
-                boxShadow: '0 6px 14px -2px rgba(234, 88, 12, 0.3)',
-              }}
-            >
-              🧺
-            </div>
-
-            <div>
-              <h4 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 900, color: '#1E1E24' }}>
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center',
+              padding: '18px 20px',
+              gap: '14px',
+              background: '#FFFFFF',
+              boxSizing: 'border-box',
+            }}
+          >
+            {/* Top Header */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <h4 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 800, color: '#1E1E24' }}>
                 Petal Rush
               </h4>
-              <p style={{ margin: '4px 0 0', fontSize: '0.82rem', color: '#64748B', fontWeight: 500 }}>
-                Catch blooms and dodge the bombs!
-              </p>
+              {highScore > 0 && (
+                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#EA580C', background: '#FFF7ED', border: '1px solid #FED7AA', padding: '3px 10px', borderRadius: '999px' }}>
+                  Best: {highScore} pts
+                </span>
+              )}
             </div>
 
-            {highScore > 0 && (
-              <div style={{ background: '#FFF7ED', border: '1px solid #FED7AA', borderRadius: '999px', padding: '2px 10px', fontSize: '0.7rem', fontWeight: 800, color: '#C2410C' }}>
-                Best: {highScore} pts
+            {/* Rules Box */}
+            <div
+              style={{
+                background: '#F8FAFC',
+                border: '1px solid #E2E8F0',
+                borderRadius: '14px',
+                padding: '12px 14px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '10px',
+              }}
+            >
+              {/* Controls */}
+              <div style={{ fontSize: '0.82rem', color: '#334155', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                <span style={{ fontWeight: 700, color: '#0F172A' }}>Controls:</span> Drag basket left & right
               </div>
-            )}
 
+              {/* Targets */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', paddingTop: '8px', borderTop: '1px solid #E2E8F0' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.82rem' }}>
+                  <span style={{ fontWeight: 700, color: '#16A34A' }}>Collect (+pts)</span>
+                  <span style={{ fontSize: '1.15rem', letterSpacing: '4px' }}>🌷 🌻 💐 ⭐</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.82rem' }}>
+                  <span style={{ fontWeight: 700, color: '#DC2626' }}>Avoid (-pts)</span>
+                  <span style={{ fontSize: '1.15rem', letterSpacing: '4px' }}>💣 🥀 🐝 🪨</span>
+                </div>
+              </div>
+
+              {/* Reward */}
+              <div style={{ fontSize: '0.78rem', color: '#64748B', paddingTop: '8px', borderTop: '1px solid #E2E8F0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                Score <strong style={{ color: '#0F172A' }}>100+ pts</strong> to win discount vouchers.
+              </div>
+            </div>
+
+            {/* Start Button */}
             <button
               onClick={startRush}
               className="arcade-start-btn"
               style={{
-                marginTop: '4px',
-                background: 'linear-gradient(135deg, #FF6B00 0%, #EA580C 100%)',
-                color: '#FFF',
+                width: '100%',
+                background: '#EA580C',
+                color: '#FFFFFF',
                 border: 'none',
-                borderRadius: '999px',
-                padding: '11px 34px',
+                borderRadius: '12px',
+                padding: '12px',
                 fontSize: '0.92rem',
                 fontWeight: 800,
                 cursor: 'pointer',
-                boxShadow: '0 6px 16px rgba(234, 88, 12, 0.32)',
+                boxShadow: '0 4px 12px rgba(234, 88, 12, 0.25)',
+                textAlign: 'center',
               }}
             >
-              Play Now
+              Start Game
             </button>
           </div>
         )}
 
-        {gameState === 'playing' && (
-          <>
-            {itemsRef.current.map((item) => (
-              <div
-                key={item.id}
-                style={{
-                  position: 'absolute',
-                  left: `${item.x}%`,
-                  top: `${item.y}%`,
-                  transform: `translate3d(-50%, -50%, 0) rotate(${Math.sin(item.wobble) * 15}deg)`,
-                  fontSize: `${item.type.size}px`,
-                  lineHeight: 1,
-                  pointerEvents: 'none',
-                  willChange: 'transform',
-                  filter: item.type.isBomb ? 'drop-shadow(0 0 6px rgba(239, 68, 68, 0.6))' : item.type.isSpecial ? 'drop-shadow(0 0 8px rgba(251, 191, 36, 0.8))' : 'none',
-                }}
-              >
-                {item.type.emoji}
-              </div>
-            ))}
-            {floatingTexts.map((ft) => (
-              <div
-                key={ft.id}
-                style={{
-                  position: 'absolute',
-                  left: `${ft.x}%`,
-                  top: `${ft.y}%`,
-                  transform: 'translate3d(-50%, -50%, 0)',
-                  color: ft.color,
-                  fontWeight: 900,
-                  fontSize: '0.95rem',
-                  pointerEvents: 'none',
-                  animation: 'floatUp 0.65s ease-out forwards',
-                }}
-              >
-                {ft.text}
-              </div>
-            ))}
-            <div
-              style={{
-                position: 'absolute',
-                left: `${basketX}%`,
-                bottom: '14px',
-                transform: 'translate3d(-50%, 0, 0)',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                pointerEvents: 'none',
-                willChange: 'transform',
-              }}
-            >
-              <div style={{ fontSize: '2.5rem', lineHeight: 1 }}>🧺</div>
-              <div style={{ fontSize: '0.62rem', fontWeight: 800, color: '#9A3412', background: '#FED7AA', padding: '1px 8px', borderRadius: '6px', marginTop: '-2px' }}>M&M</div>
-            </div>
-          </>
-        )}
+        <canvas
+          ref={canvasRef}
+          width={360}
+          height={380}
+          onPointerDown={(e) => updateBasketPosition(e.clientX)}
+          onPointerMove={(e) => updateBasketPosition(e.clientX)}
+          onTouchStart={(e) => {
+            if (e.touches && e.touches[0]) updateBasketPosition(e.touches[0].clientX);
+          }}
+          onTouchMove={(e) => {
+            if (e.touches && e.touches[0]) updateBasketPosition(e.touches[0].clientX);
+          }}
+          style={{
+            width: '100%',
+            height: '100%',
+            display: gameState === 'playing' ? 'block' : 'none',
+            touchAction: 'none',
+          }}
+        />
 
         {gameState === 'result' && resultData && (
           <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px 20px', textAlign: 'center', gap: '14px', background: 'rgba(255,253,249,0.98)' }}>
@@ -542,6 +614,11 @@ function PetalRushGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
                       Best: {resultData.highScore} pts
                     </span>
                   ) : null}
+                  {resultData.score < 100 && (
+                    <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#DC2626', marginTop: '4px' }}>
+                      So close! Just {100 - resultData.score} more pts for a voucher!
+                    </span>
+                  )}
                 </div>
 
                 <div style={{ display: 'flex', gap: '10px', marginTop: '6px' }}>
@@ -566,13 +643,13 @@ function PetalRushGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
 // ─────────────────────────────────────────────────────────────
 const NINJA_TARGETS = [
   { id: 'ribbon', emoji: '🎀', points: 8, radius: 24, isHarmful: false },
-  { id: 'flower', emoji: '🌸', points: 12, radius: 26, isHarmful: false },
-  { id: 'bouquet', emoji: '💐', points: 20, radius: 28, isHarmful: false },
-  { id: 'crown', emoji: '👑', points: 35, radius: 30, isHarmful: false, isSpecial: true },
-  { id: 'thorn', emoji: '🥀', points: -15, radius: 24, isHarmful: true },
-  { id: 'bomb', emoji: '💣', points: -30, radius: 27, isHarmful: true, isBomb: true },
-  { id: 'wasp', emoji: '🐝', points: -20, radius: 24, isHarmful: true },
-  { id: 'spider', emoji: '🕷️', points: -15, radius: 24, isHarmful: true },
+  { id: 'flower', emoji: '🌸', points: 14, radius: 26, isHarmful: false },
+  { id: 'bouquet', emoji: '💐', points: 22, radius: 28, isHarmful: false },
+  { id: 'crown', emoji: '👑', points: 40, radius: 30, isHarmful: false, isSpecial: true },
+  { id: 'thorn', emoji: '🥀', points: -20, radius: 24, isHarmful: true },
+  { id: 'bomb', emoji: '💣', points: -45, radius: 27, isHarmful: true, isBomb: true },
+  { id: 'wasp', emoji: '🐝', points: -25, radius: 24, isHarmful: true },
+  { id: 'spider', emoji: '🕷️', points: -25, radius: 24, isHarmful: true },
 ];
 
 function RibbonNinjaGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
@@ -587,6 +664,9 @@ function RibbonNinjaGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
 
   const canvasRef = useRef(null);
   const animRef = useRef(null);
+  const timerIntervalRef = useRef(null);
+  const isPlayingRef = useRef(false);
+  const timeoutIdsRef = useRef([]);
   const targetsRef = useRef([]);
   const slashTrailRef = useRef([]);
   const particlesRef = useRef([]);
@@ -634,17 +714,20 @@ function RibbonNinjaGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
   };
 
   const spawnTarget = () => {
+    if (!isPlayingRef.current) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    // 35% chance of spawning hazards / bombs in the mix
-    const isHarmful = Math.random() < 0.35;
+    // 42% chance of spawning hazards / bombs in the mix
+    const isHarmful = Math.random() < 0.42;
     const pool = NINJA_TARGETS.filter((t) => t.isHarmful === isHarmful);
     const item = pool[Math.floor(Math.random() * pool.length)];
 
-    const x = 40 + Math.random() * (canvas.width - 80);
-    const vx = (Math.random() - 0.5) * 3.6;
-    const vy = -(9.2 + Math.random() * 3.4);
+    const x = 35 + Math.random() * (canvas.width - 70);
+    const vx = (Math.random() - 0.5) * 4.6;
+    // Faster dynamic toss speed (scales to 1.45x)
+    const timeFactor = 1.0 + ((20 - timeLeftRef.current) / 20) * 0.45;
+    const vy = -(9.6 + Math.random() * 3.4) * timeFactor;
 
     targetsRef.current.push({
       id: Math.random().toString(),
@@ -654,7 +737,7 @@ function RibbonNinjaGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
       vx,
       vy,
       rotation: Math.random() * Math.PI,
-      vRot: (Math.random() - 0.5) * 0.12,
+      vRot: (Math.random() - 0.5) * 0.18,
       sliced: false,
       sliceAlpha: 1,
     });
@@ -662,6 +745,13 @@ function RibbonNinjaGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
 
   const startNinja = () => {
     if (audio) audio.init();
+
+    // Cleanup previous runs
+    isPlayingRef.current = false;
+    if (animRef.current) cancelAnimationFrame(animRef.current);
+    if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+    timeoutIdsRef.current.forEach(clearTimeout);
+    timeoutIdsRef.current = [];
 
     const canWin = playsLeft > 0;
     hadVoucherChanceRef.current = canWin;
@@ -678,41 +768,53 @@ function RibbonNinjaGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
     slashTrailRef.current = [];
     particlesRef.current = [];
     setResultData(null);
+    isPlayingRef.current = true;
     setGameState('playing');
     lastSpawnRef.current = performance.now();
 
-    const timerInterval = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 1) {
-          clearInterval(timerInterval);
-          finishNinja();
-          return 0;
-        }
-        return prev - 1;
-      });
+    timerIntervalRef.current = setInterval(() => {
+      timeLeftRef.current -= 1;
+      setTimeLeft(timeLeftRef.current);
+      if (timeLeftRef.current <= 0) {
+        clearInterval(timerIntervalRef.current);
+        finishNinja();
+      }
     }, 1000);
 
     let lastTime = performance.now();
     const loop = (ts) => {
+      if (!isPlayingRef.current || timeLeftRef.current <= 0) return;
+
       const dt = Math.min((ts - lastTime) / 16.66, 1.8);
       lastTime = ts;
 
       const canvas = canvasRef.current;
-      if (!canvas) return;
+      if (!canvas) {
+        if (isPlayingRef.current && timeLeftRef.current > 0) {
+          animRef.current = requestAnimationFrame(loop);
+        }
+        return;
+      }
       const ctx = canvas.getContext('2d');
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // Dynamic multi-item volley spawn
-      const spawnDelay = Math.max(380, 560 - (20 - timeLeftRef.current) * 10);
+      // Dynamic multi-item volley spawn (starts at 460ms down to 240ms)
+      const spawnDelay = Math.max(240, 460 - (20 - timeLeftRef.current) * 13);
       if (ts - lastSpawnRef.current > spawnDelay) {
         spawnTarget();
-        // 45% chance of rapid second throw (cluster throw)
-        if (Math.random() < 0.45) {
-          setTimeout(spawnTarget, 160);
+        // 55% chance of rapid second throw
+        if (Math.random() < 0.55) {
+          const tId = setTimeout(() => {
+            if (isPlayingRef.current) spawnTarget();
+          }, 130);
+          timeoutIdsRef.current.push(tId);
         }
-        // 25% chance of third volley in late game
-        if (timeLeftRef.current <= 10 && Math.random() < 0.35) {
-          setTimeout(spawnTarget, 280);
+        // 35% chance of third volley in late game
+        if (timeLeftRef.current <= 12 && Math.random() < 0.40) {
+          const tId = setTimeout(() => {
+            if (isPlayingRef.current) spawnTarget();
+          }, 220);
+          timeoutIdsRef.current.push(tId);
         }
         lastSpawnRef.current = ts;
       }
@@ -722,7 +824,7 @@ function RibbonNinjaGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
       for (const t of targetsRef.current) {
         t.x += t.vx * dt;
         t.y += t.vy * dt;
-        t.vy += 0.28 * dt; // gravity
+        t.vy += 0.35 * dt; // slightly stronger gravity for crisper arc
         t.rotation += t.vRot * dt;
 
         ctx.save();
@@ -801,7 +903,7 @@ function RibbonNinjaGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
         .map((p) => ({ ...p, age: p.age + 1 }))
         .filter((p) => p.age < 7);
 
-      if (timeLeftRef.current > 0) {
+      if (isPlayingRef.current && timeLeftRef.current > 0) {
         animRef.current = requestAnimationFrame(loop);
       }
     };
@@ -810,7 +912,7 @@ function RibbonNinjaGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
   };
 
   const handlePointerSlash = (x, y) => {
-    if (gameState !== 'playing') return;
+    if (!isPlayingRef.current) return;
     slashTrailRef.current.push({ x, y, age: 0 });
 
     for (const t of targetsRef.current) {
@@ -840,16 +942,20 @@ function RibbonNinjaGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
   };
 
   const finishNinja = () => {
-    cancelAnimationFrame(animRef.current);
+    isPlayingRef.current = false;
+    if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+    if (animRef.current) cancelAnimationFrame(animRef.current);
+    timeoutIdsRef.current.forEach(clearTimeout);
+    timeoutIdsRef.current = [];
+
     const finalScore = scoreRef.current;
     const hsResult = saveGameHighScore('ninja', finalScore);
     setHighScore(hsResult.highScore);
 
     let tierKey = null;
-    if (finalScore >= 220) tierKey = 'DIAMOND';
-    else if (finalScore >= 160) tierKey = 'GOLD';
-    else if (finalScore >= 100) tierKey = 'SILVER';
-    else if (finalScore >= 50) tierKey = 'BRONZE';
+    if (finalScore >= 300) tierKey = 'DIAMOND';     // ₱50 OFF (Min. spend ₱1200)
+    else if (finalScore >= 200) tierKey = 'GOLD';   // ₱20 OFF (Min. spend ₱600)
+    else if (finalScore >= 100) tierKey = 'SILVER'; // ₱10 OFF (Min. spend ₱350)
 
     if (hadVoucherChanceRef.current && tierKey) {
       const res = issueVoucherForTier(tierKey);
@@ -880,7 +986,12 @@ function RibbonNinjaGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
   };
 
   useEffect(() => {
-    return () => { if (animRef.current) cancelAnimationFrame(animRef.current); };
+    return () => {
+      isPlayingRef.current = false;
+      if (animRef.current) cancelAnimationFrame(animRef.current);
+      if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+      timeoutIdsRef.current.forEach(clearTimeout);
+    };
   }, []);
 
   return (
@@ -899,58 +1010,88 @@ function RibbonNinjaGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
 
       <div
         className={`${isShaking ? 'arcade-shake' : ''} ${isHitFlashing ? 'arcade-hit-flash' : ''}`}
-        style={{ position: 'relative', height: '380px', background: 'radial-gradient(circle at center, #FFFDFD 0%, #FFE4E6 100%)', overflow: 'hidden' }}
+        style={{ position: 'relative', height: '380px', background: '#FFFFFF', overflow: 'hidden' }}
       >
         {gameState === 'ready' && (
-          <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px 20px', textAlign: 'center', gap: '10px' }}>
-            <div
-              style={{
-                width: '52px',
-                height: '52px',
-                borderRadius: '16px',
-                background: 'linear-gradient(135deg, #FB7185 0%, #E11D48 100%)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '26px',
-                boxShadow: '0 6px 14px -2px rgba(225, 29, 72, 0.3)',
-              }}
-            >
-              ✂️
-            </div>
-
-            <div>
-              <h4 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 900, color: '#1E1E24' }}>
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center',
+              padding: '18px 20px',
+              gap: '14px',
+              background: '#FFFFFF',
+              boxSizing: 'border-box',
+            }}
+          >
+            {/* Top Header */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <h4 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 800, color: '#1E1E24' }}>
                 Ribbon Ninja
               </h4>
-              <p style={{ margin: '4px 0 0', fontSize: '0.82rem', color: '#64748B', fontWeight: 500 }}>
-                Slice ribbons and avoid the bombs!
-              </p>
+              {highScore > 0 && (
+                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#E11D48', background: '#FFF1F2', border: '1px solid #FECDD3', padding: '3px 10px', borderRadius: '999px' }}>
+                  Best: {highScore} pts
+                </span>
+              )}
             </div>
 
-            {highScore > 0 && (
-              <div style={{ background: '#FFF1F2', border: '1px solid #FECDD3', borderRadius: '999px', padding: '2px 10px', fontSize: '0.7rem', fontWeight: 800, color: '#BE123C', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                <span>🏆 Best: {highScore} pts</span>
+            {/* Rules Box */}
+            <div
+              style={{
+                background: '#F8FAFC',
+                border: '1px solid #E2E8F0',
+                borderRadius: '14px',
+                padding: '12px 14px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '10px',
+              }}
+            >
+              {/* Controls */}
+              <div style={{ fontSize: '0.82rem', color: '#334155', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                <span style={{ fontWeight: 700, color: '#0F172A' }}>Controls:</span> Swipe ribbons to slice
               </div>
-            )}
 
+              {/* Targets */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', paddingTop: '8px', borderTop: '1px solid #E2E8F0' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.82rem' }}>
+                  <span style={{ fontWeight: 700, color: '#16A34A' }}>Slice (+pts)</span>
+                  <span style={{ fontSize: '1.15rem', letterSpacing: '4px' }}>🎀 🌸 💐 👑</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.82rem' }}>
+                  <span style={{ fontWeight: 700, color: '#DC2626' }}>Avoid (-pts)</span>
+                  <span style={{ fontSize: '1.15rem', letterSpacing: '4px' }}>💣 🥀 🐝 🕷️</span>
+                </div>
+              </div>
+
+              {/* Reward */}
+              <div style={{ fontSize: '0.78rem', color: '#64748B', paddingTop: '8px', borderTop: '1px solid #E2E8F0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                Score <strong style={{ color: '#0F172A' }}>100+ pts</strong> to win discount vouchers.
+              </div>
+            </div>
+
+            {/* Start Button */}
             <button
               onClick={startNinja}
               className="arcade-start-btn"
               style={{
-                marginTop: '4px',
-                background: 'linear-gradient(135deg, #FB7185 0%, #E11D48 100%)',
-                color: '#FFF',
+                width: '100%',
+                background: '#E11D48',
+                color: '#FFFFFF',
                 border: 'none',
-                borderRadius: '999px',
-                padding: '11px 34px',
+                borderRadius: '12px',
+                padding: '12px',
                 fontSize: '0.92rem',
                 fontWeight: 800,
                 cursor: 'pointer',
-                boxShadow: '0 6px 16px rgba(225, 29, 72, 0.32)',
+                boxShadow: '0 4px 12px rgba(225, 29, 72, 0.25)',
+                textAlign: 'center',
               }}
             >
-              Play Now
+              Start Game
             </button>
           </div>
         )}
@@ -1014,6 +1155,11 @@ function RibbonNinjaGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
                       Best: {resultData.highScore} pts
                     </span>
                   ) : null}
+                  {resultData.score < 100 && (
+                    <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#DC2626', marginTop: '4px' }}>
+                      So close! Just {100 - resultData.score} more pts for a voucher!
+                    </span>
+                  )}
                 </div>
 
                 <div style={{ display: 'flex', gap: '10px', marginTop: '6px' }}>
@@ -1051,6 +1197,7 @@ function BloomStackerGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
   const movingBlockRef = useRef({ x: 95, width: 130, speed: 0.0032, color: '#C084FC' });
   const movingBlockDomRef = useRef(null);
   const animRef = useRef(null);
+  const isPlayingRef = useRef(false);
   const scoreRef = useRef(0);
   const comboRef = useRef(0);
   const hadVoucherChanceRef = useRef(true);
@@ -1063,6 +1210,10 @@ function BloomStackerGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
 
   const startStacker = () => {
     if (audio) audio.init();
+
+    // Clean previous run
+    isPlayingRef.current = false;
+    if (animRef.current) cancelAnimationFrame(animRef.current);
 
     const canWin = playsLeft > 0;
     hadVoucherChanceRef.current = canWin;
@@ -1078,17 +1229,22 @@ function BloomStackerGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
     setTowerHeight(1);
     setResultData(null);
 
-    const initialStack = [{ x: 95, width: 130, color: '#A855F7' }];
+    // Initial base block starts slightly narrower for more challenge (108px vs 130px)
+    const initialStack = [{ x: 106, width: 108, color: '#A855F7' }];
     stackRef.current = initialStack;
     setStack(initialStack);
 
-    const initialMoving = { x: 95, width: 130, speed: 0.0032, color: '#C084FC' };
+    // Faster initial moving block speed (0.0035)
+    const initialMoving = { x: 106, width: 108, speed: 0.0035, color: '#C084FC' };
     movingBlockRef.current = initialMoving;
     setMovingBlock({ width: initialMoving.width, color: initialMoving.color });
+    isPlayingRef.current = true;
     setGameState('playing');
 
     const startTime = performance.now();
     const loop = (now) => {
+      if (!isPlayingRef.current) return;
+
       const mb = movingBlockRef.current;
       const elapsed = now - startTime;
       const minX = 10;
@@ -1100,14 +1256,16 @@ function BloomStackerGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
         movingBlockDomRef.current.style.transform = `translate3d(${mb.x}px, 0, 0)`;
       }
 
-      animRef.current = requestAnimationFrame(loop);
+      if (isPlayingRef.current) {
+        animRef.current = requestAnimationFrame(loop);
+      }
     };
 
     animRef.current = requestAnimationFrame(loop);
   };
 
   const handleDrop = () => {
-    if (gameState !== 'playing') return;
+    if (!isPlayingRef.current || gameState !== 'playing') return;
     const mb = movingBlockRef.current;
     const topBlock = stackRef.current[stackRef.current.length - 1];
 
@@ -1117,12 +1275,13 @@ function BloomStackerGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
     let newWidth = mb.width;
     let newX = mb.x;
 
-    if (Math.abs(overhangLeft) <= 5 && Math.abs(overhangRight) <= 5) {
+    // Tighter perfect drop tolerance (3.5px instead of 5px)
+    if (Math.abs(overhangLeft) <= 3.5 && Math.abs(overhangRight) <= 3.5) {
       newX = topBlock.x;
       newWidth = topBlock.width;
       comboRef.current += 1;
       setCombo(comboRef.current);
-      const perfectBonus = 15 + Math.min(20, comboRef.current * 5);
+      const perfectBonus = 15 + Math.min(25, comboRef.current * 6);
       scoreRef.current += perfectBonus;
       if (audio) audio.playPerfect();
     } else if (mb.x + mb.width > topBlock.x && mb.x < topBlock.x + topBlock.width) {
@@ -1151,13 +1310,13 @@ function BloomStackerGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
     setStack([...stackRef.current]);
     setTowerHeight(stackRef.current.length);
 
-    if (stackRef.current.length >= 15 || newWidth < 16) {
+    if (stackRef.current.length >= 15 || newWidth < 18) {
       finishStacker();
       return;
     }
 
-    // Faster speed acceleration per floor
-    const nextSpeed = Math.min(0.0068, 0.0032 + stackRef.current.length * 0.00028);
+    // Faster speed acceleration per floor (ramps to 0.0076)
+    const nextSpeed = Math.min(0.0076, 0.0035 + stackRef.current.length * 0.00038);
     movingBlockRef.current = {
       x: newX,
       width: newWidth,
@@ -1168,16 +1327,16 @@ function BloomStackerGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
   };
 
   const finishStacker = () => {
-    cancelAnimationFrame(animRef.current);
+    isPlayingRef.current = false;
+    if (animRef.current) cancelAnimationFrame(animRef.current);
     const finalScore = scoreRef.current;
     const hsResult = saveGameHighScore('stacker', finalScore);
     setHighScore(hsResult.highScore);
 
     let tierKey = null;
-    if (finalScore >= 180) tierKey = 'DIAMOND';
-    else if (finalScore >= 140) tierKey = 'GOLD';
-    else if (finalScore >= 100) tierKey = 'SILVER';
-    else if (finalScore >= 60) tierKey = 'BRONZE';
+    if (finalScore >= 300) tierKey = 'DIAMOND';     // ₱50 OFF (Min. spend ₱1200)
+    else if (finalScore >= 200) tierKey = 'GOLD';   // ₱20 OFF (Min. spend ₱600)
+    else if (finalScore >= 100) tierKey = 'SILVER'; // ₱10 OFF (Min. spend ₱350)
 
     if (hadVoucherChanceRef.current && tierKey) {
       const res = issueVoucherForTier(tierKey);
@@ -1210,7 +1369,10 @@ function BloomStackerGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
   };
 
   useEffect(() => {
-    return () => { if (animRef.current) cancelAnimationFrame(animRef.current); };
+    return () => {
+      isPlayingRef.current = false;
+      if (animRef.current) cancelAnimationFrame(animRef.current);
+    };
   }, []);
 
   return (
@@ -1237,62 +1399,92 @@ function BloomStackerGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
         style={{
           position: 'relative',
           height: '380px',
-          background: 'radial-gradient(circle at center, #FAF5FF 0%, #F3E8FF 100%)',
+          background: '#FFFFFF',
           overflow: 'hidden',
           userSelect: 'none',
           cursor: gameState === 'playing' ? 'pointer' : 'default',
         }}
       >
         {gameState === 'ready' && (
-          <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px 20px', textAlign: 'center', gap: '10px' }}>
-            <div
-              style={{
-                width: '52px',
-                height: '52px',
-                borderRadius: '16px',
-                background: 'linear-gradient(135deg, #C084FC 0%, #9333EA 100%)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '26px',
-                boxShadow: '0 6px 14px -2px rgba(147, 51, 234, 0.3)',
-              }}
-            >
-              🏗️
-            </div>
-
-            <div>
-              <h4 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 900, color: '#1E1E24' }}>
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center',
+              padding: '18px 20px',
+              gap: '14px',
+              background: '#FFFFFF',
+              boxSizing: 'border-box',
+            }}
+          >
+            {/* Top Header */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <h4 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 800, color: '#1E1E24' }}>
                 Bloom Stacker
               </h4>
-              <p style={{ margin: '4px 0 0', fontSize: '0.82rem', color: '#64748B', fontWeight: 500 }}>
-                Tap to stack and time perfect drops!
-              </p>
+              {highScore > 0 && (
+                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#9333EA', background: '#FAF5FF', border: '1px solid #DDD6FE', padding: '3px 10px', borderRadius: '999px' }}>
+                  Best: {highScore} pts
+                </span>
+              )}
             </div>
 
-            {highScore > 0 && (
-              <div style={{ background: '#FAF5FF', border: '1px solid #DDD6FE', borderRadius: '999px', padding: '2px 10px', fontSize: '0.7rem', fontWeight: 800, color: '#7E22CE' }}>
-                Best: {highScore} pts
+            {/* Rules Box */}
+            <div
+              style={{
+                background: '#F8FAFC',
+                border: '1px solid #E2E8F0',
+                borderRadius: '14px',
+                padding: '12px 14px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '10px',
+              }}
+            >
+              {/* Controls */}
+              <div style={{ fontSize: '0.82rem', color: '#334155', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                <span style={{ fontWeight: 700, color: '#0F172A' }}>Controls:</span> Tap screen to drop block
               </div>
-            )}
 
+              {/* Targets */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', paddingTop: '8px', borderTop: '1px solid #E2E8F0' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.82rem' }}>
+                  <span style={{ fontWeight: 700, color: '#16A34A' }}>Perfect drop</span>
+                  <span style={{ fontWeight: 700, color: '#16A34A', fontSize: '0.8rem' }}>Combo bonus (+pts)</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.82rem' }}>
+                  <span style={{ fontWeight: 700, color: '#DC2626' }}>Miss tower</span>
+                  <span style={{ fontWeight: 700, color: '#DC2626', fontSize: '0.8rem' }}>Game over</span>
+                </div>
+              </div>
+
+              {/* Reward */}
+              <div style={{ fontSize: '0.78rem', color: '#64748B', paddingTop: '8px', borderTop: '1px solid #E2E8F0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                Score <strong style={{ color: '#0F172A' }}>100+ pts</strong> to win discount vouchers.
+              </div>
+            </div>
+
+            {/* Start Button */}
             <button
               onClick={startStacker}
               className="arcade-start-btn"
               style={{
-                marginTop: '4px',
-                background: 'linear-gradient(135deg, #A855F7 0%, #7E22CE 100%)',
-                color: '#FFF',
+                width: '100%',
+                background: '#9333EA',
+                color: '#FFFFFF',
                 border: 'none',
-                borderRadius: '999px',
-                padding: '11px 34px',
+                borderRadius: '12px',
+                padding: '12px',
                 fontSize: '0.92rem',
                 fontWeight: 800,
                 cursor: 'pointer',
-                boxShadow: '0 6px 16px rgba(126, 34, 206, 0.32)',
+                boxShadow: '0 4px 12px rgba(147, 51, 234, 0.25)',
+                textAlign: 'center',
               }}
             >
-              Play Now
+              Start Game
             </button>
           </div>
         )}
@@ -1386,6 +1578,11 @@ function BloomStackerGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
                       Best: {resultData.highScore} pts
                     </span>
                   ) : null}
+                  {resultData.score < 100 && (
+                    <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#DC2626', marginTop: '4px' }}>
+                      So close! Just {100 - resultData.score} more pts for a voucher!
+                    </span>
+                  )}
                 </div>
 
                 <div style={{ display: 'flex', gap: '10px', marginTop: '6px' }}>
@@ -1409,14 +1606,14 @@ function BloomStackerGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
 // GAME 4: PETAL POP (Bubble Reflex Action - Bomb Bubbles & Sparks)
 // ─────────────────────────────────────────────────────────────
 const POP_BUBBLES = [
-  { id: 'rose', emoji: '🌹', points: 5, radius: 25, speed: 2.5, isHarmful: false },
-  { id: 'cherry', emoji: '🌸', points: 10, radius: 27, speed: 2.9, isHarmful: false },
-  { id: 'sunflower', emoji: '🌻', points: 15, radius: 29, speed: 3.3, isHarmful: false },
-  { id: 'diamond', emoji: '💎', points: 30, radius: 25, speed: 3.9, isHarmful: false, isSpecial: true },
-  { id: 'thorn', emoji: '🥀', points: -15, radius: 25, speed: 2.7, isHarmful: true },
-  { id: 'bomb', emoji: '💣', points: -30, radius: 27, speed: 3.1, isHarmful: true, isBomb: true },
-  { id: 'bee', emoji: '🐝', points: -20, radius: 24, speed: 3.5, isHarmful: true, isZigzag: true },
-  { id: 'spark', emoji: '⚡', points: -20, radius: 25, speed: 3.3, isHarmful: true },
+  { id: 'rose', emoji: '🌹', points: 6, radius: 25, speed: 3.4, isHarmful: false },
+  { id: 'cherry', emoji: '🌸', points: 12, radius: 27, speed: 3.9, isHarmful: false },
+  { id: 'sunflower', emoji: '🌻', points: 18, radius: 29, speed: 4.4, isHarmful: false },
+  { id: 'diamond', emoji: '💎', points: 35, radius: 25, speed: 5.2, isHarmful: false, isSpecial: true },
+  { id: 'thorn', emoji: '🥀', points: -20, radius: 25, speed: 3.6, isHarmful: true },
+  { id: 'bomb', emoji: '💣', points: -45, radius: 27, speed: 4.2, isHarmful: true, isBomb: true },
+  { id: 'bee', emoji: '🐝', points: -25, radius: 24, speed: 4.8, isHarmful: true, isZigzag: true },
+  { id: 'spark', emoji: '⚡', points: -25, radius: 25, speed: 4.4, isHarmful: true },
 ];
 
 function PetalPopGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
@@ -1435,6 +1632,8 @@ function PetalPopGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
   const particlesRef = useRef([]);
   const floatersRef = useRef([]);
   const timerIntervalRef = useRef(null);
+  const isPlayingRef = useRef(false);
+  const timeoutIdsRef = useRef([]);
   const scoreRef = useRef(0);
   const timeLeftRef = useRef(15);
   const lastSpawnRef = useRef(0);
@@ -1454,18 +1653,19 @@ function PetalPopGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
   };
 
   const spawnBubble = (startY = null) => {
+    if (!isPlayingRef.current) return;
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    // 35% chance of spawning tricky hazard/bomb bubble
-    const isHarmful = Math.random() < 0.35;
+    // 42% chance of spawning tricky hazard/bomb bubble
+    const isHarmful = Math.random() < 0.42;
     const pool = POP_BUBBLES.filter((b) => b.isHarmful === isHarmful);
     const item = pool[Math.floor(Math.random() * pool.length)];
 
     const radius = item.radius;
     const x = radius + 15 + Math.random() * (canvas.width - radius * 2 - 30);
     const y = startY !== null ? startY : canvas.height + radius + 10;
-    const speed = item.speed * (0.92 + Math.random() * 0.25);
+    const speed = item.speed * (0.95 + Math.random() * 0.3);
 
     bubblesRef.current.push({
       id: Math.random().toString(),
@@ -1476,8 +1676,8 @@ function PetalPopGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
       radius,
       speed,
       wobble: Math.random() * Math.PI * 2,
-      wobbleSpeed: item.isZigzag ? 0.08 : 0.035 + Math.random() * 0.02,
-      wobbleAmp: item.isZigzag ? 24 : 12 + Math.random() * 8,
+      wobbleSpeed: item.isZigzag ? 0.12 : 0.05 + Math.random() * 0.03,
+      wobbleAmp: item.isZigzag ? 30 : 16 + Math.random() * 10,
       popped: false,
     });
   };
@@ -1507,14 +1707,14 @@ function PetalPopGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
   };
 
   const popAt = (canvasX, canvasY) => {
-    if (gameState !== 'playing') return;
+    if (!isPlayingRef.current) return;
 
     for (let i = bubblesRef.current.length - 1; i >= 0; i--) {
       const b = bubblesRef.current[i];
       if (b.popped) continue;
 
       const dist = Math.hypot(canvasX - b.x, canvasY - b.y);
-      if (dist <= b.radius + 18) {
+      if (dist <= b.radius + 12) {
         b.popped = true;
 
         createBurst(b.x, b.y, b.type.isHarmful, b.type.isBomb);
@@ -1564,6 +1764,13 @@ function PetalPopGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
   const startPop = () => {
     if (audio) audio.init();
 
+    // Clean previous runs
+    isPlayingRef.current = false;
+    if (animRef.current) cancelAnimationFrame(animRef.current);
+    if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+    timeoutIdsRef.current.forEach(clearTimeout);
+    timeoutIdsRef.current = [];
+
     const canWin = playsLeft > 0;
     hadVoucherChanceRef.current = canWin;
     if (canWin) {
@@ -1579,17 +1786,20 @@ function PetalPopGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
     particlesRef.current = [];
     floatersRef.current = [];
     setResultData(null);
+    isPlayingRef.current = true;
     setGameState('playing');
     lastSpawnRef.current = performance.now();
 
     // Initial bubbles so screen is ready instantly
-    setTimeout(() => {
-      spawnBubble(80);
-      spawnBubble(160);
-      spawnBubble(240);
+    const t1 = setTimeout(() => {
+      if (isPlayingRef.current) {
+        spawnBubble(80);
+        spawnBubble(160);
+        spawnBubble(240);
+      }
     }, 30);
+    timeoutIdsRef.current.push(t1);
 
-    if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
     timerIntervalRef.current = setInterval(() => {
       timeLeftRef.current -= 1;
       setTimeLeft(timeLeftRef.current);
@@ -1601,25 +1811,34 @@ function PetalPopGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
 
     let lastTime = performance.now();
     const loop = (ts) => {
+      if (!isPlayingRef.current || timeLeftRef.current <= 0) return;
+
       const dt = Math.min((ts - lastTime) / 16.66, 1.8);
       lastTime = ts;
 
       const canvas = canvasRef.current;
-      if (!canvas) return;
+      if (!canvas) {
+        if (isPlayingRef.current && timeLeftRef.current > 0) {
+          animRef.current = requestAnimationFrame(loop);
+        }
+        return;
+      }
       const ctx = canvas.getContext('2d');
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // Fast periodic bubble flow
-      if (ts - lastSpawnRef.current > 260) {
+      // Accelerated bubble flow (starts at 360ms, ramps to 180ms)
+      const spawnDelay = Math.max(180, 360 - (15 - timeLeftRef.current) * 12);
+      if (ts - lastSpawnRef.current > spawnDelay) {
         spawnBubble();
         lastSpawnRef.current = ts;
       }
 
-      // Update and draw bubbles
+      // Fast upward velocity scaling (1.0x up to 1.65x)
+      const speedScale = 1.0 + ((15 - timeLeftRef.current) / 15) * 0.65;
       const nextBubbles = [];
       for (const b of bubblesRef.current) {
         if (!b.popped) {
-          b.y -= b.speed * dt;
+          b.y -= b.speed * speedScale * dt;
           b.wobble += b.wobbleSpeed * dt;
           b.x = b.baseX + Math.sin(b.wobble) * b.wobbleAmp;
 
@@ -1725,7 +1944,7 @@ function PetalPopGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
       }
       floatersRef.current = nextFloaters;
 
-      if (timeLeftRef.current > 0) {
+      if (isPlayingRef.current && timeLeftRef.current > 0) {
         animRef.current = requestAnimationFrame(loop);
       }
     };
@@ -1734,18 +1953,20 @@ function PetalPopGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
   };
 
   const finishPop = () => {
+    isPlayingRef.current = false;
     if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
     if (animRef.current) cancelAnimationFrame(animRef.current);
+    timeoutIdsRef.current.forEach(clearTimeout);
+    timeoutIdsRef.current = [];
 
     const finalScore = scoreRef.current;
     const hsResult = saveGameHighScore('pop', finalScore);
     setHighScore(hsResult.highScore);
 
     let tierKey = null;
-    if (finalScore >= 160) tierKey = 'DIAMOND';
-    else if (finalScore >= 110) tierKey = 'GOLD';
-    else if (finalScore >= 70) tierKey = 'SILVER';
-    else if (finalScore >= 40) tierKey = 'BRONZE';
+    if (finalScore >= 300) tierKey = 'DIAMOND';     // ₱50 OFF (Min. spend ₱1200)
+    else if (finalScore >= 200) tierKey = 'GOLD';   // ₱20 OFF (Min. spend ₱600)
+    else if (finalScore >= 100) tierKey = 'SILVER'; // ₱10 OFF (Min. spend ₱350)
 
     if (hadVoucherChanceRef.current && tierKey) {
       const res = issueVoucherForTier(tierKey);
@@ -1777,8 +1998,10 @@ function PetalPopGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
 
   useEffect(() => {
     return () => {
+      isPlayingRef.current = false;
       if (animRef.current) cancelAnimationFrame(animRef.current);
       if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+      timeoutIdsRef.current.forEach(clearTimeout);
     };
   }, []);
 
@@ -1798,58 +2021,88 @@ function PetalPopGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
 
       <div
         className={`${isShaking ? 'arcade-shake' : ''} ${isHitFlashing ? 'arcade-hit-flash' : ''}`}
-        style={{ position: 'relative', height: '380px', background: 'radial-gradient(circle at center, #F0FDF4 0%, #DCFCE7 100%)', overflow: 'hidden', userSelect: 'none' }}
+        style={{ position: 'relative', height: '380px', background: '#FFFFFF', overflow: 'hidden', userSelect: 'none' }}
       >
         {gameState === 'ready' && (
-          <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px 20px', textAlign: 'center', gap: '10px' }}>
-            <div
-              style={{
-                width: '52px',
-                height: '52px',
-                borderRadius: '16px',
-                background: 'linear-gradient(135deg, #34D399 0%, #059669 100%)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '26px',
-                boxShadow: '0 6px 14px -2px rgba(5, 150, 105, 0.3)',
-              }}
-            >
-              🎈
-            </div>
-
-            <div>
-              <h4 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 900, color: '#1E1E24' }}>
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center',
+              padding: '18px 20px',
+              gap: '14px',
+              background: '#FFFFFF',
+              boxSizing: 'border-box',
+            }}
+          >
+            {/* Top Header */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <h4 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 800, color: '#1E1E24' }}>
                 Petal Pop
               </h4>
-              <p style={{ margin: '4px 0 0', fontSize: '0.82rem', color: '#64748B', fontWeight: 500 }}>
-                Pop bubbles and dodge the bombs!
-              </p>
+              {highScore > 0 && (
+                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#059669', background: '#ECFDF5', border: '1px solid #A7F3D0', padding: '3px 10px', borderRadius: '999px' }}>
+                  Best: {highScore} pts
+                </span>
+              )}
             </div>
 
-            {highScore > 0 && (
-              <div style={{ background: '#ECFDF5', border: '1px solid #A7F3D0', borderRadius: '999px', padding: '2px 10px', fontSize: '0.7rem', fontWeight: 800, color: '#047857', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                <span>🏆 Best: {highScore} pts</span>
+            {/* Rules Box */}
+            <div
+              style={{
+                background: '#F8FAFC',
+                border: '1px solid #E2E8F0',
+                borderRadius: '14px',
+                padding: '12px 14px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '10px',
+              }}
+            >
+              {/* Controls */}
+              <div style={{ fontSize: '0.82rem', color: '#334155', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                <span style={{ fontWeight: 700, color: '#0F172A' }}>Controls:</span> Tap rising bubbles to pop
               </div>
-            )}
 
+              {/* Targets */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', paddingTop: '8px', borderTop: '1px solid #E2E8F0' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.82rem' }}>
+                  <span style={{ fontWeight: 700, color: '#16A34A' }}>Pop (+pts)</span>
+                  <span style={{ fontSize: '1.15rem', letterSpacing: '4px' }}>🌹 🌸 🌻 💎</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.82rem' }}>
+                  <span style={{ fontWeight: 700, color: '#DC2626' }}>Avoid (-pts)</span>
+                  <span style={{ fontSize: '1.15rem', letterSpacing: '4px' }}>💣 🥀 🐝 ⚡</span>
+                </div>
+              </div>
+
+              {/* Reward */}
+              <div style={{ fontSize: '0.78rem', color: '#64748B', paddingTop: '8px', borderTop: '1px solid #E2E8F0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                Score <strong style={{ color: '#0F172A' }}>100+ pts</strong> to win discount vouchers.
+              </div>
+            </div>
+
+            {/* Start Button */}
             <button
               onClick={startPop}
               className="arcade-start-btn"
               style={{
-                marginTop: '4px',
-                background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
-                color: '#FFF',
+                width: '100%',
+                background: '#059669',
+                color: '#FFFFFF',
                 border: 'none',
-                borderRadius: '999px',
-                padding: '11px 34px',
+                borderRadius: '12px',
+                padding: '12px',
                 fontSize: '0.92rem',
                 fontWeight: 800,
                 cursor: 'pointer',
-                boxShadow: '0 6px 16px rgba(5, 150, 105, 0.32)',
+                boxShadow: '0 4px 12px rgba(5, 150, 105, 0.25)',
+                textAlign: 'center',
               }}
             >
-              Play Now
+              Start Game
             </button>
           </div>
         )}
@@ -1906,6 +2159,11 @@ function PetalPopGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
                       Best: {resultData.highScore} pts
                     </span>
                   ) : null}
+                  {resultData.score < 100 && (
+                    <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#DC2626', marginTop: '4px' }}>
+                      So close! Just {100 - resultData.score} more pts for a voucher!
+                    </span>
+                  )}
                 </div>
 
                 <div style={{ display: 'flex', gap: '10px', marginTop: '6px' }}>

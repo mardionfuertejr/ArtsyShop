@@ -3,6 +3,11 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { formatCurrency } from '@/lib/utils/formatCurrency';
+import { formatDateShort, formatTime12Hour } from '@/lib/utils/formatDate';
+import { formatOrderSummary } from '@/lib/utils/formatOrderSummary';
+import { openMessengerDirect, getMessengerChatUrl } from '@/lib/utils/browserNav';
+import { isRushDate } from '@/components/common/PremiumDatePicker';
+import { createClient } from '@/lib/supabase/client';
 
 export default function ConfirmationClient({ order: serverOrder, referenceCode }) {
   const [localOrder, setLocalOrder] = useState(serverOrder || null);
@@ -30,13 +35,19 @@ export default function ConfirmationClient({ order: serverOrder, referenceCode }
             setLocalOrder({
               reference_code: parsedOrder.referenceCode || effectiveCode,
               customer_name: parsedOrder.customerName || 'Customer',
-              customer_phone: parsedOrder.customerPhone || '',
+              customer_phone: parsedOrder.customerPhone || parsedOrder.customer_phone || '',
               order_type: parsedOrder.orderType || 'delivery',
+              delivery_address: parsedOrder.deliveryAddress || parsedOrder.delivery_address || parsedOrder.address || '',
               subtotal: parsedOrder.subtotal || 0,
               delivery_fee: parsedOrder.deliveryFee || 0,
+              rush_fee: parsedOrder.rushFee || parsedOrder.rush_fee || 0,
+              is_rush: parsedOrder.isRush || parsedOrder.is_rush || false,
+              voucher_discount: parsedOrder.voucherDiscount || 0,
+              applied_voucher_code: parsedOrder.appliedVoucherCode || null,
               total_amount: parsedOrder.totalAmount || 0,
               notes: parsedOrder.notes || '',
               preferred_date: parsedOrder.preferredDate || null,
+              preferred_time: parsedOrder.preferredTime || null,
               order_items: (parsedOrder.items || []).map((i) => ({
                 product_name: i.productName,
                 quantity: i.quantity,
@@ -56,51 +67,26 @@ export default function ConfirmationClient({ order: serverOrder, referenceCode }
   const order = localOrder || serverOrder || {
     reference_code: effectiveCode || 'M&M-ORDER',
     customer_name: 'Customer',
+    customer_phone: '',
     order_type: 'delivery',
+    delivery_address: '',
     subtotal: 0,
     delivery_fee: 0,
+    rush_fee: 0,
+    is_rush: false,
+    voucher_discount: 0,
     total_amount: 0,
     order_items: [],
   };
 
-  // Construct itemized message for Messenger & Facebook Chat
-  const itemsListText = (order.order_items || [])
-    .map((item) => {
-      const opts = (item.order_item_options || []).map((o) => o.option_value).join(', ');
-      return `• ${item.quantity}x ${item.product_name}${opts ? ` (${opts})` : ''} — ${formatCurrency(item.total_price)}`;
-    })
-    .join('\n');
+  const isRush = Boolean(order.is_rush || order.isRush || isRushDate(order.preferred_date || order.preferredDate));
+  const rushFee = parseFloat(order.rush_fee || order.rushFee) || (isRush ? 50 : 0);
 
-  const fulfillmentType = order.order_type === 'pickup' ? 'Pickup' : 'Delivery';
-  const deliveryFee = order.order_type === 'pickup' ? 0 : (parseFloat(order.delivery_fee) || 0);
-  const itemsCount = (order.order_items || []).length;
+  // Standardized, accurate order summary for Messenger & Facebook Chat
+  const prefilledMessage = formatOrderSummary(order);
 
-  // Smart Price Formatting:
-  // If single item and free pickup -> Direct Total only (no redundant Subtotal)
-  // If delivery fee > 0 or multiple items -> Show Subtotal + Delivery Fee + Total
-  let priceBreakdown = '';
-  if (deliveryFee > 0) {
-    priceBreakdown = `Subtotal: ${formatCurrency(order.subtotal || (order.total_amount - deliveryFee))}\nDelivery Fee: ${formatCurrency(deliveryFee)}\nTotal: ${formatCurrency(order.total_amount)}`;
-  } else if (itemsCount > 1) {
-    priceBreakdown = `Subtotal: ${formatCurrency(order.subtotal || order.total_amount)}\nTotal: ${formatCurrency(order.total_amount)}`;
-  } else {
-    priceBreakdown = `Total: ${formatCurrency(order.total_amount)}`;
-  }
-
-  const prefilledMessage = `M&M's Artsy — Order Receipt
-───────────────────────────
-Reference: ${order.reference_code}
-Name: ${order.customer_name}
-Claim Method: ${fulfillmentType}
-
-Items:
-${itemsListText || '• Handcrafted Bouquet / Crafts'}
-
-${priceBreakdown}
-───────────────────────────
-Hi M&M's Artsy! I would like to confirm my order from the website. Thank you!`;
-  // Using facebook.com/messages/t/ instead of m.me (m.me gets blocked by browsers)
-  const messengerUrl = `https://www.facebook.com/messages/t/61587268312750?text=${encodeURIComponent(prefilledMessage)}`;
+  // Full clean receipt prefilled directly in Messenger chatbox (auto-typed so customer just presses Send)
+  const messengerUrl = getMessengerChatUrl(prefilledMessage);
 
   const copyToClipboard = (text) => {
     if (!text) return false;
@@ -159,11 +145,53 @@ Hi M&M's Artsy! I would like to confirm my order from the website. Thank you!`;
   };
 
   const handleOpenMessenger = () => {
-    // Copy full receipt before opening window so user can paste it
+    // Copy full clean receipt to clipboard so user can easily paste if desired
     copyToClipboard(prefilledMessage);
     setCopiedReceipt(true);
-    // Open Messenger with short greeting only (long URLs get blocked)
-    window.open(messengerUrl, '_blank', 'noopener,noreferrer');
+
+    const nowIso = new Date().toISOString();
+    const code = order.reference_code || effectiveCode;
+
+    // 1. Update localStorage mock orders for instant admin reflect
+    try {
+      if (code && typeof window !== 'undefined') {
+        const mockRaw = localStorage.getItem('likha_mock_orders');
+        if (mockRaw) {
+          const list = JSON.parse(mockRaw);
+          const idx = list.findIndex(o => o.reference_code === code || o.referenceCode === code);
+          if (idx !== -1) {
+            list[idx].messenger_opened_at = nowIso;
+            list[idx].sent_to_messenger = true;
+            localStorage.setItem('likha_mock_orders', JSON.stringify(list));
+          }
+        }
+        const singleRaw = localStorage.getItem(`likha_last_order_${code}`);
+        if (singleRaw) {
+          const s = JSON.parse(singleRaw);
+          s.messenger_opened_at = nowIso;
+          s.sent_to_messenger = true;
+          localStorage.setItem(`likha_last_order_${code}`, JSON.stringify(s));
+        }
+      }
+    } catch {}
+
+    // 2. Update Supabase if available
+    try {
+      const supabase = createClient();
+      if (supabase && code) {
+        supabase
+          .from('orders')
+          .update({
+            messenger_opened_at: nowIso,
+            sent_to_messenger: true,
+          })
+          .eq('reference_code', code)
+          .then(() => {})
+          .catch(() => {});
+      }
+    } catch {}
+
+    openMessengerDirect(prefilledMessage);
   };
 
   return (
@@ -179,7 +207,7 @@ Hi M&M's Artsy! I would like to confirm my order from the website. Thank you!`;
         <div style={{ width: 40 }} />
       </header>
 
-      <main className="page-content page-enter" style={{ maxWidth: '580px', margin: '0 auto', padding: 'var(--space-4) var(--page-padding) var(--space-16)' }}>
+      <main className="page-content page-enter" style={{ maxWidth: '580px', width: '100%', margin: '0 auto', padding: 'var(--space-4) var(--page-padding) var(--space-16)', boxSizing: 'border-box', overflowX: 'hidden' }}>
         {/* Top Hero Status */}
         <div style={{
           textAlign: 'center',
@@ -187,6 +215,8 @@ Hi M&M's Artsy! I would like to confirm my order from the website. Thank you!`;
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
+          width: '100%',
+          boxSizing: 'border-box',
         }}>
           <div style={{
             width: '54px',
@@ -225,9 +255,13 @@ Hi M&M's Artsy! I would like to confirm my order from the website. Thank you!`;
             padding: '6px 18px',
             display: 'inline-flex',
             alignItems: 'center',
+            justifyContent: 'center',
             gap: '8px',
             fontSize: '13px',
             color: 'var(--color-text)',
+            maxWidth: '100%',
+            boxSizing: 'border-box',
+            flexWrap: 'wrap',
           }}>
             <span style={{ color: 'var(--color-text-muted)', fontSize: '11px', fontWeight: '700', textTransform: 'uppercase' }}>
               Reference No:
@@ -236,6 +270,24 @@ Hi M&M's Artsy! I would like to confirm my order from the website. Thank you!`;
               {order.reference_code}
             </span>
           </div>
+
+          {formattedSchedule && (
+            <div style={{
+              marginTop: '8px',
+              fontSize: '12px',
+              color: 'var(--color-text-secondary)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px',
+              fontWeight: '500',
+              whiteSpace: 'nowrap',
+              flexWrap: 'nowrap',
+            }}>
+              <span>Target Schedule:</span>
+              <span style={{ color: 'var(--color-text)', fontWeight: '700' }}>{formattedSchedule}</span>
+            </div>
+          )}
         </div>
 
         {/* ── UNIFIED 1-TAP MESSENGER HANDOFF (Frictionless & User-Friendly) ── */}
@@ -246,8 +298,10 @@ Hi M&M's Artsy! I would like to confirm my order from the website. Thank you!`;
           padding: '18px 16px',
           boxShadow: '0 4px 18px rgba(0, 0, 0, 0.04)',
           marginBottom: 'var(--space-4)',
+          width: '100%',
+          boxSizing: 'border-box',
         }}>
-          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', marginBottom: '12px' }}>
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', marginBottom: '14px' }}>
             <div style={{
               width: '40px',
               height: '40px',
@@ -259,7 +313,7 @@ Hi M&M's Artsy! I would like to confirm my order from the website. Thank you!`;
               justifyContent: 'center',
               fontSize: '20px',
               flexShrink: 0,
-              marginTop: '2px',
+              marginTop: '1px',
             }}>
               <i className="fa-brands fa-facebook-messenger"></i>
             </div>
@@ -268,7 +322,7 @@ Hi M&M's Artsy! I would like to confirm my order from the website. Thank you!`;
                 I-send ang Order sa Messenger
               </h2>
               <p style={{ fontSize: '12px', color: 'var(--color-text-secondary)', margin: 0, lineHeight: 1.4 }}>
-                Isang pindot lang — <strong>automatic nang makokopya</strong> ang resibo at bubuksan ang aming Messenger para ma-confirm agad.
+                Automatic nang naka-type ang buong resibo — pindutin lang para i-send agad.
               </p>
             </div>
           </div>
@@ -286,26 +340,29 @@ Hi M&M's Artsy! I would like to confirm my order from the website. Thank you!`;
               justifyContent: 'center',
               gap: '8px',
               height: '46px',
-              fontSize: '14.5px',
+              padding: '0 16px',
+              fontSize: '14px',
               fontWeight: '700',
-              boxShadow: '0 4px 14px rgba(8, 102, 255, 0.3)',
+              boxShadow: '0 4px 14px rgba(8, 102, 255, 0.25)',
               borderRadius: 'var(--radius-lg)',
               border: 'none',
               cursor: 'pointer',
               width: '100%',
+              boxSizing: 'border-box',
+              textAlign: 'center',
             }}
           >
-            <i className="fa-brands fa-facebook-messenger" style={{ fontSize: '19px' }}></i>
-            <span>Copy Receipt & Open Messenger</span>
+            <i className="fa-brands fa-facebook-messenger" style={{ fontSize: '18px', flexShrink: 0 }}></i>
+            <span>Open Messenger</span>
           </button>
 
           {copiedReceipt && (
             <div style={{
               marginTop: '10px',
-              padding: '7px 12px',
+              padding: '8px 12px',
               background: 'rgba(16, 185, 129, 0.1)',
               border: '1px solid rgba(16, 185, 129, 0.3)',
-              borderRadius: 'var(--radius-full)',
+              borderRadius: 'var(--radius-lg)',
               color: '#065F46',
               fontSize: '12px',
               fontWeight: '600',
@@ -313,13 +370,31 @@ Hi M&M's Artsy! I would like to confirm my order from the website. Thank you!`;
               alignItems: 'center',
               justifyContent: 'center',
               gap: '6px',
-              whiteSpace: 'nowrap',
+              textAlign: 'center',
+              lineHeight: 1.3,
+              boxSizing: 'border-box',
+              width: '100%',
               animation: 'fadeIn 0.2s ease',
             }}>
-              <i className="fa-solid fa-circle-check" style={{ color: '#10B981', fontSize: '13px' }}></i>
-              <span>Kopyado na sa clipboard! I-paste lang sa chatbox.</span>
+              <i className="fa-solid fa-circle-check" style={{ color: '#10B981', fontSize: '13px', flexShrink: 0 }}></i>
+              <span>Naka-type na sa Messenger! Pindutin lang ang Send.</span>
             </div>
           )}
+
+          <p style={{
+            margin: '10px 0 0',
+            fontSize: '11.5px',
+            color: 'var(--color-text-muted, #64748B)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '5px',
+            textAlign: 'center',
+            lineHeight: 1.4,
+          }}>
+            <i className="fa-solid fa-circle-info" style={{ color: 'var(--color-primary, #EA580C)', fontSize: '11px', flexShrink: 0 }}></i>
+            <span>Magsisimula ang pag-craft kapag nai-send na ang resibo sa Messenger.</span>
+          </p>
         </div>
 
         {/* ── ORDER SUMMARY CARD ── */}
@@ -329,6 +404,8 @@ Hi M&M's Artsy! I would like to confirm my order from the website. Thank you!`;
           borderRadius: 'var(--radius-2xl)',
           padding: '16px',
           marginBottom: 'var(--space-4)',
+          width: '100%',
+          boxSizing: 'border-box',
         }}>
           <h2 style={{
             fontSize: '14px',
@@ -411,6 +488,12 @@ Hi M&M's Artsy! I would like to confirm my order from the website. Thank you!`;
               <span>Delivery Fee</span>
               <span>{order.order_type === 'pickup' ? 'Free (Pickup)' : formatCurrency(order.delivery_fee)}</span>
             </div>
+            {rushFee > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', color: '#EA580C', fontWeight: '600' }}>
+                <span>Rush Fee</span>
+                <span>+{formatCurrency(rushFee)}</span>
+              </div>
+            )}
             {Math.max(0, (parseFloat(order.subtotal || 0) + (order.order_type === 'pickup' ? 0 : parseFloat(order.delivery_fee || 0))) - parseFloat(order.total_amount || 0)) > 0 && (
               <div style={{ display: 'flex', justifyContent: 'space-between', color: '#16A34A', fontWeight: '600' }}>
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
@@ -438,9 +521,9 @@ Hi M&M's Artsy! I would like to confirm my order from the website. Thank you!`;
         </div>
 
         {/* ── ACTION BUTTONS ── */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', width: '100%', boxSizing: 'border-box' }}>
           <Link
-            href={`/track?ref=${order.reference_code}`}
+            href={`/track?ref=${encodeURIComponent(order.reference_code || effectiveCode)}`}
             className="btn btn-secondary"
             id="track-order-btn"
             style={{
@@ -453,6 +536,8 @@ Hi M&M's Artsy! I would like to confirm my order from the website. Thank you!`;
               gap: '6px',
               textDecoration: 'none',
               borderRadius: 'var(--radius-lg)',
+              boxSizing: 'border-box',
+              width: '100%',
             }}
           >
             <i className="fa-solid fa-truck-fast"></i>
@@ -473,6 +558,8 @@ Hi M&M's Artsy! I would like to confirm my order from the website. Thank you!`;
               gap: '6px',
               textDecoration: 'none',
               borderRadius: 'var(--radius-lg)',
+              boxSizing: 'border-box',
+              width: '100%',
             }}
           >
             <i className="fa-solid fa-bag-shopping"></i>

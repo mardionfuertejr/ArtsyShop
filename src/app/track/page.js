@@ -10,8 +10,9 @@ import HeaderSearchBar from '@/components/customer/HeaderSearchBar';
 import { useCart } from '@/lib/hooks/useCart';
 import { createClient } from '@/lib/supabase/client';
 import { formatCurrency } from '@/lib/utils/formatCurrency';
-import { formatDate, formatRelative } from '@/lib/utils/formatDate';
-import { MESSENGER_URL, CUSTOM_ORDER_MESSENGER_URL } from '@/lib/constants/customPrompts';
+import { formatDate, formatDateShort, formatRelative, formatTime12Hour } from '@/lib/utils/formatDate';
+import { MESSENGER_URL } from '@/lib/constants/customPrompts';
+import { openExternalSafe, openMessengerDirect } from '@/lib/utils/browserNav';
 
 function getProcessSteps(orderType = 'delivery') {
   const isDelivery = orderType === 'delivery';
@@ -284,6 +285,44 @@ function TrackContent() {
 
     if (!foundOrder) {
       try {
+        const mockOrders = JSON.parse(localStorage.getItem('likha_mock_orders') || '[]');
+        const match = mockOrders.find((o) => {
+          const oRef = (o.reference_code || o.referenceCode || '').toUpperCase();
+          return (
+            oRef === lookupRef ||
+            oRef.replace(/^LK-/, 'M&M-') === lookupRef ||
+            oRef.replace(/^M&M-/, 'LK-') === lookupRef
+          );
+        });
+        if (match) {
+          foundOrder = {
+            reference_code: match.reference_code || match.referenceCode,
+            customer_name: match.customer_name || match.customerName || 'Customer',
+            status: match.status || 'pending',
+            order_type: match.order_type || match.orderType || 'delivery',
+            total_amount: parseFloat(match.total_amount || match.totalAmount) || 0,
+            subtotal: parseFloat(match.subtotal) || 0,
+            delivery_fee: parseFloat(match.delivery_fee || match.deliveryFee) || 0,
+            preferred_date: match.preferred_date || match.preferredDate || null,
+            preferred_time: match.preferred_time || match.preferredTime || null,
+            created_at: match.created_at || match.createdAt || new Date().toISOString(),
+            delivery_address: match.delivery_address || match.deliveryAddress || null,
+            landmark: match.landmark || null,
+            order_items: (match.order_items || match.items || []).map((i) => ({
+              product_name: i.product_name || i.productName,
+              quantity: i.quantity || 1,
+              total_price: parseFloat(i.total_price || i.unitPrice || 0) * (i.quantity || 1),
+              order_item_options: (i.order_item_options || i.options || []).map((o) => ({
+                option_value: o.option_value || (o.optionName ? `${o.optionName}: ${o.optionValue}` : ''),
+              })),
+            })),
+          };
+        }
+      } catch {}
+    }
+
+    if (!foundOrder) {
+      try {
         const localAdminOrders = JSON.parse(localStorage.getItem('likha_admin_orders') || '[]');
         const match = localAdminOrders.find((o) => {
           const oRef = o.reference_code?.toUpperCase() || '';
@@ -301,29 +340,70 @@ function TrackContent() {
 
     if (!foundOrder) {
       try {
-        const localRaw = localStorage.getItem(`likha_last_order_${lookupRef}`);
+        let localRaw = localStorage.getItem(`likha_last_order_${lookupRef}`);
+        if (!localRaw) {
+          // Check all last orders in localStorage
+          for (let i = 0; i < localStorage.length; i++) {
+            const k = localStorage.key(i);
+            if (k && k.startsWith('likha_last_order_')) {
+              const val = localStorage.getItem(k);
+              if (val) {
+                const p = JSON.parse(val);
+                if ((p.referenceCode || '').toUpperCase() === lookupRef || (p.reference_code || '').toUpperCase() === lookupRef) {
+                  localRaw = val;
+                  break;
+                }
+              }
+            }
+          }
+        }
         if (localRaw) {
           const parsed = JSON.parse(localRaw);
           foundOrder = {
-            reference_code: parsed.referenceCode || lookupRef,
-            customer_name: parsed.customerName || 'Customer',
-            status: 'pending',
-            order_type: parsed.orderType || 'delivery',
-            total_amount: parsed.totalAmount || 0,
+            reference_code: parsed.referenceCode || parsed.reference_code || lookupRef,
+            customer_name: parsed.customerName || parsed.customer_name || 'Customer',
+            status: parsed.status || 'pending',
+            order_type: parsed.orderType || parsed.order_type || 'delivery',
+            total_amount: parsed.totalAmount || parsed.total_amount || 0,
             subtotal: parsed.subtotal || 0,
-            delivery_fee: parsed.deliveryFee || 0,
-            preferred_date: parsed.preferredDate || null,
-            created_at: new Date().toISOString(),
-            delivery_address: parsed.address || null,
+            delivery_fee: parsed.deliveryFee || parsed.delivery_fee || 0,
+            voucher_discount: parsed.voucherDiscount || parsed.voucher_discount || 0,
+            applied_voucher_code: parsed.appliedVoucherCode || null,
+            preferred_date: parsed.preferredDate || parsed.preferred_date || null,
+            preferred_time: parsed.preferredTime || parsed.preferred_time || null,
+            created_at: parsed.createdAt || parsed.created_at || new Date().toISOString(),
+            delivery_address: parsed.deliveryAddress || parsed.address || null,
             landmark: parsed.landmark || null,
-            order_items: (parsed.items || []).map((i) => ({
-              product_name: i.productName,
-              quantity: i.quantity,
-              total_price: (i.unitPrice + (i.options || []).reduce((s, o) => s + (parseFloat(o.additionalCost) || 0), 0)) * i.quantity,
-              order_item_options: (i.options || []).map((o) => ({
-                option_value: `${o.optionName}: ${o.optionValue}`,
+            order_items: (parsed.items || parsed.order_items || []).map((i) => ({
+              product_name: i.productName || i.product_name,
+              quantity: i.quantity || 1,
+              total_price: ((parseFloat(i.unitPrice || i.unit_price) || 0) + ((i.options || i.order_item_options || []).reduce((s, o) => s + (parseFloat(o.additionalCost || o.additional_cost) || 0), 0))) * (i.quantity || 1),
+              order_item_options: (i.options || i.order_item_options || []).map((o) => ({
+                option_value: o.option_value || (o.optionName ? `${o.optionName}: ${o.optionValue}` : ''),
               })),
             })),
+          };
+        }
+      } catch {}
+    }
+
+    if (!foundOrder) {
+      try {
+        const myOrders = JSON.parse(localStorage.getItem('likha_my_orders') || '[]');
+        const match = myOrders.find((o) => (o.referenceCode || o.reference_code)?.toUpperCase() === lookupRef);
+        if (match) {
+          foundOrder = {
+            reference_code: match.referenceCode || match.reference_code,
+            customer_name: match.customerName || match.customer_name || 'Customer',
+            status: match.status || 'pending',
+            order_type: match.orderType || match.order_type || 'delivery',
+            total_amount: match.totalAmount || match.total_amount || 0,
+            created_at: match.createdAt || match.created_at || new Date().toISOString(),
+            order_items: [{
+              product_name: match.itemsSummary || 'Handcrafted Item',
+              quantity: 1,
+              total_price: match.totalAmount || match.total_amount || 0,
+            }],
           };
         }
       } catch {}
@@ -370,10 +450,33 @@ function TrackContent() {
 
   // Auto-search if ref is in URL
   useEffect(() => {
-    const ref = searchParams?.get('ref');
-    if (ref) handleSearch(ref);
+    let ref = searchParams?.get('ref');
+    if (typeof window !== 'undefined') {
+      const fullSearch = window.location.search;
+      if (fullSearch) {
+        if (fullSearch.includes('ref=M&M-')) {
+          const mmMatch = fullSearch.match(/ref=(M&M-[^&#]+)/i);
+          if (mmMatch && mmMatch[1]) {
+            ref = mmMatch[1];
+          }
+        } else {
+          const match = fullSearch.match(/[?&]ref=([^&#]+)/i);
+          if (match && match[1]) {
+            try {
+              ref = decodeURIComponent(match[1]);
+            } catch {
+              ref = match[1];
+            }
+          }
+        }
+      }
+    }
+    if (ref) {
+      setRefInput(ref);
+      handleSearch(ref);
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [searchParams]);
 
   // Load saved reviews for active order to prevent repeated ratings
   useEffect(() => {
@@ -1123,7 +1226,7 @@ function TrackContent() {
                     </div>
                     <div style={{ minWidth: 0, overflow: 'hidden' }}>
                       <span style={{ color: 'var(--color-text-muted)', fontSize: '11px', display: 'block', marginBottom: '1px' }}>
-                        {order.target_date || order.preferred_date ? 'Target Date' : isDelivery ? 'Delivery Type' : 'Pickup Location'}
+                        {(order.target_date || order.preferred_date || order.preferredDate) ? 'Target Schedule' : isDelivery ? 'Delivery Type' : 'Pickup Location'}
                       </span>
                       <span
                         style={{
@@ -1135,15 +1238,15 @@ function TrackContent() {
                           textOverflow: 'ellipsis',
                         }}
                         title={
-                          order.target_date || order.preferred_date
-                            ? formatDate(order.target_date || order.preferred_date)
+                          (order.target_date || order.preferred_date || order.preferredDate)
+                            ? `${formatDateShort(order.target_date || order.preferred_date || order.preferredDate)}${order.preferred_time || order.preferredTime ? ` · ${formatTime12Hour(order.preferred_time || order.preferredTime)}` : ''}`
                             : isDelivery
                             ? 'Standard Delivery'
                             : 'Barugo Store'
                         }
                       >
-                        {order.target_date || order.preferred_date
-                          ? formatDate(order.target_date || order.preferred_date)
+                        {(order.target_date || order.preferred_date || order.preferredDate)
+                          ? `${formatDateShort(order.target_date || order.preferred_date || order.preferredDate)}${order.preferred_time || order.preferredTime ? ` · ${formatTime12Hour(order.preferred_time || order.preferredTime)}` : ''}`
                           : isDelivery
                           ? 'Standard Delivery'
                           : 'Barugo Store'}
@@ -1415,19 +1518,31 @@ function TrackContent() {
 
               {/* Pricing Breakdown */}
               <div style={{ marginTop: '10px', paddingTop: '6px', fontSize: '13px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--color-text-secondary)', marginBottom: '4px' }}>
+                  <span>Subtotal</span>
+                  <span>{formatCurrency(order.subtotal || (order.total_amount - (order.delivery_fee || 0)))}</span>
+                </div>
                 {parseFloat(order.delivery_fee) > 0 && (
-                  <>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--color-text-secondary)', marginBottom: '4px' }}>
-                      <span>Subtotal</span>
-                      <span>{formatCurrency(order.subtotal || (order.total_amount - (order.delivery_fee || 0)))}</span>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--color-text-secondary)', marginBottom: '8px' }}>
-                      <span>Delivery Fee</span>
-                      <span>{formatCurrency(order.delivery_fee)}</span>
-                    </div>
-                  </>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--color-text-secondary)', marginBottom: '4px' }}>
+                    <span>Delivery Fee</span>
+                    <span>{formatCurrency(order.delivery_fee)}</span>
+                  </div>
                 )}
-                <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '8px', borderTop: parseFloat(order.delivery_fee) > 0 ? '1px solid var(--color-border-light)' : 'none', fontWeight: '800', fontSize: '15px' }}>
+                {parseFloat(order.rush_fee || order.rushFee) > 0 && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', color: '#EA580C', fontWeight: '600', marginBottom: '4px' }}>
+                    <span>Rush Fee</span>
+                    <span>+{formatCurrency(order.rush_fee || order.rushFee)}</span>
+                  </div>
+                )}
+                {Math.max(0, (parseFloat(order.subtotal || 0) + (order.order_type === 'pickup' ? 0 : parseFloat(order.delivery_fee || 0))) - parseFloat(order.total_amount || 0)) > 0 && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', color: '#16A34A', fontWeight: '600', marginBottom: '4px' }}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                      <i className="fa-solid fa-tag" style={{ fontSize: '11px' }}></i> Voucher Discount
+                    </span>
+                    <span>-{formatCurrency(Math.max(0, (parseFloat(order.subtotal || 0) + (order.order_type === 'pickup' ? 0 : parseFloat(order.delivery_fee || 0))) - parseFloat(order.total_amount || 0)))}</span>
+                  </div>
+                )}
+                <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '8px', borderTop: '1px solid var(--color-border-light)', fontWeight: '800', fontSize: '15px' }}>
                   <span>Total</span>
                   <span style={{ color: 'var(--color-primary)' }}>{formatCurrency(order.total_amount)}</span>
                 </div>
@@ -1459,7 +1574,7 @@ function TrackContent() {
                       type="button"
                       onClick={() => {
                         handleCopyRef(item.text);
-                        window.open(`https://www.facebook.com/messages/t/61587268312750?text=${encodeURIComponent(item.text)}`, '_blank', 'noopener,noreferrer');
+                        openMessengerDirect(item.text);
                       }}
                       style={{
                         background: 'var(--color-surface-warm, #FAF8F5)',

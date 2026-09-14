@@ -6,11 +6,10 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { addMockFeedback } from '@/lib/mockData';
 import {
-  FUN_CUSTOM_PROMPTS,
-  getRandomCustomPrompt,
-  getPromptMessengerUrl,
   CUSTOM_ORDER_MESSENGER_URL,
+  CUSTOM_ORDER_TEMPLATE,
 } from '@/lib/constants/customPrompts';
+import { openExternalSafe, openMessengerDirect } from '@/lib/utils/browserNav';
 
 const PAKILIG_MESSAGES = [
   {
@@ -66,7 +65,6 @@ const PAKILIG_MESSAGES = [
 export default function SiteFooter({ className = '', style = {} }) {
   const [isOpen, setIsOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
-  const [prompt, setPrompt] = useState(FUN_CUSTOM_PROMPTS[0]);
 
   // Form State
   const [rating, setRating] = useState(5);
@@ -77,7 +75,6 @@ export default function SiteFooter({ className = '', style = {} }) {
 
   useEffect(() => {
     setMounted(true);
-    setPrompt(getRandomCustomPrompt());
   }, []);
 
   // Lock body scroll when modal is open
@@ -146,120 +143,131 @@ export default function SiteFooter({ className = '', style = {} }) {
       <footer
         className={`site-footer ${className}`}
         style={{
-          marginTop: '14px',
+          marginTop: '24px',
           width: '100%',
+          maxWidth: '720px',
+          marginLeft: 'auto',
+          marginRight: 'auto',
           paddingLeft: '16px',
           paddingRight: '16px',
-          paddingBottom: 'calc(var(--bottom-nav-height, 72px) + var(--safe-area-bottom, 0px) + 12px)',
+          paddingBottom: 'calc(var(--bottom-nav-height, 72px) + var(--safe-area-bottom, 0px) + 20px)',
           boxSizing: 'border-box',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
-          gap: '6px',
+          gap: '12px',
           textAlign: 'center',
           ...style,
         }}
       >
-        {/* ── SEAMLESS MINIMAL CUSTOM ORDER ROW (Zero Bulk, No Giant Box) ── */}
+
+
+        {/* ── FOOTER QUICK LINKS & METAS ── */}
         <div
           style={{
-            display: 'inline-flex',
+            display: 'flex',
+            flexDirection: 'column',
             alignItems: 'center',
-            justifyContent: 'center',
-            flexWrap: 'wrap',
-            gap: '6px',
-            fontSize: '11.5px',
-            color: 'var(--color-text-secondary, #64748B)',
-            lineHeight: '1.4',
+            gap: '8px',
+            width: '100%',
           }}
         >
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-            <i className="fa-solid fa-wand-magic-sparkles" style={{ color: 'var(--color-primary, #EA580C)', fontSize: '10px' }}></i>
-            <span>May sariling custom peg?</span>
-          </span>
-
-          <a
-            href={getPromptMessengerUrl(prompt)}
-            target="_blank"
-            rel="noopener noreferrer"
+          {/* Action Pills */}
+          <div
             style={{
-              color: 'var(--color-primary, #EA580C)',
-              fontWeight: '700',
-              textDecoration: 'none',
               display: 'inline-flex',
               alignItems: 'center',
-              gap: '3px',
-              transition: 'opacity 0.15s ease',
+              justifyContent: 'center',
+              flexWrap: 'wrap',
+              gap: '12px',
+              fontSize: '12px',
+              color: 'var(--color-text-secondary, #64748B)',
             }}
           >
-            <i className="fa-brands fa-facebook-messenger" style={{ fontSize: '11px' }}></i>
-            <span>Chat sa Messenger</span>
-            <i className="fa-solid fa-arrow-right" style={{ fontSize: '9px' }}></i>
-          </a>
-        </div>
+            <button
+              type="button"
+              onClick={() => setIsOpen(true)}
+              style={{
+                background: 'var(--color-surface, #FFFFFF)',
+                border: '1px solid var(--color-border-light, #E2E8F0)',
+                padding: '6px 12px',
+                borderRadius: '999px',
+                fontSize: '11.5px',
+                fontWeight: '600',
+                color: 'var(--color-text-secondary, #64748B)',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                transition: 'all 0.15s ease',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = 'var(--color-primary, #EA580C)';
+                e.currentTarget.style.color = 'var(--color-primary, #EA580C)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = 'var(--color-border-light, #E2E8F0)';
+                e.currentTarget.style.color = 'var(--color-text-secondary, #64748B)';
+              }}
+            >
+              <i className="fa-regular fa-comment-dots" style={{ color: 'var(--color-primary, #EA580C)' }}></i>
+              <span>Feedback & Ideas</span>
+            </button>
 
-        {/* ── MINIMAL INLINE FOOTNOTE: FEEDBACK & COPYRIGHT ── */}
-        <div
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '6px',
-            fontSize: '10.5px',
-            color: 'var(--color-text-muted, #94A3B8)',
-            letterSpacing: '0.01em',
-          }}
-        >
-          <button
-            type="button"
-            onClick={() => setIsOpen(true)}
+            <a
+              href={CUSTOM_ORDER_MESSENGER_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => {
+                e.preventDefault();
+                openMessengerDirect(CUSTOM_ORDER_TEMPLATE);
+              }}
+              style={{
+                background: 'var(--color-surface, #FFFFFF)',
+                border: '1px solid var(--color-border-light, #E2E8F0)',
+                padding: '6px 12px',
+                borderRadius: '999px',
+                fontSize: '11.5px',
+                fontWeight: '600',
+                color: 'var(--color-text-secondary, #64748B)',
+                textDecoration: 'none',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                transition: 'all 0.15s ease',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = 'var(--color-primary, #EA580C)';
+                e.currentTarget.style.color = 'var(--color-primary, #EA580C)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = 'var(--color-border-light, #E2E8F0)';
+                e.currentTarget.style.color = 'var(--color-text-secondary, #64748B)';
+              }}
+            >
+              <i className="fa-solid fa-paintbrush" style={{ color: '#F59E0B' }}></i>
+              <span>Custom Order Form</span>
+            </a>
+          </div>
+
+          {/* Copyright & Tagline */}
+          <div
             style={{
-              background: 'none',
-              border: 'none',
-              padding: 0,
-              fontSize: '10.5px',
-              fontWeight: '600',
+              fontSize: '11px',
               color: 'var(--color-text-muted, #94A3B8)',
-              cursor: 'pointer',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '3px',
-              outline: 'none',
-              textDecoration: 'underline',
-              textUnderlineOffset: '2px',
-              transition: 'color 0.15s ease',
-            }}
-            onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--color-primary, #EA580C)')}
-            onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--color-text-muted, #94A3B8)')}
-          >
-            <i className="fa-regular fa-comment-dots" style={{ fontSize: '10px' }}></i>
-            <span>Feedback</span>
-          </button>
-
-          <span>•</span>
-
-          <a
-            href={CUSTOM_ORDER_MESSENGER_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{
-              color: 'var(--color-text-muted, #94A3B8)',
-              textDecoration: 'underline',
-              textUnderlineOffset: '2px',
-              fontWeight: '500',
+              letterSpacing: '0.01em',
+              lineHeight: '1.5',
             }}
           >
-            Custom Order
-          </a>
-
-          <span>•</span>
-
-          <span>&copy; {new Date().getFullYear()} M&M Artsy</span>
+            &copy; {new Date().getFullYear()} M&M Artsy • Handcrafted with love in Barugo 🌸
+          </div>
         </div>
       </footer>
 
       {/* ── FEEDBACK MODAL (Teleported to document.body) ── */}
-      {isOpen && mounted && createPortal(
+      {isOpen && mounted && typeof document !== 'undefined' && document.body && createPortal(
         <div className="modal-overlay" onClick={() => !submitting && setIsOpen(false)} style={{ padding: '16px' }}>
           <div
             className="modal"

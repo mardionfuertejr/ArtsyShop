@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import { usePathname } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { addMockFeedback } from '@/lib/mockData';
+import { openMessengerDirect } from '@/lib/utils/browserNav';
 
 const PAKILIG_MESSAGES = [
   {
@@ -327,9 +328,13 @@ export default function FloatingFeedbackMenu() {
                     textAlign: 'center',
                   }}>
                     <a
-                      href={`https://www.facebook.com/messages/t/61587268312750?text=${encodeURIComponent("Hi M&M's Artsy! I'd like to ask a question / get help with my order.")}`}
+                      href={`https://m.me/61587268312750?text=${encodeURIComponent("Hi M&M's Artsy! I'd like to ask a question / get help with my order.")}`}
                       target="_blank"
                       rel="noopener noreferrer"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        openMessengerDirect("Hi M&M's Artsy! I'd like to ask a question / get help with my order.");
+                      }}
                       style={{
                         color: '#0866FF',
                         fontSize: '12px',

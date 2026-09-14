@@ -103,8 +103,8 @@ export default function AdminCustomRequestsClient() {
         setActiveMenuId(null);
       }
     }
-    document.addEventListener('click', handleClickOutside);
-    return () => document.removeEventListener('click', handleClickOutside);
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   const showToast = (msg) => {
@@ -128,11 +128,17 @@ export default function AdminCustomRequestsClient() {
     return matchesStatus && matchesSearch;
   });
 
-  const totalRequests = filteredRequests.length;
+  const sortedFilteredRequests = [...filteredRequests].sort((a, b) => {
+    if (a.status === 'pending' && b.status !== 'pending') return -1;
+    if (a.status !== 'pending' && b.status === 'pending') return 1;
+    return new Date(b.created_at || 0) - new Date(a.created_at || 0);
+  });
+
+  const totalRequests = sortedFilteredRequests.length;
   const totalPages = Math.max(1, Math.ceil(totalRequests / pageSize));
   const safeCurrentPage = Math.min(currentPage, totalPages);
   const startIndex = (safeCurrentPage - 1) * pageSize;
-  const paginatedRequests = filteredRequests.slice(startIndex, startIndex + pageSize);
+  const paginatedRequests = sortedFilteredRequests.slice(startIndex, startIndex + pageSize);
 
   const handleOpenQuote = (req) => {
     setQuotingRequest(req);
@@ -287,11 +293,12 @@ export default function AdminCustomRequestsClient() {
               </tr>
             ) : (
               paginatedRequests.map((req, idx) => {
+                const rowKey = `${req.id}-${idx}`;
                 const isNearBottom = paginatedRequests.length <= 3 ? idx >= 1 : idx >= paginatedRequests.length - 2;
                 const isQuoted = req.status === 'quoted';
 
                 return (
-                  <tr key={req.id} style={{ borderBottom: '1px solid #E2E8F0', transition: 'background 0.12s ease' }}>
+                  <tr key={rowKey} style={{ borderBottom: '1px solid #E2E8F0', transition: 'background 0.12s ease' }}>
                     <td style={{ padding: '13px 18px', verticalAlign: 'top', borderBottom: '1px solid #E2E8F0' }}>
                       <span style={{ fontWeight: '800', fontSize: '13px', color: '#0f172a', display: 'block', marginBottom: '2px' }}>
                         {req.reference_code}
@@ -359,20 +366,31 @@ export default function AdminCustomRequestsClient() {
                               gap: '4px',
                             }}
                           >
-                            <i className="fa-regular fa-image"></i>
+                            <i className="fa-solid fa-image" style={{ fontSize: '10px' }}></i>
                             <span>View Peg</span>
                           </button>
                         )}
                       </div>
                     </td>
                     <td style={{ padding: '13px 16px', verticalAlign: 'top' }}>
-                      <p style={{ fontWeight: '700', fontSize: '13px', color: '#0f172a', margin: 0 }}>
-                        {req.budget ? formatCurrency(req.budget) : 'Flexible'}
-                      </p>
-                      {req.quoted_price && (
-                        <span style={{ fontSize: '11px', color: 'var(--color-primary, #b45309)', fontWeight: '800', display: 'block', marginTop: '2px' }}>
-                          Quoted: {formatCurrency(req.quoted_price)}
-                        </span>
+                      {isQuoted ? (
+                        <div>
+                          <span style={{ fontWeight: '800', color: 'var(--color-primary, #b45309)', fontSize: '13.5px', display: 'block' }}>
+                            {formatCurrency(req.quoted_price)}
+                          </span>
+                          <span style={{ fontSize: '11px', color: '#64748b' }}>
+                            Budget: {formatCurrency(req.budget)}
+                          </span>
+                        </div>
+                      ) : (
+                        <div>
+                          <span style={{ fontWeight: '700', color: '#0f172a', fontSize: '13px', display: 'block' }}>
+                            {req.budget ? formatCurrency(req.budget) : 'Flexible'}
+                          </span>
+                          <span style={{ fontSize: '10.5px', color: '#64748b' }}>
+                            Customer budget
+                          </span>
+                        </div>
                       )}
                     </td>
                     <td style={{ padding: '13px 14px', textAlign: 'center', verticalAlign: 'top' }}>
@@ -392,15 +410,15 @@ export default function AdminCustomRequestsClient() {
                           type="button"
                           onClick={(e) => {
                             e.stopPropagation();
-                            setActiveMenuId(activeMenuId === req.id ? null : req.id);
+                            setActiveMenuId(activeMenuId === rowKey ? null : rowKey);
                           }}
                           style={{
                             width: '28px',
                             height: '28px',
                             borderRadius: '6px',
                             border: 'none',
-                            background: activeMenuId === req.id ? '#f1f5f9' : 'transparent',
-                            color: activeMenuId === req.id ? '#0f172a' : '#64748b',
+                            background: activeMenuId === rowKey ? '#f1f5f9' : 'transparent',
+                            color: activeMenuId === rowKey ? '#0f172a' : '#64748b',
                             display: 'inline-flex',
                             alignItems: 'center',
                             justifyContent: 'center',
@@ -409,13 +427,13 @@ export default function AdminCustomRequestsClient() {
                             transition: 'all 0.12s ease',
                           }}
                           onMouseEnter={(e) => {
-                            if (activeMenuId !== req.id) {
+                            if (activeMenuId !== rowKey) {
                               e.currentTarget.style.background = '#f1f5f9';
                               e.currentTarget.style.color = '#0f172a';
                             }
                           }}
                           onMouseLeave={(e) => {
-                            if (activeMenuId !== req.id) {
+                            if (activeMenuId !== rowKey) {
                               e.currentTarget.style.background = 'transparent';
                               e.currentTarget.style.color = '#64748b';
                             }
@@ -426,7 +444,7 @@ export default function AdminCustomRequestsClient() {
                         </button>
 
                         {/* Dropdown Menu with Icons and Divider */}
-                        {activeMenuId === req.id && (
+                        {activeMenuId === rowKey && (
                           <div
                             style={{
                               position: 'absolute',
@@ -711,27 +729,32 @@ export default function AdminCustomRequestsClient() {
       {/* Quote Submission Modal */}
       {quotingRequest && (
         <div
+          className="modal-backdrop-animate"
           style={{
             position: 'fixed',
             inset: 0,
             background: 'rgba(15, 23, 42, 0.65)',
             backdropFilter: 'blur(8px)',
+            WebkitBackdropFilter: 'blur(8px)',
             zIndex: 999999,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             padding: '20px',
+            animation: 'adminModalFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
           }}
           onClick={() => setQuotingRequest(null)}
         >
           <div
+            className="modal-dialog-animate"
             style={{
               background: '#ffffff',
-              borderRadius: '14px',
+              borderRadius: '16px',
               maxWidth: '440px',
               width: '100%',
               boxShadow: '0 20px 40px rgba(0,0,0,0.15)',
               overflow: 'hidden',
+              animation: 'adminModalScaleIn 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
             }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -852,6 +875,7 @@ export default function AdminCustomRequestsClient() {
       {/* Delete Confirmation Modal */}
       {requestToDelete && (
         <div
+          className="modal-backdrop-animate"
           style={{
             position: 'fixed',
             top: 0,
@@ -861,27 +885,30 @@ export default function AdminCustomRequestsClient() {
             width: '100vw',
             height: '100vh',
             background: 'rgba(15, 23, 42, 0.65)',
-            backdropFilter: 'blur(6px)',
-            WebkitBackdropFilter: 'blur(6px)',
+            backdropFilter: 'blur(8px)',
+            WebkitBackdropFilter: 'blur(8px)',
             zIndex: 999999,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             padding: '16px',
             boxSizing: 'border-box',
+            animation: 'adminModalFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
           }}
           onClick={() => setRequestToDelete(null)}
         >
           <div
+            className="modal-dialog-animate"
             style={{
               background: '#ffffff',
-              borderRadius: '16px',
+              borderRadius: '18px',
               padding: '24px',
               maxWidth: '380px',
               width: '100%',
               boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
               border: '1px solid #f1f5f9',
               textAlign: 'center',
+              animation: 'adminModalScaleIn 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
             }}
             onClick={(e) => e.stopPropagation()}
           >

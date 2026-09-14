@@ -56,9 +56,12 @@ export default async function AdminOrderDetailPage({ params }) {
           status: dbOrder.status,
           subtotal: parseFloat(dbOrder.subtotal) || 0,
           delivery_fee: parseFloat(dbOrder.delivery_fee) || 0,
+          rush_fee: parseFloat(dbOrder.rush_fee) || 0,
+          is_rush: Boolean(dbOrder.is_rush),
           total_amount: parseFloat(dbOrder.total_amount) || 0,
           total_cost: parseFloat(dbOrder.total_cost) || 0,
           preferred_date: dbOrder.preferred_date || null,
+          preferred_time: dbOrder.preferred_time || null,
           notes: dbOrder.notes || '',
           created_at: dbOrder.created_at,
           order_items: (dbOrder.order_items || []).map((it) => ({

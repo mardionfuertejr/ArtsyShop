@@ -143,7 +143,7 @@ export default function AdminReportsClient({ initialOrders = [], initialProducts
     return Array.from(years).sort((a, b) => b - a);
   }, [orders, currentYear]);
 
-  // Strictly completed orders
+  // Strictly completed orders for the selected period
   const completedOrders = useMemo(() => {
     return orders.filter(order => {
       if (order.status !== 'completed') return false;
@@ -168,47 +168,7 @@ export default function AdminReportsClient({ initialOrders = [], initialProducts
     });
   }, [orders, periodPreset, selectedMonth, selectedYear]);
 
-  // Core KPI Metrics
-  const metrics = useMemo(() => {
-    let totalRevenue = 0;
-    let totalCost = 0;
-    let totalUnitsSold = 0;
-
-    completedOrders.forEach(o => {
-      const rev = parseFloat(o.subtotal) || parseFloat(o.total_amount) || 0;
-      totalRevenue += rev;
-
-      let ordCost = parseFloat(o.total_cost) || 0;
-      if (o.order_items && Array.isArray(o.order_items) && o.order_items.length > 0) {
-        let itemsCostSum = 0;
-        o.order_items.forEach(it => {
-          const qty = it.quantity || 1;
-          totalUnitsSold += qty;
-          const uCost = parseFloat(it.unit_cost) || (parseFloat(it.unit_price || it.total_price) * 0.38);
-          itemsCostSum += (parseFloat(it.total_cost) || (uCost * qty));
-        });
-        if (ordCost === 0) ordCost = itemsCostSum;
-      } else {
-        totalUnitsSold += 1;
-        if (ordCost === 0) ordCost = rev * 0.38;
-      }
-      totalCost += ordCost;
-    });
-
-    const netProfit = totalRevenue - totalCost;
-    const profitMargin = totalRevenue > 0 ? Math.round((netProfit / totalRevenue) * 100) : 0;
-
-    return {
-      totalRevenue,
-      totalCost,
-      netProfit,
-      profitMargin,
-      orderCount: completedOrders.length,
-      totalUnitsSold,
-    };
-  }, [completedOrders]);
-
-  // Products actually sold in this period (Zero waste)
+  // Products sold in this period (Computed from order_items)
   const productReportData = useMemo(() => {
     const map = {};
 
@@ -222,7 +182,7 @@ export default function AdminReportsClient({ initialOrders = [], initialProducts
           const cost = parseFloat(item.total_cost) || (uCost * qty);
 
           if (!map[name]) {
-            const matchedProd = products.find(p => p.name.toLowerCase() === name.toLowerCase());
+            const matchedProd = products.find(p => p.name?.toLowerCase() === name.toLowerCase());
             map[name] = {
               name,
               category: matchedProd?.category?.name || 'Bouquets',
@@ -247,6 +207,23 @@ export default function AdminReportsClient({ initialOrders = [], initialProducts
     return list.sort((a, b) => b.qtySold - a.qtySold || b.totalRevenue - a.totalRevenue);
   }, [products, completedOrders]);
 
+  // Aggregated Totals (Exact and 100% synchronized across cards and tables)
+  const totalUnitsSold = useMemo(() => {
+    return productReportData.reduce((acc, p) => acc + p.qtySold, 0);
+  }, [productReportData]);
+
+  const totalRevenue = useMemo(() => {
+    return productReportData.reduce((acc, p) => acc + p.totalRevenue, 0);
+  }, [productReportData]);
+
+  const totalNetProfit = useMemo(() => {
+    return productReportData.reduce((acc, p) => acc + p.profit, 0);
+  }, [productReportData]);
+
+  const totalOrdersAmount = useMemo(() => {
+    return completedOrders.reduce((acc, o) => acc + (parseFloat(o.total_amount) || parseFloat(o.subtotal) || 0), 0);
+  }, [completedOrders]);
+
   const periodLabel = useMemo(() => {
     if (periodPreset === 'all_time' || (selectedMonth === 'all' && selectedYear === 'all')) return 'All Time';
     if (selectedMonth === 'all') return `${selectedYear}`;
@@ -254,130 +231,305 @@ export default function AdminReportsClient({ initialOrders = [], initialProducts
   }, [periodPreset, selectedMonth, selectedYear]);
 
   return (
-    <div style={{ width: '100%', boxSizing: 'border-box' }}>
+    <div style={{ width: '100%', maxWidth: '1180px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '16px' }}>
       {/* ── Header ── */}
-      <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        flexWrap: 'wrap',
-        gap: '12px',
-        marginBottom: '16px',
-        paddingBottom: '12px',
-        borderBottom: '1px solid var(--color-border-light)',
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <h1 style={{
-            fontSize: '22px',
-            fontWeight: '800',
-            color: 'var(--color-text)',
-            margin: 0,
-            letterSpacing: '-0.02em',
-            fontFamily: 'var(--font-heading)'
-          }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <h1 style={{ margin: 0, fontSize: '23px', fontWeight: '800', color: '#0F172A', letterSpacing: '-0.02em' }}>
             Sales & Reports
           </h1>
-          <span style={{
-            background: 'var(--color-primary-lighter)',
-            color: 'var(--color-primary)',
-            fontSize: '11.5px',
-            fontWeight: '700',
-            padding: '2px 8px',
-            borderRadius: 'var(--radius-sm, 6px)',
-            border: '1px solid var(--color-primary-light)',
-          }}>
+          <span
+            style={{
+              background: 'rgba(234, 88, 12, 0.1)',
+              color: 'var(--color-primary, #EA580C)',
+              fontSize: '12px',
+              fontWeight: '800',
+              padding: '2.5px 9px',
+              borderRadius: '9999px',
+            }}
+          >
             {periodLabel}
           </span>
         </div>
 
         <button
+          type="button"
           onClick={loadData}
           disabled={isLoading}
-          className="btn btn-secondary btn-sm"
-          style={{ height: '32px', padding: '0 12px', fontSize: '11.5px', fontWeight: '700', borderRadius: 'var(--radius-md, 8px)' }}
+          style={{
+            height: '36px',
+            padding: '0 14px',
+            borderRadius: '9px',
+            border: '1px solid #E2E8F0',
+            background: '#FFFFFF',
+            color: '#334155',
+            fontSize: '12px',
+            fontWeight: '700',
+            cursor: isLoading ? 'not-allowed' : 'pointer',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '6px',
+            boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
+            transition: 'all 0.15s ease',
+          }}
         >
-          <i className={`fa-solid fa-arrows-rotate ${isLoading ? 'fa-spin' : ''}`} style={{ fontSize: '10.5px' }}></i>
+          <i className={`fa-solid fa-arrows-rotate ${isLoading ? 'fa-spin' : ''}`} style={{ fontSize: '11px', color: 'var(--color-primary, #EA580C)' }}></i>
           <span>Refresh</span>
         </button>
       </div>
 
-      {/* ── Period Selector Bar ── */}
-      <div className="card" style={{
-        padding: '10px 14px',
-        marginBottom: '16px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        flexWrap: 'wrap',
-        gap: '10px',
-        background: 'var(--color-surface)',
-        border: '1px solid var(--color-border)',
-        borderRadius: 'var(--radius-lg, 12px)',
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-          <button
-            onClick={() => handlePresetChange('this_month')}
+      {/* ── Clean KPI Cards ── */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+          gap: '12px',
+        }}
+      >
+        {/* Total Revenue */}
+        <div
+          style={{
+            background: '#FFFFFF',
+            borderRadius: '14px',
+            padding: '16px 20px',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
+            border: '1px solid #F1F5F9',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          <div>
+            <p style={{ fontSize: '11px', fontWeight: '800', color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.04em', margin: '0 0 4px' }}>
+              Total Revenue
+            </p>
+            <span style={{ fontSize: '22px', fontWeight: '900', color: '#166534', lineHeight: 1 }}>
+              {formatCurrency(totalRevenue)}
+            </span>
+          </div>
+          <div
             style={{
-              border: periodPreset === 'this_month' ? '1.5px solid var(--color-primary)' : '1px solid var(--color-border)',
-              background: periodPreset === 'this_month' ? 'var(--color-primary-lighter)' : 'var(--color-surface)',
-              color: periodPreset === 'this_month' ? 'var(--color-primary)' : 'var(--color-text)',
-              fontWeight: '700',
-              fontSize: '12px',
-              padding: '5px 12px',
-              borderRadius: 'var(--radius-md, 8px)',
-              cursor: 'pointer',
-              transition: 'all var(--transition-fast)',
+              width: '40px',
+              height: '40px',
+              borderRadius: '10px',
+              background: '#DCFCE7',
+              color: '#166534',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '16px',
             }}
           >
-            This Month ({MONTHS[currentMonth]})
+            <i className="fa-solid fa-peso-sign"></i>
+          </div>
+        </div>
+
+        {/* Net Profit */}
+        <div
+          style={{
+            background: '#FFFFFF',
+            borderRadius: '14px',
+            padding: '16px 20px',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
+            border: '1px solid #F1F5F9',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          <div>
+            <p style={{ fontSize: '11px', fontWeight: '800', color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.04em', margin: '0 0 4px' }}>
+              Net Profit
+            </p>
+            <span style={{ fontSize: '22px', fontWeight: '900', color: 'var(--color-primary, #EA580C)', lineHeight: 1 }}>
+              {formatCurrency(totalNetProfit)}
+            </span>
+          </div>
+          <div
+            style={{
+              width: '40px',
+              height: '40px',
+              borderRadius: '10px',
+              background: '#FFF5F2',
+              color: 'var(--color-primary, #EA580C)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '16px',
+            }}
+          >
+            <i className="fa-solid fa-chart-line"></i>
+          </div>
+        </div>
+
+        {/* Units Sold */}
+        <div
+          style={{
+            background: '#FFFFFF',
+            borderRadius: '14px',
+            padding: '16px 20px',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
+            border: '1px solid #F1F5F9',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          <div>
+            <p style={{ fontSize: '11px', fontWeight: '800', color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.04em', margin: '0 0 4px' }}>
+              Units Sold
+            </p>
+            <span style={{ fontSize: '22px', fontWeight: '900', color: '#0EA5E9', lineHeight: 1 }}>
+              {totalUnitsSold}
+            </span>
+          </div>
+          <div
+            style={{
+              width: '40px',
+              height: '40px',
+              borderRadius: '10px',
+              background: '#EFF6FF',
+              color: '#0EA5E9',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '16px',
+            }}
+          >
+            <i className="fa-solid fa-box-open"></i>
+          </div>
+        </div>
+
+        {/* Completed Orders */}
+        <div
+          style={{
+            background: '#FFFFFF',
+            borderRadius: '14px',
+            padding: '16px 20px',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
+            border: '1px solid #F1F5F9',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          <div>
+            <p style={{ fontSize: '11px', fontWeight: '800', color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.04em', margin: '0 0 4px' }}>
+              Completed Orders
+            </p>
+            <span style={{ fontSize: '22px', fontWeight: '900', color: '#8B5CF6', lineHeight: 1 }}>
+              {completedOrders.length}
+            </span>
+          </div>
+          <div
+            style={{
+              width: '40px',
+              height: '40px',
+              borderRadius: '10px',
+              background: '#F5F3FF',
+              color: '#8B5CF6',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '16px',
+            }}
+          >
+            <i className="fa-solid fa-clipboard-check"></i>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Unified Period Selector Controls ── */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '12px',
+          flexWrap: 'wrap',
+        }}
+      >
+        {/* Preset Pills */}
+        <div
+          style={{
+            display: 'inline-flex',
+            background: '#F1F5F9',
+            padding: '3.5px',
+            borderRadius: '11px',
+            gap: '3px',
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => handlePresetChange('this_month')}
+            style={{
+              border: 'none',
+              padding: '7px 14px',
+              borderRadius: '8px',
+              fontSize: '12.5px',
+              fontWeight: periodPreset === 'this_month' ? '800' : '600',
+              background: periodPreset === 'this_month' ? '#FFFFFF' : 'transparent',
+              color: periodPreset === 'this_month' ? 'var(--color-primary, #EA580C)' : '#64748B',
+              boxShadow: periodPreset === 'this_month' ? '0 1px 3px rgba(0,0,0,0.06)' : 'none',
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+            }}
+          >
+            This Month
           </button>
 
           <button
+            type="button"
             onClick={() => handlePresetChange('last_month')}
             style={{
-              border: periodPreset === 'last_month' ? '1.5px solid var(--color-primary)' : '1px solid var(--color-border)',
-              background: periodPreset === 'last_month' ? 'var(--color-primary-lighter)' : 'var(--color-surface)',
-              color: periodPreset === 'last_month' ? 'var(--color-primary)' : 'var(--color-text)',
-              fontWeight: '700',
-              fontSize: '12px',
-              padding: '5px 12px',
-              borderRadius: 'var(--radius-md, 8px)',
+              border: 'none',
+              padding: '7px 14px',
+              borderRadius: '8px',
+              fontSize: '12.5px',
+              fontWeight: periodPreset === 'last_month' ? '800' : '600',
+              background: periodPreset === 'last_month' ? '#FFFFFF' : 'transparent',
+              color: periodPreset === 'last_month' ? 'var(--color-primary, #EA580C)' : '#64748B',
+              boxShadow: periodPreset === 'last_month' ? '0 1px 3px rgba(0,0,0,0.06)' : 'none',
               cursor: 'pointer',
-              transition: 'all var(--transition-fast)',
+              transition: 'all 0.15s ease',
             }}
           >
             Last Month
           </button>
 
           <button
+            type="button"
             onClick={() => handlePresetChange('this_year')}
             style={{
-              border: periodPreset === 'this_year' ? '1.5px solid var(--color-primary)' : '1px solid var(--color-border)',
-              background: periodPreset === 'this_year' ? 'var(--color-primary-lighter)' : 'var(--color-surface)',
-              color: periodPreset === 'this_year' ? 'var(--color-primary)' : 'var(--color-text)',
-              fontWeight: '700',
-              fontSize: '12px',
-              padding: '5px 12px',
-              borderRadius: 'var(--radius-md, 8px)',
+              border: 'none',
+              padding: '7px 14px',
+              borderRadius: '8px',
+              fontSize: '12.5px',
+              fontWeight: periodPreset === 'this_year' ? '800' : '600',
+              background: periodPreset === 'this_year' ? '#FFFFFF' : 'transparent',
+              color: periodPreset === 'this_year' ? 'var(--color-primary, #EA580C)' : '#64748B',
+              boxShadow: periodPreset === 'this_year' ? '0 1px 3px rgba(0,0,0,0.06)' : 'none',
               cursor: 'pointer',
-              transition: 'all var(--transition-fast)',
+              transition: 'all 0.15s ease',
             }}
           >
-            {currentYear}
+            This Year ({currentYear})
           </button>
 
           <button
+            type="button"
             onClick={() => handlePresetChange('all_time')}
             style={{
-              border: periodPreset === 'all_time' ? '1.5px solid var(--color-primary)' : '1px solid var(--color-border)',
-              background: periodPreset === 'all_time' ? 'var(--color-primary-lighter)' : 'var(--color-surface)',
-              color: periodPreset === 'all_time' ? 'var(--color-primary)' : 'var(--color-text)',
-              fontWeight: '700',
-              fontSize: '12px',
-              padding: '5px 12px',
-              borderRadius: 'var(--radius-md, 8px)',
+              border: 'none',
+              padding: '7px 14px',
+              borderRadius: '8px',
+              fontSize: '12.5px',
+              fontWeight: periodPreset === 'all_time' ? '800' : '600',
+              background: periodPreset === 'all_time' ? '#FFFFFF' : 'transparent',
+              color: periodPreset === 'all_time' ? 'var(--color-primary, #EA580C)' : '#64748B',
+              boxShadow: periodPreset === 'all_time' ? '0 1px 3px rgba(0,0,0,0.06)' : 'none',
               cursor: 'pointer',
-              transition: 'all var(--transition-fast)',
+              transition: 'all 0.15s ease',
             }}
           >
             All Time
@@ -385,7 +537,7 @@ export default function AdminReportsClient({ initialOrders = [], initialProducts
         </div>
 
         {/* Custom Month/Year Dropdowns */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <select
             value={selectedMonth}
             onChange={(e) => {
@@ -395,13 +547,14 @@ export default function AdminReportsClient({ initialOrders = [], initialProducts
             }}
             style={{
               fontSize: '12px',
-              fontWeight: '600',
-              padding: '5px 8px',
-              borderRadius: 'var(--radius-md, 8px)',
-              border: '1px solid var(--color-border)',
-              background: 'var(--color-surface)',
-              color: 'var(--color-text)',
+              fontWeight: '700',
+              padding: '7px 10px',
+              borderRadius: '9px',
+              border: '1.5px solid #E2E8F0',
+              background: '#FFFFFF',
+              color: '#334155',
               cursor: 'pointer',
+              outline: 'none',
             }}
           >
             <option value="all">All Months</option>
@@ -421,13 +574,14 @@ export default function AdminReportsClient({ initialOrders = [], initialProducts
             }}
             style={{
               fontSize: '12px',
-              fontWeight: '600',
-              padding: '5px 8px',
-              borderRadius: 'var(--radius-md, 8px)',
-              border: '1px solid var(--color-border)',
-              background: 'var(--color-surface)',
-              color: 'var(--color-text)',
+              fontWeight: '700',
+              padding: '7px 10px',
+              borderRadius: '9px',
+              border: '1.5px solid #E2E8F0',
+              background: '#FFFFFF',
+              color: '#334155',
               cursor: 'pointer',
+              outline: 'none',
             }}
           >
             <option value="all">All Years</option>
@@ -440,121 +594,67 @@ export default function AdminReportsClient({ initialOrders = [], initialProducts
         </div>
       </div>
 
-      {/* ── 3 Essential KPI Cards ── */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-        gap: '12px',
-        marginBottom: '16px',
-      }}>
-        {/* Total Revenue */}
-        <div className="card" style={{
-          background: 'var(--color-surface)',
-          borderRadius: 'var(--radius-lg, 12px)',
-          border: '1px solid var(--color-border)',
-          padding: '14px 16px',
-        }}>
-          <span style={{ fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--color-text-secondary)' }}>
-            Total Revenue
-          </span>
-          <div style={{ fontSize: '22px', fontWeight: '800', color: 'var(--color-success, #15803D)', marginTop: '3px' }}>
-            {formatCurrency(metrics.totalRevenue)}
-          </div>
-          <div style={{ fontSize: '11.5px', color: 'var(--color-text-muted)', marginTop: '2px' }}>
-            {metrics.orderCount} order(s) • {metrics.totalUnitsSold} item(s)
-          </div>
-        </div>
-
-        {/* Total Cost */}
-        <div className="card" style={{
-          background: 'var(--color-surface)',
-          borderRadius: 'var(--radius-lg, 12px)',
-          border: '1px solid var(--color-border)',
-          padding: '14px 16px',
-        }}>
-          <span style={{ fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--color-text-secondary)' }}>
-            Total Cost
-          </span>
-          <div style={{ fontSize: '22px', fontWeight: '800', color: 'var(--color-danger, #B91C1C)', marginTop: '3px' }}>
-            {formatCurrency(metrics.totalCost)}
-          </div>
-          <div style={{ fontSize: '11.5px', color: 'var(--color-text-muted)', marginTop: '2px' }}>
-            Material supplies & packaging
-          </div>
-        </div>
-
-        {/* Net Profit */}
-        <div className="card" style={{
-          background: 'var(--color-surface)',
-          borderRadius: 'var(--radius-lg, 12px)',
-          border: '1px solid var(--color-border)',
-          padding: '14px 16px',
-        }}>
-          <span style={{ fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--color-text-secondary)' }}>
-            Net Profit
-          </span>
-          <div style={{ fontSize: '22px', fontWeight: '800', color: 'var(--color-primary)', marginTop: '3px' }}>
-            {formatCurrency(metrics.netProfit)}
-          </div>
-          <div style={{ fontSize: '11.5px', color: 'var(--color-primary)', fontWeight: '700', marginTop: '2px' }}>
-            {metrics.profitMargin}% profit margin
-          </div>
-        </div>
-      </div>
-
       {/* ── Main Data Card ── */}
-      <div className="card" style={{
-        background: 'var(--color-surface)',
-        borderRadius: 'var(--radius-lg, 12px)',
-        border: '1px solid var(--color-border)',
-        boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
-        overflow: 'hidden',
-        padding: 0,
-      }}>
-        {/* Clean Theme-consistent Tabs */}
-        <div style={{
+      <div
+        style={{
+          background: '#FFFFFF',
+          borderRadius: '14px',
+          border: '1px solid #F1F5F9',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
+          overflow: 'hidden',
           display: 'flex',
-          alignItems: 'center',
-          borderBottom: '1px solid var(--color-border-light)',
-          background: 'var(--color-surface-warm, #FAF6F0)',
-          padding: '0 12px',
-        }}>
+          flexDirection: 'column',
+        }}
+      >
+        {/* Table Selection Tabs */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            borderBottom: '1.5px solid #E2E8F0',
+            background: '#F8FAFC',
+            padding: '0 16px',
+            gap: '6px',
+          }}
+        >
           <button
+            type="button"
             onClick={() => setActiveTab('products')}
             style={{
               padding: '12px 18px',
               border: 'none',
               background: 'transparent',
-              fontSize: '13px',
+              fontSize: '12.5px',
               fontWeight: activeTab === 'products' ? '800' : '600',
-              color: activeTab === 'products' ? 'var(--color-primary)' : 'var(--color-text-secondary)',
-              borderBottom: activeTab === 'products' ? '2.5px solid var(--color-primary)' : '2.5px solid transparent',
+              color: activeTab === 'products' ? 'var(--color-primary, #EA580C)' : '#64748B',
+              borderBottom: activeTab === 'products' ? '2.5px solid var(--color-primary, #EA580C)' : '2.5px solid transparent',
               cursor: 'pointer',
-              display: 'flex',
+              display: 'inline-flex',
               alignItems: 'center',
               gap: '6px',
-              transition: 'all var(--transition-fast)',
+              transition: 'all 0.15s ease',
             }}
           >
             <i className="fa-solid fa-gift" style={{ fontSize: '12px' }}></i>
-            <span>Top Selling Products</span>
+            <span>Top Selling Products ({productReportData.length})</span>
           </button>
 
           <button
+            type="button"
             onClick={() => setActiveTab('orders')}
             style={{
               padding: '12px 18px',
               border: 'none',
               background: 'transparent',
-              fontSize: '13px',
+              fontSize: '12.5px',
               fontWeight: activeTab === 'orders' ? '800' : '600',
-              color: activeTab === 'orders' ? 'var(--color-primary)' : 'var(--color-text-secondary)',
-              borderBottom: activeTab === 'orders' ? '2.5px solid var(--color-primary)' : '2.5px solid transparent',
+              color: activeTab === 'orders' ? 'var(--color-primary, #EA580C)' : '#64748B',
+              borderBottom: activeTab === 'orders' ? '2.5px solid var(--color-primary, #EA580C)' : '2.5px solid transparent',
               cursor: 'pointer',
-              display: 'flex',
+              display: 'inline-flex',
               alignItems: 'center',
               gap: '6px',
-              transition: 'all var(--transition-fast)',
+              transition: 'all 0.15s ease',
             }}
           >
             <i className="fa-solid fa-receipt" style={{ fontSize: '12px' }}></i>
@@ -565,72 +665,128 @@ export default function AdminReportsClient({ initialOrders = [], initialProducts
         {/* ── TAB 1: TOP SELLING PRODUCTS ── */}
         {activeTab === 'products' && (
           <div style={{ width: '100%', overflowX: 'auto' }}>
-            <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
               <thead>
-                <tr style={{ background: 'var(--color-surface-warm, #FAF6F0)', borderBottom: '1.5px solid var(--color-border)' }}>
-                  <th style={{ width: '48px', textAlign: 'center', padding: '11px 16px', fontSize: '11.5px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-text-secondary)' }}>#</th>
-                  <th style={{ textAlign: 'left', padding: '11px 16px', fontSize: '11.5px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-text-secondary)' }}>Product</th>
-                  <th style={{ textAlign: 'left', padding: '11px 16px', fontSize: '11.5px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-text-secondary)' }}>Category</th>
-                  <th style={{ textAlign: 'center', padding: '11px 16px', fontSize: '11.5px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-text-secondary)' }}>Qty Sold</th>
-                  <th style={{ textAlign: 'right', padding: '11px 16px', fontSize: '11.5px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-text-secondary)' }}>Total Sales</th>
-                  <th style={{ textAlign: 'right', padding: '11px 16px', fontSize: '11.5px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-text-secondary)' }}>Net Profit</th>
+                <tr style={{ background: '#F8FAFC', borderBottom: '1.5px solid #E2E8F0' }}>
+                  <th style={{ width: '6%', textAlign: 'center', padding: '12px 14px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#475569' }}>
+                    #
+                  </th>
+                  <th style={{ width: '42%', padding: '12px 16px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#475569' }}>
+                    Product
+                  </th>
+                  <th style={{ width: '16%', padding: '12px 16px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#475569' }}>
+                    Category
+                  </th>
+                  <th style={{ width: '12%', textAlign: 'center', padding: '12px 16px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#475569' }}>
+                    Qty Sold
+                  </th>
+                  <th style={{ width: '12%', textAlign: 'right', padding: '12px 16px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#475569' }}>
+                    Total Sales
+                  </th>
+                  <th style={{ width: '12%', textAlign: 'right', padding: '12px 18px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#475569' }}>
+                    Net Profit
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {productReportData.length === 0 ? (
                   <tr>
-                    <td colSpan={6} style={{ textAlign: 'center', padding: '40px 16px', color: 'var(--color-text-muted)' }}>
-                      No sales recorded for this period ({periodLabel}).
+                    <td colSpan={6} style={{ textAlign: 'center', padding: '80px 20px', color: '#64748B', verticalAlign: 'middle', height: '240px' }}>
+                      <div style={{ width: '44px', height: '44px', borderRadius: '50%', background: '#FFF5F2', color: 'var(--color-primary, #EA580C)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', marginBottom: '8px' }}>
+                        <i className="fa-solid fa-gift"></i>
+                      </div>
+                      <p style={{ margin: 0, fontWeight: '800', fontSize: '14px', color: '#0F172A' }}>No sales recorded</p>
+                      <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#64748B' }}>
+                        No product sales recorded for {periodLabel}.
+                      </p>
                     </td>
                   </tr>
                 ) : (
                   productReportData.map((prod, idx) => (
-                    <tr key={idx} style={{ borderBottom: '1px solid var(--color-border-light)' }}>
-                      <td style={{ textAlign: 'center', color: 'var(--color-text-secondary)', fontWeight: '700', padding: '11px 16px' }}>
+                    <tr
+                      key={idx}
+                      style={{
+                        borderBottom: '1px solid #F1F5F9',
+                        transition: 'background-color 0.12s ease',
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = '#FAFBFD')}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                    >
+                      <td style={{ textAlign: 'center', color: '#64748B', fontWeight: '700', fontSize: '12.5px', padding: '13px 14px' }}>
                         {idx + 1}
                       </td>
-                      <td style={{ textAlign: 'left', fontWeight: '700', color: 'var(--color-text)', padding: '11px 16px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <span>{prod.name}</span>
+                      <td style={{ padding: '13px 16px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                          <span style={{ fontWeight: '800', color: '#0F172A', fontSize: '13px' }}>{prod.name}</span>
                           {idx === 0 && (
-                            <span style={{
-                              fontSize: '9.5px',
-                              fontWeight: '800',
-                              background: 'var(--color-primary-lighter)',
-                              color: 'var(--color-primary)',
-                              padding: '1px 5px',
-                              borderRadius: 'var(--radius-sm, 4px)',
-                              border: '1px solid var(--color-primary-light)'
-                            }}>
+                            <span
+                              style={{
+                                fontSize: '9.5px',
+                                fontWeight: '800',
+                                background: 'rgba(234, 88, 12, 0.1)',
+                                color: 'var(--color-primary, #EA580C)',
+                                padding: '1.5px 6px',
+                                borderRadius: '4px',
+                                border: '1px solid rgba(234, 88, 12, 0.2)',
+                                whiteSpace: 'nowrap',
+                              }}
+                            >
                               ★ #1 BESTSELLER
                             </span>
                           )}
                         </div>
                       </td>
-                      <td style={{ textAlign: 'left', padding: '11px 16px' }}>
-                        <span style={{
-                          fontSize: '11.5px',
-                          color: 'var(--color-text-secondary)',
-                          background: 'var(--color-background)',
-                          padding: '2px 7px',
-                          borderRadius: 'var(--radius-sm, 4px)'
-                        }}>
-                          {prod.category}
-                        </span>
+                      <td style={{ padding: '13px 16px', fontSize: '12.5px', color: '#475569', fontWeight: '500' }}>
+                        {prod.category}
                       </td>
-                      <td style={{ textAlign: 'center', fontWeight: '800', fontFamily: 'monospace', fontSize: '14px', color: 'var(--color-text)', padding: '11px 16px' }}>
+                      <td style={{ textAlign: 'center', fontWeight: '800', fontSize: '13px', color: '#0F172A', padding: '13px 16px' }}>
                         {prod.qtySold}
                       </td>
-                      <td style={{ textAlign: 'right', fontWeight: '800', color: 'var(--color-success, #15803D)', padding: '11px 16px' }}>
+                      <td style={{ textAlign: 'right', fontWeight: '800', color: '#166534', fontSize: '13px', padding: '13px 16px' }}>
                         {formatCurrency(prod.totalRevenue)}
                       </td>
-                      <td style={{ textAlign: 'right', fontWeight: '800', color: 'var(--color-primary)', padding: '11px 16px' }}>
+                      <td style={{ textAlign: 'right', fontWeight: '800', color: 'var(--color-primary, #EA580C)', fontSize: '13px', padding: '13px 18px' }}>
                         {formatCurrency(prod.profit)}
                       </td>
                     </tr>
                   ))
                 )}
               </tbody>
+
+              {/* ── TOTAL ROW AT BOTTOM ── */}
+              {productReportData.length > 0 && (
+                <tfoot>
+                  <tr
+                    style={{
+                      background: '#F8FAFC',
+                      borderTop: '2px solid #CBD5E1',
+                    }}
+                  >
+                    <td
+                      colSpan={3}
+                      style={{
+                        padding: '14px 16px',
+                        textAlign: 'left',
+                        fontWeight: '900',
+                        color: '#0F172A',
+                        fontSize: '13px',
+                        letterSpacing: '0.02em',
+                      }}
+                    >
+                      TOTAL ({productReportData.length} {productReportData.length === 1 ? 'Product' : 'Products'})
+                    </td>
+                    <td style={{ textAlign: 'center', fontWeight: '900', color: '#0F172A', fontSize: '13.5px', padding: '14px 16px' }}>
+                      {totalUnitsSold}
+                    </td>
+                    <td style={{ textAlign: 'right', fontWeight: '900', color: '#166534', fontSize: '13.5px', padding: '14px 16px' }}>
+                      {formatCurrency(totalRevenue)}
+                    </td>
+                    <td style={{ textAlign: 'right', fontWeight: '900', color: 'var(--color-primary, #EA580C)', fontSize: '13.5px', padding: '14px 18px' }}>
+                      {formatCurrency(totalNetProfit)}
+                    </td>
+                  </tr>
+                </tfoot>
+              )}
             </table>
           </div>
         )}
@@ -638,74 +794,138 @@ export default function AdminReportsClient({ initialOrders = [], initialProducts
         {/* ── TAB 2: COMPLETED ORDERS LOG ── */}
         {activeTab === 'orders' && (
           <div style={{ width: '100%', overflowX: 'auto' }}>
-            <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
               <thead>
-                <tr style={{ background: 'var(--color-surface-warm, #FAF6F0)', borderBottom: '1.5px solid var(--color-border)' }}>
-                  <th style={{ width: '48px', textAlign: 'center', padding: '11px 16px', fontSize: '11.5px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-text-secondary)' }}>#</th>
-                  <th style={{ textAlign: 'left', padding: '11px 16px', fontSize: '11.5px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-text-secondary)' }}>Order No.</th>
-                  <th style={{ textAlign: 'left', padding: '11px 16px', fontSize: '11.5px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-text-secondary)' }}>Date</th>
-                  <th style={{ textAlign: 'left', padding: '11px 16px', fontSize: '11.5px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-text-secondary)' }}>Customer</th>
-                  <th style={{ textAlign: 'left', padding: '11px 16px', fontSize: '11.5px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-text-secondary)' }}>Items</th>
-                  <th style={{ textAlign: 'center', padding: '11px 16px', fontSize: '11.5px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-text-secondary)' }}>Claim Type</th>
-                  <th style={{ textAlign: 'right', padding: '11px 16px', fontSize: '11.5px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-text-secondary)' }}>Total Amount</th>
-                  <th style={{ textAlign: 'center', padding: '11px 16px', fontSize: '11.5px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-text-secondary)' }}>Action</th>
+                <tr style={{ background: '#F8FAFC', borderBottom: '1.5px solid #E2E8F0' }}>
+                  <th style={{ width: '6%', textAlign: 'center', padding: '12px 14px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#475569' }}>
+                    #
+                  </th>
+                  <th style={{ width: '16%', padding: '12px 16px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#475569' }}>
+                    Order No.
+                  </th>
+                  <th style={{ width: '14%', padding: '12px 16px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#475569' }}>
+                    Date
+                  </th>
+                  <th style={{ width: '18%', padding: '12px 16px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#475569' }}>
+                    Customer
+                  </th>
+                  <th style={{ width: '26%', padding: '12px 16px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#475569' }}>
+                    Items
+                  </th>
+                  <th style={{ width: '10%', textAlign: 'center', padding: '12px 16px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#475569' }}>
+                    Claim Type
+                  </th>
+                  <th style={{ width: '10%', textAlign: 'right', padding: '12px 18px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#475569' }}>
+                    Total Amount
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {completedOrders.length === 0 ? (
                   <tr>
-                    <td colSpan={8} style={{ textAlign: 'center', padding: '40px 16px', color: 'var(--color-text-muted)' }}>
-                      No completed orders in this period ({periodLabel}).
+                    <td colSpan={7} style={{ textAlign: 'center', padding: '80px 20px', color: '#64748B', verticalAlign: 'middle', height: '240px' }}>
+                      <div style={{ width: '44px', height: '44px', borderRadius: '50%', background: '#EFF6FF', color: '#0EA5E9', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px', marginBottom: '8px' }}>
+                        <i className="fa-solid fa-receipt"></i>
+                      </div>
+                      <p style={{ margin: 0, fontWeight: '800', fontSize: '14px', color: '#0F172A' }}>No completed orders</p>
+                      <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#64748B' }}>
+                        No completed orders in this period ({periodLabel}).
+                      </p>
                     </td>
                   </tr>
                 ) : (
                   completedOrders.map((ord, idx) => (
-                    <tr key={idx} style={{ borderBottom: '1px solid var(--color-border-light)' }}>
-                      <td style={{ textAlign: 'center', color: 'var(--color-text-secondary)', fontWeight: '700', padding: '11px 16px' }}>
+                    <tr
+                      key={idx}
+                      style={{
+                        borderBottom: '1px solid #F1F5F9',
+                        transition: 'background-color 0.12s ease',
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = '#FAFBFD')}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                    >
+                      <td style={{ textAlign: 'center', color: '#64748B', fontWeight: '700', fontSize: '12.5px', padding: '13px 14px' }}>
                         {idx + 1}
                       </td>
-                      <td style={{ padding: '11px 16px' }}>
-                        <Link href={`/admin/orders/${ord.id || ord.reference_code}`} style={{ fontWeight: '700', color: 'var(--color-primary)', textDecoration: 'none', fontFamily: 'monospace' }}>
+                      <td style={{ padding: '13px 16px' }}>
+                        <Link
+                          href={`/admin/orders/${ord.id || ord.reference_code}`}
+                          style={{
+                            fontWeight: '800',
+                            color: 'var(--color-primary, #EA580C)',
+                            textDecoration: 'none',
+                            fontFamily: 'monospace',
+                            fontSize: '12.5px',
+                          }}
+                        >
                           #{ord.reference_code || ord.id}
                         </Link>
                       </td>
-                      <td style={{ fontSize: '12px', color: 'var(--color-text-secondary)', padding: '11px 16px' }}>
+                      <td style={{ fontSize: '12px', color: '#64748B', fontWeight: '600', padding: '13px 16px' }}>
                         {formatDateShort(ord.created_at)}
                       </td>
-                      <td style={{ fontWeight: '700', color: 'var(--color-text)', padding: '11px 16px' }}>
+                      <td style={{ fontWeight: '800', color: '#0F172A', fontSize: '13px', padding: '13px 16px' }}>
                         {ord.customer_name}
                       </td>
-                      <td style={{ fontSize: '12px', color: 'var(--color-text-secondary)', padding: '11px 16px' }}>
+                      <td style={{ fontSize: '12px', color: '#475569', padding: '13px 16px' }}>
                         {ord.order_items?.map((it, i) => (
-                          <div key={i} style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '220px' }}>
+                          <div key={i} style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '260px' }}>
                             • {it.quantity}x {it.product_name}
                           </div>
                         )) || '1 Craft'}
                       </td>
-                      <td style={{ textAlign: 'center', padding: '11px 16px' }}>
-                        <span style={{
-                          fontSize: '11px',
-                          fontWeight: '700',
-                          padding: '2px 7px',
-                          borderRadius: 'var(--radius-sm, 4px)',
-                          background: ord.order_type === 'delivery' ? 'var(--color-primary-lighter)' : 'var(--color-success-bg, #F0FDF4)',
-                          color: ord.order_type === 'delivery' ? 'var(--color-primary)' : 'var(--color-success, #15803D)'
-                        }}>
+                      <td style={{ textAlign: 'center', padding: '13px 16px' }}>
+                        <span
+                          style={{
+                            fontSize: '11px',
+                            fontWeight: '800',
+                            padding: '3px 8px',
+                            borderRadius: '6px',
+                            background: ord.order_type === 'delivery' ? '#FFF5F2' : '#DCFCE7',
+                            color: ord.order_type === 'delivery' ? 'var(--color-primary, #EA580C)' : '#166534',
+                            border: ord.order_type === 'delivery' ? '1px solid rgba(234, 88, 12, 0.2)' : '1px solid rgba(22, 101, 52, 0.2)',
+                            display: 'inline-block',
+                          }}
+                        >
                           {ord.order_type === 'delivery' ? 'Delivery' : 'Pickup'}
                         </span>
                       </td>
-                      <td style={{ textAlign: 'right', fontWeight: '800', color: 'var(--color-text)', padding: '11px 16px' }}>
+                      <td style={{ textAlign: 'right', fontWeight: '800', color: '#0F172A', fontSize: '13px', padding: '13px 18px' }}>
                         {formatCurrency(ord.total_amount)}
-                      </td>
-                      <td style={{ textAlign: 'center', padding: '11px 16px' }}>
-                        <Link href={`/admin/orders/${ord.id || ord.reference_code}`} className="btn btn-secondary btn-sm" style={{ padding: '3px 8px', fontSize: '11px', borderRadius: 'var(--radius-sm, 6px)', textDecoration: 'none' }}>
-                          View
-                        </Link>
                       </td>
                     </tr>
                   ))
                 )}
               </tbody>
+
+              {/* ── TOTAL ROW AT BOTTOM ── */}
+              {completedOrders.length > 0 && (
+                <tfoot>
+                  <tr
+                    style={{
+                      background: '#F8FAFC',
+                      borderTop: '2px solid #CBD5E1',
+                    }}
+                  >
+                    <td
+                      colSpan={6}
+                      style={{
+                        padding: '14px 16px',
+                        textAlign: 'left',
+                        fontWeight: '900',
+                        color: '#0F172A',
+                        fontSize: '13px',
+                        letterSpacing: '0.02em',
+                      }}
+                    >
+                      TOTAL ({completedOrders.length} {completedOrders.length === 1 ? 'Order' : 'Orders'})
+                    </td>
+                    <td style={{ textAlign: 'right', fontWeight: '900', color: '#166534', fontSize: '13.5px', padding: '14px 18px' }}>
+                      {formatCurrency(totalOrdersAmount)}
+                    </td>
+                  </tr>
+                </tfoot>
+              )}
             </table>
           </div>
         )}

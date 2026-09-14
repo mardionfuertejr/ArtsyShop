@@ -1,7 +1,7 @@
 /**
  * M&M Artsy Mock Data Layer
- * Clean baseline with 30 crafted products and 10 raw materials.
- * Categories are left empty/unassigned so the user can create and assign them.
+ * Clean baseline with raw materials and category structures.
+ * Products are managed dynamically via Supabase Database and Admin Panel.
  */
 
 export const MOCK_CATEGORIES = [
@@ -12,833 +12,875 @@ export const MOCK_CATEGORIES = [
 ];
 
 export const MOCK_MATERIALS = [
+  // ── 1. FUZZY WIRES (Chenille Stems) ──
   {
-    id: 'mat-01',
-    name: 'Chenille Fuzzy Wire Stems (Pack of 100 - Pastel Pink & Peach)',
+    id: 'mat-fuzzy-wire-white',
+    name: 'Fuzzy Wire (White)',
     category: 'Chenille Stems',
-    current_stock: 150,
-    unit: 'pcs',
-    cost_per_unit: 2.50,
-    minimum_stock: 30,
-  },
-  {
-    id: 'mat-02',
-    name: 'Chenille Fuzzy Wire Stems (Pack of 100 - Botanical Olive & Sage)',
-    category: 'Chenille Stems',
-    current_stock: 120,
-    unit: 'pcs',
-    cost_per_unit: 2.50,
-    minimum_stock: 30,
-  },
-  {
-    id: 'mat-03',
-    name: '5-Ply Milk Cotton Yarn (Soft Sunflower Yellow - 50g)',
-    category: 'Floral Supplies',
-    current_stock: 18,
-    unit: 'skeins',
-    cost_per_unit: 65.00,
-    minimum_stock: 5,
-  },
-  {
-    id: 'mat-04',
-    name: '5-Ply Milk Cotton Yarn (Pure Cream White - 50g)',
-    category: 'Floral Supplies',
-    current_stock: 22,
-    unit: 'skeins',
-    cost_per_unit: 65.00,
-    minimum_stock: 5,
-  },
-  {
-    id: 'mat-05',
-    name: 'Epoxy Resin Crystal Clear A+B Kit (1000mL Low Viscosity)',
-    category: 'Resin & Glitters',
-    current_stock: 1400,
-    unit: 'mL',
-    cost_per_unit: 0.45,
-    minimum_stock: 300,
-  },
-  {
-    id: 'mat-06',
-    name: 'Korean Waterproof Matte Wrapping Paper (Blush & Neutral 20-Sheets)',
-    category: 'Wrappers & Ribbons',
-    current_stock: 45,
-    unit: 'sheets',
-    cost_per_unit: 15.00,
+    current_stock: 50,
+    unit: 'pack',
+    cost_per_unit: 35.0,
     minimum_stock: 10,
   },
   {
-    id: 'mat-07',
-    name: 'Double-Faced Silky Satin Ribbon (2.5cm x 25 Yards - Champagne Gold)',
+    id: 'mat-fuzzy-wire-pink',
+    name: 'Fuzzy Wire (Pink)',
+    category: 'Chenille Stems',
+    current_stock: 50,
+    unit: 'pack',
+    cost_per_unit: 35.0,
+    minimum_stock: 10,
+  },
+  {
+    id: 'mat-fuzzy-wire-baby-pink',
+    name: 'Fuzzy Wire (Baby Pink)',
+    category: 'Chenille Stems',
+    current_stock: 50,
+    unit: 'pack',
+    cost_per_unit: 35.0,
+    minimum_stock: 10,
+  },
+  {
+    id: 'mat-fuzzy-wire-red',
+    name: 'Fuzzy Wire (Red)',
+    category: 'Chenille Stems',
+    current_stock: 50,
+    unit: 'pack',
+    cost_per_unit: 35.0,
+    minimum_stock: 10,
+  },
+  {
+    id: 'mat-fuzzy-wire-yellow',
+    name: 'Fuzzy Wire (Yellow)',
+    category: 'Chenille Stems',
+    current_stock: 50,
+    unit: 'pack',
+    cost_per_unit: 35.0,
+    minimum_stock: 10,
+  },
+  {
+    id: 'mat-fuzzy-wire-purple',
+    name: 'Fuzzy Wire (Purple)',
+    category: 'Chenille Stems',
+    current_stock: 50,
+    unit: 'pack',
+    cost_per_unit: 35.0,
+    minimum_stock: 10,
+  },
+  {
+    id: 'mat-fuzzy-wire-baby-blue',
+    name: 'Fuzzy Wire (Baby Blue)',
+    category: 'Chenille Stems',
+    current_stock: 50,
+    unit: 'pack',
+    cost_per_unit: 35.0,
+    minimum_stock: 10,
+  },
+  {
+    id: 'mat-fuzzy-wire-green',
+    name: 'Fuzzy Wire (Green)',
+    category: 'Chenille Stems',
+    current_stock: 50,
+    unit: 'pack',
+    cost_per_unit: 35.0,
+    minimum_stock: 10,
+  },
+
+  // ── 2. FLORAL SUPPLIES & HARDWARE ──
+  {
+    id: 'mat-floral-wire-green',
+    name: 'Floral Wire (Green)',
+    category: 'Floral Supplies',
+    current_stock: 30,
+    unit: 'pack',
+    cost_per_unit: 75.0,
+    minimum_stock: 10,
+  },
+  {
+    id: 'mat-floral-tape-green',
+    name: 'Floral Tape (Green)',
+    category: 'Floral Supplies',
+    current_stock: 30,
+    unit: 'roll',
+    cost_per_unit: 20.0,
+    minimum_stock: 10,
+  },
+  {
+    id: 'mat-floral-stamen-yellow',
+    name: 'Floral Stamen (Yellow)',
+    category: 'Floral Supplies',
+    current_stock: 25,
+    unit: 'pack',
+    cost_per_unit: 35.0,
+    minimum_stock: 10,
+  },
+  {
+    id: 'mat-floral-stamen-white',
+    name: 'Floral Stamen (White)',
+    category: 'Floral Supplies',
+    current_stock: 25,
+    unit: 'pack',
+    cost_per_unit: 35.0,
+    minimum_stock: 10,
+  },
+  {
+    id: 'mat-pearl-beads-white',
+    name: 'Pearl Beads (White)',
+    category: 'Floral Supplies',
+    current_stock: 25,
+    unit: 'pack',
+    cost_per_unit: 45.0,
+    minimum_stock: 10,
+  },
+  {
+    id: 'mat-hot-glue-sticks-clear',
+    name: 'Hot Glue Sticks (Clear)',
+    category: 'Floral Supplies',
+    current_stock: 40,
+    unit: 'pack',
+    cost_per_unit: 30.0,
+    minimum_stock: 10,
+  },
+
+  // ── 3. WRAPPERS & RIBBONS ──
+  {
+    id: 'mat-bouquet-wrapper-white',
+    name: 'Bouquet Wrapper (White)',
     category: 'Wrappers & Ribbons',
-    current_stock: 60,
-    unit: 'meters',
-    cost_per_unit: 5.00,
+    current_stock: 50,
+    unit: 'sheet',
+    cost_per_unit: 15.0,
     minimum_stock: 15,
   },
   {
-    id: 'mat-08',
-    name: '18-Gauge Floral Stem Wire (30cm Stiff Green - 50pcs)',
-    category: 'Floral Supplies',
-    current_stock: 200,
-    unit: 'pcs',
-    cost_per_unit: 3.00,
-    minimum_stock: 40,
-  },
-  {
-    id: 'mat-09',
-    name: 'High-Temp Hot Melt Glue Sticks (11mm Clear - 1kg Pack)',
-    category: 'Floral Supplies',
-    current_stock: 35,
-    unit: 'sticks',
-    cost_per_unit: 6.00,
+    id: 'mat-bouquet-wrapper-pink',
+    name: 'Bouquet Wrapper (Pink)',
+    category: 'Wrappers & Ribbons',
+    current_stock: 50,
+    unit: 'sheet',
+    cost_per_unit: 15.0,
     minimum_stock: 15,
   },
   {
-    id: 'mat-10',
-    name: 'Glass Bell Display Dome with Solid Wood Base & Warm LED String',
+    id: 'mat-bouquet-wrapper-kraft',
+    name: 'Bouquet Wrapper (Brown/Kraft)',
+    category: 'Wrappers & Ribbons',
+    current_stock: 50,
+    unit: 'sheet',
+    cost_per_unit: 15.0,
+    minimum_stock: 15,
+  },
+  {
+    id: 'mat-clear-bouquet-plastic',
+    name: 'Clear Bouquet Plastic',
     category: 'Packaging',
-    current_stock: 12,
-    unit: 'sets',
-    cost_per_unit: 180.00,
-    minimum_stock: 4,
+    current_stock: 100,
+    unit: 'pc',
+    cost_per_unit: 5.0,
+    minimum_stock: 20,
+  },
+  {
+    id: 'mat-ribbon-white',
+    name: 'Ribbon (White)',
+    category: 'Wrappers & Ribbons',
+    current_stock: 25,
+    unit: 'roll',
+    cost_per_unit: 75.0,
+    minimum_stock: 10,
+  },
+  {
+    id: 'mat-ribbon-pink',
+    name: 'Ribbon (Pink)',
+    category: 'Wrappers & Ribbons',
+    current_stock: 25,
+    unit: 'roll',
+    cost_per_unit: 75.0,
+    minimum_stock: 10,
+  },
+  {
+    id: 'mat-ribbon-red',
+    name: 'Ribbon (Red)',
+    category: 'Wrappers & Ribbons',
+    current_stock: 25,
+    unit: 'roll',
+    cost_per_unit: 75.0,
+    minimum_stock: 10,
+  },
+
+  // ── 4. TOOLS & EQUIPMENT ──
+  {
+    id: 'mat-glue-gun',
+    name: 'Glue Gun',
+    category: 'Floral Supplies',
+    current_stock: 10,
+    unit: 'pc',
+    cost_per_unit: 115.0,
+    minimum_stock: 2,
+  },
+  {
+    id: 'mat-scissors',
+    name: 'Scissors',
+    category: 'Floral Supplies',
+    current_stock: 10,
+    unit: 'pc',
+    cost_per_unit: 75.0,
+    minimum_stock: 2,
+  },
+  {
+    id: 'mat-small-pliers',
+    name: 'Small Pliers',
+    category: 'Floral Supplies',
+    current_stock: 10,
+    unit: 'pc',
+    cost_per_unit: 75.0,
+    minimum_stock: 2,
   },
 ];
 
 export const MOCK_PRODUCTS = [
   {
-    id: 'prod-01',
-    name: 'Fuzzy Wire Rose Bouquet',
-    slug: 'fuzzy-wire-rose-bouquet',
-    category_id: 'cat-bouquets',
-    category: { id: 'cat-bouquets', name: 'Bouquets', slug: 'bouquets' },
+    id: 'prod-master-01',
+    name: 'Flower Bouquet',
+    slug: 'fuzzy-flower-bouquet',
+    category_id: 'c0000000-0000-0000-0000-000000000001',
+    category: { name: 'Bouquets', slug: 'bouquets' },
     base_price: 250,
-    description: 'Handcrafted velvety fuzzy-wire roses wrapped in waterproof Korean matte kraft paper and tied with a silky satin ribbon. Everlasting flower art that never wilts.',
-    is_available: true,
-    is_bestseller: true,
-    is_ready_made: false,
-    ready_made_stock: 0,
-    is_on_sale: false,
-    sale_price: 0,
-    sale_tag: '',
-    is_sold_out: false,
-    display_order: 1,
-    product_photos: [
-      { id: 'ph-01', url: 'https://images.unsplash.com/photo-1561181286-d3fee7d55364?auto=format&fit=crop&w=800&q=80', is_cover: true, display_order: 1 }
-    ],
-    product_options: [
-      { id: 'opt-01', option_name: 'Rose Color', is_required: true, display_order: 1, choices: [{ label: 'Pastel Blush Pink', extra_cost: 0 }, { label: 'Crimson Velvet Red', extra_cost: 0 }, { label: 'Lilac Lavender', extra_cost: 0 }, { label: 'Sunflower Warm Yellow', extra_cost: 0 }] },
-      { id: 'opt-02', option_name: 'Arrangement Size', is_required: true, display_order: 2, choices: [{ label: 'Single Rose Stem', extra_cost: 0 }, { label: '3-Rose Trio (+₱200)', extra_cost: 200 }, { label: '6-Rose Deluxe Bloom (+₱450)', extra_cost: 450 }] },
-      { id: 'opt-03', option_name: 'Wrapper Style', is_required: true, display_order: 3, choices: [{ label: 'Korean Matte Kraft', extra_cost: 0 }, { label: 'Frosted Translucent White', extra_cost: 0 }, { label: 'Noir Black Gold-Trim', extra_cost: 30 }] }
-    ]
-  },
-  {
-    id: 'prod-02',
-    name: 'Potted Handcrafted Crochet Sunflower',
-    slug: 'potted-crochet-sunflower',
-    category_id: 'cat-crochet',
-    category: { id: 'cat-crochet', name: 'Crochet', slug: 'crochet' },
-    base_price: 380,
-    description: 'Delicately hand-knitted vibrant sunflower in a miniature terracotta-style knit pot. Perfect cheerful desk companion that brings sunshine every day.',
-    is_available: true,
-    is_bestseller: true,
-    is_ready_made: true,
-    ready_made_stock: 5,
-    is_on_sale: false,
-    sale_price: 0,
-    sale_tag: '',
-    is_sold_out: false,
-    display_order: 2,
-    product_photos: [
-      { id: 'ph-02', url: 'https://images.unsplash.com/photo-1597848212624-a19eb35e2651?auto=format&fit=crop&w=800&q=80', is_cover: true, display_order: 1 }
-    ],
-    product_options: [
-      { id: 'opt-04', option_name: 'Pot Color', is_required: true, display_order: 1, choices: [{ label: 'Terracotta Clay', extra_cost: 0 }, { label: 'Oatmeal Beige', extra_cost: 0 }, { label: 'Forest Moss Green', extra_cost: 0 }] },
-      { id: 'opt-05', option_name: 'Mini Greeting Tag', is_required: false, display_order: 2, choices: [{ label: 'You Are My Sunshine ☀️', extra_cost: 0 }, { label: 'Best Wishes ✨', extra_cost: 0 }, { label: 'Happy Birthday 🎂', extra_cost: 0 }] }
-    ]
-  },
-  {
-    id: 'prod-03',
-    name: 'Crystal Floral Resin Bookmark',
-    slug: 'crystal-floral-resin-bookmark',
-    category_id: null,
-    category: null,
-    base_price: 160,
-    description: 'Crystal-clear artisan resin bookmark embedded with real pressed baby’s breath, dried lavender petals, gleaming gold foil accents, and a handmade silky tassel.',
-    is_available: true,
-    is_bestseller: false,
-    is_ready_made: true,
-    ready_made_stock: 8,
-    is_on_sale: false,
-    sale_price: 0,
-    sale_tag: '',
-    is_sold_out: false,
-    display_order: 3,
-    product_photos: [
-      { id: 'ph-03', url: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=800&q=80', is_cover: true, display_order: 1 }
-    ],
-    product_options: [
-      { id: 'opt-06', option_name: 'Metallic Accent', is_required: true, display_order: 1, choices: [{ label: '24K Gold Flakes', extra_cost: 0 }, { label: 'Rose Gold Shimmer', extra_cost: 0 }, { label: 'Silver Leaf', extra_cost: 0 }] },
-      { id: 'opt-07', option_name: 'Tassel Color', is_required: true, display_order: 2, choices: [{ label: 'Dusty Rose', extra_cost: 0 }, { label: 'Champagne Gold', extra_cost: 0 }, { label: 'Sage Emerald', extra_cost: 0 }] }
-    ]
-  },
-  {
-    id: 'prod-04',
-    name: 'Lavender & Daisy Bloom Box',
-    slug: 'lavender-daisy-bloom-box',
-    category_id: null,
-    category: null,
-    base_price: 680,
-    description: 'A luxurious round cylinder hatbox filled with meticulously shaped fuzzy-wire French lavender and cheery white daisies. Includes fairy lights and a ribbon bow.',
-    is_available: true,
-    is_bestseller: true,
-    is_ready_made: false,
-    ready_made_stock: 0,
-    is_on_sale: true,
-    sale_price: 620,
-    sale_tag: 'Special',
-    is_sold_out: false,
-    display_order: 4,
-    product_photos: [
-      { id: 'ph-04', url: 'https://images.unsplash.com/photo-1526047932273-341f2a7631f9?auto=format&fit=crop&w=800&q=80', is_cover: true, display_order: 1 }
-    ],
-    product_options: [
-      { id: 'opt-08', option_name: 'Hatbox Color', is_required: true, display_order: 1, choices: [{ label: 'Pearl White', extra_cost: 0 }, { label: 'Blush Pink', extra_cost: 0 }, { label: 'Midnight Black', extra_cost: 0 }] },
-      { id: 'opt-09', option_name: 'Fairy Light Glow', is_required: false, display_order: 2, choices: [{ label: 'Warm White Glow (Included)', extra_cost: 0 }, { label: 'Rainbow Sparkle (+₱30)', extra_cost: 30 }] }
-    ]
-  },
-  {
-    id: 'prod-05',
-    name: 'Eternal Glass Tulip Nightlight',
-    slug: 'eternal-glass-tulip-nightlight',
-    category_id: null,
-    category: null,
-    base_price: 520,
-    description: 'Enchanting glass bell dome with glowing handmade crystal tulip petals and soft LED fairy lights nestled on a solid natural wood base.',
-    is_available: true,
-    is_bestseller: true,
-    is_ready_made: true,
-    ready_made_stock: 3,
-    is_on_sale: false,
-    sale_price: 0,
-    sale_tag: '',
-    is_sold_out: false,
-    display_order: 5,
-    product_photos: [
-      { id: 'ph-05', url: 'https://images.unsplash.com/photo-1518895949257-7621c3c786d7?auto=format&fit=crop&w=800&q=80', is_cover: true, display_order: 1 }
-    ],
-    product_options: [
-      { id: 'opt-10', option_name: 'Tulip Color', is_required: true, display_order: 1, choices: [{ label: 'Blush Pink', extra_cost: 0 }, { label: 'Lavender Purple', extra_cost: 0 }, { label: 'Sunshine Yellow', extra_cost: 0 }] }
-    ]
-  },
-  {
-    id: 'prod-06',
-    name: 'Crochet Amigurumi Couple Keychain',
-    slug: 'crochet-amigurumi-couple-keychain',
-    category_id: null,
-    category: null,
-    base_price: 240,
-    description: 'Set of two adorable pocket-sized crochet mascots hand-stitched with soft milk cotton yarn. Features a durable gold-toned swivel clasp.',
-    is_available: true,
-    is_bestseller: false,
-    is_ready_made: true,
-    ready_made_stock: 6,
-    is_on_sale: false,
-    sale_price: 0,
-    sale_tag: '',
-    is_sold_out: false,
-    display_order: 6,
-    product_photos: [
-      { id: 'ph-06', url: 'https://images.unsplash.com/photo-1584917865442-de89df76afd3?auto=format&fit=crop&w=800&q=80', is_cover: true, display_order: 1 }
-    ],
-    product_options: [
-      { id: 'opt-11', option_name: 'Character Pair', is_required: true, display_order: 1, choices: [{ label: 'Bear & Bunny', extra_cost: 0 }, { label: 'Cat & Dog', extra_cost: 0 }, { label: 'Frog & Duck', extra_cost: 0 }] }
-    ]
-  },
-  {
-    id: 'prod-07',
-    name: 'Chenille Fuzzy Wire Sunflower Bouquet',
-    slug: 'fuzzy-wire-sunflower-bouquet',
-    category_id: null,
-    category: null,
-    base_price: 320,
-    description: 'Sunny handcrafted fuzzy-wire sunflowers paired with delicate greenery and premium frosted Korean wrapping paper.',
-    is_available: true,
-    is_bestseller: false,
-    is_ready_made: false,
-    ready_made_stock: 0,
-    is_on_sale: false,
-    sale_price: 0,
-    sale_tag: '',
-    is_sold_out: false,
-    display_order: 7,
-    product_photos: [
-      { id: 'ph-07', url: 'https://images.unsplash.com/photo-1597848212624-a19eb35e2651?auto=format&fit=crop&w=800&q=80', is_cover: true, display_order: 1 }
-    ],
-    product_options: [
-      { id: 'opt-12', option_name: 'Ribbon Accent', is_required: true, display_order: 1, choices: [{ label: 'Golden Honey', extra_cost: 0 }, { label: 'Forest Green', extra_cost: 0 }, { label: 'Ivory White', extra_cost: 0 }] }
-    ]
-  },
-  {
-    id: 'prod-08',
-    name: 'Artisan Botanical Resin Coaster Set',
-    slug: 'artisan-botanical-resin-coasters',
-    category_id: null,
-    category: null,
-    base_price: 450,
-    description: 'Set of 4 heat-resistant resin drink coasters with encapsulated dried wild blossoms, shimmer mica powder, and hand-painted metallic gold rims.',
-    is_available: true,
-    is_bestseller: true,
-    is_ready_made: true,
-    ready_made_stock: 4,
-    is_on_sale: false,
-    sale_price: 0,
-    sale_tag: '',
-    is_sold_out: false,
-    display_order: 8,
-    product_photos: [
-      { id: 'ph-08', url: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80', is_cover: true, display_order: 1 }
-    ],
-    product_options: [
-      { id: 'opt-13', option_name: 'Coaster Shape', is_required: true, display_order: 1, choices: [{ label: 'Hexagonal', extra_cost: 0 }, { label: 'Round Geode', extra_cost: 0 }, { label: 'Square Minimal', extra_cost: 0 }] }
-    ]
-  },
-  {
-    id: 'prod-09',
-    name: 'Hand-Crocheted Daisy Flower Pot',
-    slug: 'crochet-daisy-flower-pot',
-    category_id: null,
-    category: null,
-    base_price: 350,
-    description: 'Cute tabletop potted daisy hand-knitted from soft cotton yarn with flexible bendable stems.',
-    is_available: true,
-    is_bestseller: false,
-    is_ready_made: true,
-    ready_made_stock: 5,
-    is_on_sale: false,
-    sale_price: 0,
-    sale_tag: '',
-    is_sold_out: false,
-    display_order: 9,
-    product_photos: [
-      { id: 'ph-09', url: 'https://images.unsplash.com/photo-1508615039623-a25605d2b022?auto=format&fit=crop&w=800&q=80', is_cover: true, display_order: 1 }
-    ],
-    product_options: [
-      { id: 'opt-14', option_name: 'Petal Tone', is_required: true, display_order: 1, choices: [{ label: 'Classic Pure White', extra_cost: 0 }, { label: 'Buttercup Yellow', extra_cost: 0 }, { label: 'Soft Lilac', extra_cost: 0 }] }
-    ]
-  },
-  {
-    id: 'prod-10',
-    name: 'Pastel Chenille Tulip Garden in Ceramic Mug',
-    slug: 'pastel-chenille-tulip-mug',
-    category_id: null,
-    category: null,
-    base_price: 390,
-    description: 'Trio of pastel pink, peach, and cream fuzzy-wire tulips artfully arranged in a reusable ceramic keepsake mug.',
-    is_available: true,
-    is_bestseller: false,
-    is_ready_made: true,
-    ready_made_stock: 3,
-    is_on_sale: false,
-    sale_price: 0,
-    sale_tag: '',
-    is_sold_out: false,
-    display_order: 10,
-    product_photos: [
-      { id: 'ph-10', url: 'https://images.unsplash.com/photo-1520763185298-1b434c919102?auto=format&fit=crop&w=800&q=80', is_cover: true, display_order: 1 }
-    ],
-    product_options: [
-      { id: 'opt-15', option_name: 'Mug Color', is_required: true, display_order: 1, choices: [{ label: 'Pastel Mint', extra_cost: 0 }, { label: 'Baby Pink', extra_cost: 0 }, { label: 'Cloud White', extra_cost: 0 }] }
-    ]
-  },
-  {
-    id: 'prod-11',
-    name: 'Personalized Initial Floral Resin Keychain',
-    slug: 'personalized-initial-resin-keychain',
-    category_id: null,
-    category: null,
-    base_price: 140,
-    description: 'Alphabet letter keychain hand-poured with real pressed botanicals, fine foil flakes, and a sturdy alloy key ring.',
-    is_available: true,
-    is_bestseller: true,
-    is_ready_made: false,
-    ready_made_stock: 0,
-    is_on_sale: false,
-    sale_price: 0,
-    sale_tag: '',
-    is_sold_out: false,
-    display_order: 11,
-    product_photos: [
-      { id: 'ph-11', url: 'https://images.unsplash.com/photo-1535585209827-a15fcdbc4c2d?auto=format&fit=crop&w=800&q=80', is_cover: true, display_order: 1 }
-    ],
-    product_options: [
-      { id: 'opt-16', option_name: 'Flake Type', is_required: true, display_order: 1, choices: [{ label: 'Gold Leaf Flakes', extra_cost: 0 }, { label: 'Rose Gold Flakes', extra_cost: 0 }, { label: 'Holographic Silver', extra_cost: 0 }] }
-    ]
-  },
-  {
-    id: 'prod-12',
-    name: 'Crochet Lily of the Valley Glowing Lamp',
-    slug: 'crochet-lily-of-the-valley-lamp',
-    category_id: null,
-    category: null,
-    base_price: 590,
-    description: 'Delicate bell-shaped crocheted blossoms embedded with gentle warm micro-LED bulbs for a dreamy bedside glow.',
-    is_available: true,
-    is_bestseller: true,
-    is_ready_made: true,
-    ready_made_stock: 2,
-    is_on_sale: false,
-    sale_price: 0,
-    sale_tag: '',
-    is_sold_out: false,
-    display_order: 12,
-    product_photos: [
-      { id: 'ph-12', url: 'https://images.unsplash.com/photo-1513519245088-0e12902e5a38?auto=format&fit=crop&w=800&q=80', is_cover: true, display_order: 1 }
-    ],
-    product_options: [
-      { id: 'opt-17', option_name: 'Pot Finish', is_required: true, display_order: 1, choices: [{ label: 'Natural Glazed Clay', extra_cost: 0 }, { label: 'Rustic Knit Wrap', extra_cost: 0 }] }
-    ]
-  },
-  {
-    id: 'prod-13',
-    name: 'Fuzzy Wire Blue Hydrangea Bloom Arrangement',
-    slug: 'fuzzy-wire-blue-hydrangea',
-    category_id: null,
-    category: null,
-    base_price: 480,
-    description: 'Dense cluster of soft sky-blue and lavender fuzzy-wire hydrangea florets in premium textured gift wrapping.',
-    is_available: true,
-    is_bestseller: false,
-    is_ready_made: false,
-    ready_made_stock: 0,
-    is_on_sale: false,
-    sale_price: 0,
-    sale_tag: '',
-    is_sold_out: false,
-    display_order: 13,
-    product_photos: [
-      { id: 'ph-13', url: 'https://images.unsplash.com/photo-1533616688419-b7a58556458e?auto=format&fit=crop&w=800&q=80', is_cover: true, display_order: 1 }
-    ],
-    product_options: [
-      { id: 'opt-18', option_name: 'Hydrangea Color', is_required: true, display_order: 1, choices: [{ label: 'Cerulean Sky Blue', extra_cost: 0 }, { label: 'Periwinkle Lilac', extra_cost: 0 }, { label: 'Cotton Candy Pink', extra_cost: 0 }] }
-    ]
-  },
-  {
-    id: 'prod-14',
-    name: 'Custom Spotify Code Floral Resin Plaque',
-    slug: 'custom-spotify-floral-resin-plaque',
-    category_id: null,
-    category: null,
-    base_price: 650,
-    description: 'Clear acrylic resin desk plaque showcasing your favorite song title, scannable Spotify sound code, and dried flowers on a beech wood stand.',
-    is_available: true,
-    is_bestseller: true,
-    is_ready_made: false,
-    ready_made_stock: 0,
-    is_on_sale: false,
-    sale_price: 0,
-    sale_tag: '',
-    is_sold_out: false,
-    display_order: 14,
-    product_photos: [
-      { id: 'ph-14', url: 'https://images.unsplash.com/photo-1513519245088-0e12902e5a38?auto=format&fit=crop&w=800&q=80', is_cover: true, display_order: 1 }
-    ],
-    product_options: [
-      { id: 'opt-19', option_name: 'Stand Option', is_required: true, display_order: 1, choices: [{ label: 'Standard Beechwood Base', extra_cost: 0 }, { label: 'LED Glowing Wooden Base (+₱120)', extra_cost: 120 }] }
-    ]
-  },
-  {
-    id: 'prod-15',
-    name: 'Handcrafted Crochet Strawberry Vine Hanging',
-    slug: 'crochet-strawberry-vine-hanging',
-    category_id: null,
-    category: null,
-    base_price: 280,
-    description: 'Playful hand-stitched red strawberries and blossom flowers on a hanging vine designed for car mirrors or study nooks.',
-    is_available: true,
-    is_bestseller: false,
-    is_ready_made: true,
-    ready_made_stock: 7,
-    is_on_sale: false,
-    sale_price: 0,
-    sale_tag: '',
-    is_sold_out: false,
-    display_order: 15,
-    product_photos: [
-      { id: 'ph-15', url: 'https://images.unsplash.com/photo-1464965911861-746a04b4bca6?auto=format&fit=crop&w=800&q=80', is_cover: true, display_order: 1 }
-    ],
-    product_options: [
-      { id: 'opt-20', option_name: 'Berry Style', is_required: true, display_order: 1, choices: [{ label: 'Ruby Red Strawberries', extra_cost: 0 }, { label: 'Pastel Pink Berries', extra_cost: 0 }] }
-    ]
-  },
-  {
-    id: 'prod-16',
-    name: 'Velvet Chenille Lavender Stems Bundle',
-    slug: 'velvet-chenille-lavender-bundle',
-    category_id: null,
-    category: null,
-    base_price: 340,
-    description: 'Bundle of 10 long-stem fuzzy-wire lavender sprigs tied with rustic jute twine and purple organza ribbon.',
-    is_available: true,
-    is_bestseller: false,
-    is_ready_made: true,
-    ready_made_stock: 4,
-    is_on_sale: false,
-    sale_price: 0,
-    sale_tag: '',
-    is_sold_out: false,
-    display_order: 16,
-    product_photos: [
-      { id: 'ph-16', url: 'https://images.unsplash.com/photo-1528183429752-a97d0bf99b5a?auto=format&fit=crop&w=800&q=80', is_cover: true, display_order: 1 }
-    ],
-    product_options: [
-      { id: 'opt-21', option_name: 'Packaging Finish', is_required: true, display_order: 1, choices: [{ label: 'Rustic Jute & Kraft', extra_cost: 0 }, { label: 'Clear Frosted Sleeve', extra_cost: 0 }] }
-    ]
-  },
-  {
-    id: 'prod-17',
-    name: 'Pressed Floral Resin Hair Claw Clip',
-    slug: 'pressed-floral-resin-hair-claw',
-    category_id: null,
-    category: null,
-    base_price: 180,
-    description: 'Elegant French-style hair claw clip with crystal clear resin overlay, genuine dried hydrangeas, and gold shimmer.',
-    is_available: true,
-    is_bestseller: false,
-    is_ready_made: true,
-    ready_made_stock: 9,
-    is_on_sale: false,
-    sale_price: 0,
-    sale_tag: '',
-    is_sold_out: false,
-    display_order: 17,
-    product_photos: [
-      { id: 'ph-17', url: 'https://images.unsplash.com/photo-1535585209827-a15fcdbc4c2d?auto=format&fit=crop&w=800&q=80', is_cover: true, display_order: 1 }
-    ],
-    product_options: [
-      { id: 'opt-22', option_name: 'Clip Colorway', is_required: true, display_order: 1, choices: [{ label: 'Amber Tortoise Floral', extra_cost: 0 }, { label: 'Milky White Floral', extra_cost: 0 }, { label: 'Clear Crystal Gold', extra_cost: 0 }] }
-    ]
-  },
-  {
-    id: 'prod-18',
-    name: 'Hand-Knitted Crochet Rose Bud in Gift Tube',
-    slug: 'crochet-single-rose-gift-tube',
-    category_id: null,
-    category: null,
-    base_price: 220,
-    description: 'Single artisan-knitted red rose in a clear acrylic display cylinder with custom message ribbon.',
-    is_available: true,
-    is_bestseller: false,
-    is_ready_made: true,
-    ready_made_stock: 6,
-    is_on_sale: false,
-    sale_price: 0,
-    sale_tag: '',
-    is_sold_out: false,
-    display_order: 18,
-    product_photos: [
-      { id: 'ph-18', url: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=800&q=80', is_cover: true, display_order: 1 }
-    ],
-    product_options: [
-      { id: 'opt-23', option_name: 'Rose Shade', is_required: true, display_order: 1, choices: [{ label: 'Ruby Velvet Red', extra_cost: 0 }, { label: 'Sunset Coral Peach', extra_cost: 0 }, { label: 'Champagne Cream', extra_cost: 0 }] }
-    ]
-  },
-  {
-    id: 'prod-19',
-    name: 'Mini Preserved Gypsophila & Fuzzy Daisy Gift Box',
-    slug: 'gypsophila-fuzzy-daisy-gift-box',
-    category_id: null,
-    category: null,
-    base_price: 420,
-    description: 'Compact square gift box adorned with fluffy fuzzy-wire daisies surrounded by airy dried baby’s breath.',
-    is_available: true,
-    is_bestseller: false,
-    is_ready_made: false,
-    ready_made_stock: 0,
-    is_on_sale: false,
-    sale_price: 0,
-    sale_tag: '',
-    is_sold_out: false,
-    display_order: 19,
-    product_photos: [
-      { id: 'ph-19', url: 'https://images.unsplash.com/photo-1526047932273-341f2a7631f9?auto=format&fit=crop&w=800&q=80', is_cover: true, display_order: 1 }
-    ],
-    product_options: [
-      { id: 'opt-24', option_name: 'Box Color', is_required: true, display_order: 1, choices: [{ label: 'Powder Blue', extra_cost: 0 }, { label: 'Blush Pink', extra_cost: 0 }, { label: 'Kraft Brown', extra_cost: 0 }] }
-    ]
-  },
-  {
-    id: 'prod-20',
-    name: 'Crochet Succulent & Cactus Trio Terrarium',
-    slug: 'crochet-succulent-cactus-trio',
-    category_id: null,
-    category: null,
-    base_price: 560,
-    description: 'Trio of hand-knit miniature desert succulents and flowering cacti in a stylish ceramic bowl.',
-    is_available: true,
-    is_bestseller: true,
-    is_ready_made: true,
-    ready_made_stock: 3,
-    is_on_sale: false,
-    sale_price: 0,
-    sale_tag: '',
-    is_sold_out: false,
-    display_order: 20,
-    product_photos: [
-      { id: 'ph-20', url: 'https://images.unsplash.com/photo-1485955900006-10f4d324d411?auto=format&fit=crop&w=800&q=80', is_cover: true, display_order: 1 }
-    ],
-    product_options: [
-      { id: 'opt-25', option_name: 'Pot Finish', is_required: true, display_order: 1, choices: [{ label: 'Matte White Ceramic', extra_cost: 0 }, { label: 'Terracotta Clay Pot', extra_cost: 0 }] }
-    ]
-  },
-  {
-    id: 'prod-21',
-    name: 'Fuzzy Wire Cherry Blossom Branch',
-    slug: 'fuzzy-wire-cherry-blossom-branch',
-    category_id: null,
-    category: null,
-    base_price: 390,
-    description: 'Graceful Japanese sakura branch crafted with soft pink chenille stems and flexible bendable twigs.',
-    is_available: true,
-    is_bestseller: false,
-    is_ready_made: false,
-    ready_made_stock: 0,
-    is_on_sale: false,
-    sale_price: 0,
-    sale_tag: '',
-    is_sold_out: false,
-    display_order: 21,
-    product_photos: [
-      { id: 'ph-21', url: 'https://images.unsplash.com/photo-1522383225653-ed111181a951?auto=format&fit=crop&w=800&q=80', is_cover: true, display_order: 1 }
-    ],
-    product_options: [
-      { id: 'opt-26', option_name: 'Blossom Palette', is_required: true, display_order: 1, choices: [{ label: 'Sakura Soft Pink', extra_cost: 0 }, { label: 'Snow White Petals', extra_cost: 0 }] }
-    ]
-  },
-  {
-    id: 'prod-22',
-    name: 'Artisan Resin Trinket Tray with Gold Leaf',
-    slug: 'resin-trinket-tray-gold-leaf',
-    category_id: null,
-    category: null,
-    base_price: 320,
-    description: 'Oval resin catchall tray for rings, jewelry, and perfume bottles featuring real dried rose petals.',
-    is_available: true,
-    is_bestseller: false,
-    is_ready_made: true,
-    ready_made_stock: 5,
-    is_on_sale: false,
-    sale_price: 0,
-    sale_tag: '',
-    is_sold_out: false,
-    display_order: 22,
-    product_photos: [
-      { id: 'ph-22', url: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80', is_cover: true, display_order: 1 }
-    ],
-    product_options: [
-      { id: 'opt-27', option_name: 'Foil Style', is_required: true, display_order: 1, choices: [{ label: '24K Gold Leaf Rim', extra_cost: 0 }, { label: 'Rose Gold Flakes', extra_cost: 0 }] }
-    ]
-  },
-  {
-    id: 'prod-23',
-    name: 'Handmade Crochet Cute Bunny Charm Keychain',
-    slug: 'crochet-bunny-charm-keychain',
-    category_id: null,
-    category: null,
-    base_price: 190,
-    description: 'Fluffy amigurumi bunny charm wearing a miniature pastel sweater, complete with tiny bell and bead accents.',
-    is_available: true,
-    is_bestseller: false,
-    is_ready_made: true,
-    ready_made_stock: 8,
-    is_on_sale: false,
-    sale_price: 0,
-    sale_tag: '',
-    is_sold_out: false,
-    display_order: 23,
-    product_photos: [
-      { id: 'ph-23', url: 'https://images.unsplash.com/photo-1584917865442-de89df76afd3?auto=format&fit=crop&w=800&q=80', is_cover: true, display_order: 1 }
-    ],
-    product_options: [
-      { id: 'opt-28', option_name: 'Sweater Color', is_required: true, display_order: 1, choices: [{ label: 'Strawberry Pink', extra_cost: 0 }, { label: 'Sky Blue', extra_cost: 0 }, { label: 'Matcha Green', extra_cost: 0 }] }
-    ]
-  },
-  {
-    id: 'prod-24',
-    name: 'Enchanted Forest Resin Floral Pendant Necklace',
-    slug: 'resin-floral-pendant-necklace',
-    category_id: null,
-    category: null,
-    base_price: 290,
-    description: 'Teardrop resin cabochon with preserved moss and forget-me-not blossoms on an 18K gold-plated stainless chain.',
-    is_available: true,
-    is_bestseller: false,
-    is_ready_made: true,
-    ready_made_stock: 6,
-    is_on_sale: false,
-    sale_price: 0,
-    sale_tag: '',
-    is_sold_out: false,
-    display_order: 24,
-    product_photos: [
-      { id: 'ph-24', url: 'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?auto=format&fit=crop&w=800&q=80', is_cover: true, display_order: 1 }
-    ],
-    product_options: [
-      { id: 'opt-29', option_name: 'Chain Color', is_required: true, display_order: 1, choices: [{ label: '18K Gold Plated', extra_cost: 0 }, { label: 'Sterling Silver Plated', extra_cost: 0 }] }
-    ]
-  },
-  {
-    id: 'prod-25',
-    name: 'Fuzzy Wire Carnation Tribute Bouquet',
-    slug: 'fuzzy-wire-carnation-tribute-bouquet',
-    category_id: null,
-    category: null,
-    base_price: 460,
-    description: 'Layered fluffy pink and coral carnations symbolizing gratitude and love, wrapped with a satin bow.',
-    is_available: true,
-    is_bestseller: false,
-    is_ready_made: false,
-    ready_made_stock: 0,
-    is_on_sale: false,
-    sale_price: 0,
-    sale_tag: '',
-    is_sold_out: false,
-    display_order: 25,
-    product_photos: [
-      { id: 'ph-25', url: 'https://images.unsplash.com/photo-1561181286-d3fee7d55364?auto=format&fit=crop&w=800&q=80', is_cover: true, display_order: 1 }
-    ],
-    product_options: [
-      { id: 'opt-30', option_name: 'Carnation Tone', is_required: true, display_order: 1, choices: [{ label: 'Coral & Peachy Pink', extra_cost: 0 }, { label: 'Deep Crimson Red', extra_cost: 0 }, { label: 'Soft Ivory Cream', extra_cost: 0 }] }
-    ]
-  },
-  {
-    id: 'prod-26',
-    name: 'Crochet Hanging Car Mirror Floral Charm',
-    slug: 'crochet-car-mirror-floral-charm',
-    category_id: null,
-    category: null,
-    base_price: 210,
-    description: 'Charming double-blossom dangling floral accessory for car rearview mirrors with adjustable cord.',
-    is_available: true,
-    is_bestseller: false,
+    description: 'Handcrafted fuzzy chenille wire flower bouquet wrapped in premium Korean wrapping paper. Features customizable colors and lovely floral blooms.',
     is_ready_made: true,
     ready_made_stock: 10,
-    is_on_sale: false,
-    sale_price: 0,
-    sale_tag: '',
-    is_sold_out: false,
-    display_order: 26,
-    product_photos: [
-      { id: 'ph-26', url: 'https://images.unsplash.com/photo-1508615039623-a25605d2b022?auto=format&fit=crop&w=800&q=80', is_cover: true, display_order: 1 }
-    ],
+    is_bestseller: true,
+    is_available: true,
+    product_photos: [{ url: 'https://images.unsplash.com/photo-1561181286-d3fee7d55364?auto=format&fit=crop&w=800&q=80', is_cover: true }],
     product_options: [
-      { id: 'opt-31', option_name: 'Flower Style', is_required: true, display_order: 1, choices: [{ label: 'Double Daisy Duo', extra_cost: 0 }, { label: 'Mini Rose Bud Pair', extra_cost: 0 }, { label: 'Sunflower Bloom', extra_cost: 0 }] }
-    ]
+      {
+        option_name: 'Color / Theme',
+        is_required: true,
+        choices: [
+          { name: 'Pink', price: 0 },
+          { name: 'Red', price: 0 },
+          { name: 'White', price: 0 },
+          { name: 'Yellow', price: 0 },
+          { name: 'Purple', price: 0 },
+          { name: 'Blue', price: 0 },
+          { name: 'Mixed Colors', price: 0 },
+        ],
+      },
+      {
+        option_name: 'Add-ons',
+        is_required: false,
+        choices: [
+          { name: 'Message Card', price: 15 },
+          { name: 'Ribbon', price: 15 },
+          { name: 'Fairy LED Light', price: 35 },
+          { name: 'Gift Packaging', price: 30 },
+          { name: 'Complete Gift Bundle (Card + Ribbon + LED + Packaging)', price: 85 },
+        ],
+      },
+    ],
   },
   {
-    id: 'prod-27',
-    name: 'Resin Embedded Floral Compact Pocket Mirror',
-    slug: 'resin-floral-compact-pocket-mirror',
-    category_id: null,
-    category: null,
-    base_price: 310,
-    description: 'Dual-magnification foldable metal compact mirror with a bespoke botanical resin top shell.',
-    is_available: true,
-    is_bestseller: false,
+    id: 'prod-master-02',
+    name: 'Mini Bouquet',
+    slug: 'fuzzy-mini-bouquet',
+    category_id: 'c0000000-0000-0000-0000-000000000001',
+    category: { name: 'Bouquets', slug: 'bouquets' },
+    base_price: 120,
+    description: 'Petite fuzzy wire flower bouquet. A sweet, charming token for desks, gifts, and special small surprises.',
     is_ready_made: true,
-    ready_made_stock: 5,
-    is_on_sale: false,
-    sale_price: 0,
-    sale_tag: '',
-    is_sold_out: false,
-    display_order: 27,
-    product_photos: [
-      { id: 'ph-27', url: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=800&q=80', is_cover: true, display_order: 1 }
-    ],
+    ready_made_stock: 15,
+    is_bestseller: true,
+    is_available: true,
+    product_photos: [{ url: 'https://images.unsplash.com/photo-1561181286-d3fee7d55364?auto=format&fit=crop&w=800&q=80', is_cover: true }],
     product_options: [
-      { id: 'opt-32', option_name: 'Casing Tone', is_required: true, display_order: 1, choices: [{ label: 'Rose Gold Metallic', extra_cost: 0 }, { label: 'Classic Polished Gold', extra_cost: 0 }, { label: 'Vintage Silver', extra_cost: 0 }] }
-    ]
+      {
+        option_name: 'Color / Theme',
+        is_required: true,
+        choices: [
+          { name: 'Pink', price: 0 },
+          { name: 'Red', price: 0 },
+          { name: 'White', price: 0 },
+          { name: 'Yellow', price: 0 },
+          { name: 'Purple', price: 0 },
+          { name: 'Mixed Colors', price: 0 },
+        ],
+      },
+      {
+        option_name: 'Add-ons',
+        is_required: false,
+        choices: [
+          { name: 'Message Card', price: 15 },
+          { name: 'Ribbon', price: 15 },
+          { name: 'Gift Packaging', price: 30 },
+        ],
+      },
+    ],
   },
   {
-    id: 'prod-28',
-    name: 'Fuzzy Wire Red Poppy & Eucalyptus Hand Spray',
-    slug: 'fuzzy-wire-red-poppy-spray',
-    category_id: null,
-    category: null,
-    base_price: 380,
-    description: 'Bold scarlet fuzzy poppies arranged with sage green chenille eucalyptus foliage.',
-    is_available: true,
+    id: 'prod-master-03',
+    name: 'Single Flower',
+    slug: 'fuzzy-single-flower',
+    category_id: 'c0000000-0000-0000-0000-000000000001',
+    category: { name: 'Bouquets', slug: 'bouquets' },
+    base_price: 60,
+    description: 'Single bloom fuzzy wire stem (Rose / Tulip / Sunflower / Daisy) wrapped delicately with a satin bow.',
+    is_ready_made: true,
+    ready_made_stock: 20,
     is_bestseller: false,
-    is_ready_made: false,
-    ready_made_stock: 0,
-    is_on_sale: false,
-    sale_price: 0,
-    sale_tag: '',
-    is_sold_out: false,
-    display_order: 28,
-    product_photos: [
-      { id: 'ph-28', url: 'https://images.unsplash.com/photo-1561181286-d3fee7d55364?auto=format&fit=crop&w=800&q=80', is_cover: true, display_order: 1 }
-    ],
+    is_available: true,
+    product_photos: [{ url: 'https://images.unsplash.com/photo-1584992236310-6edddc08acff?auto=format&fit=crop&w=800&q=80', is_cover: true }],
     product_options: [
-      { id: 'opt-33', option_name: 'Paper Wrapping', is_required: true, display_order: 1, choices: [{ label: 'Matte Charcoal & Gold', extra_cost: 0 }, { label: 'Earthy Oatmeal Kraft', extra_cost: 0 }] }
-    ]
+      {
+        option_name: 'Flower Type',
+        is_required: true,
+        choices: [
+          { name: 'Rose', price: 0 },
+          { name: 'Tulip', price: 0 },
+          { name: 'Sunflower', price: 0 },
+          { name: 'Daisy', price: 0 },
+        ],
+      },
+      {
+        option_name: 'Color',
+        is_required: true,
+        choices: [
+          { name: 'Pink', price: 0 },
+          { name: 'Red', price: 0 },
+          { name: 'White', price: 0 },
+          { name: 'Yellow', price: 0 },
+          { name: 'Purple', price: 0 },
+          { name: 'Blue', price: 0 },
+        ],
+      },
+      {
+        option_name: 'Add-ons',
+        is_required: false,
+        choices: [
+          { name: 'Message Card', price: 15 },
+          { name: 'Ribbon', price: 15 },
+        ],
+      },
+    ],
   },
   {
-    id: 'prod-29',
-    name: 'Crochet Heart Daisy Keychain Pair',
-    slug: 'crochet-heart-daisy-keychain-pair',
-    category_id: null,
-    category: null,
-    base_price: 230,
-    description: 'Matching pair of knit puffy heart and sunshine daisy keychains with secure lobster clasps.',
-    is_available: true,
-    is_bestseller: false,
+    id: 'prod-master-04',
+    name: 'Flower Mirror',
+    slug: 'fuzzy-flower-mirror',
+    category_id: 'c0000000-0000-0000-0000-000000000004',
+    category: { name: 'Custom Gifts', slug: 'custom-gifts' },
+    base_price: 250,
+    description: 'Aesthetic wavy floral mirror lined with handmade fuzzy wire petals. A stunning centerpiece for vanity tables.',
     is_ready_made: true,
     ready_made_stock: 8,
-    is_on_sale: false,
-    sale_price: 0,
-    sale_tag: '',
-    is_sold_out: false,
-    display_order: 29,
-    product_photos: [
-      { id: 'ph-29', url: 'https://images.unsplash.com/photo-1584917865442-de89df76afd3?auto=format&fit=crop&w=800&q=80', is_cover: true, display_order: 1 }
-    ],
+    is_bestseller: true,
+    is_available: true,
+    product_photos: [{ url: 'https://images.unsplash.com/photo-1513519245088-0e12902e5a38?auto=format&fit=crop&w=800&q=80', is_cover: true }],
     product_options: [
-      { id: 'opt-34', option_name: 'Heart Color', is_required: true, display_order: 1, choices: [{ label: 'Ruby Cherry Red', extra_cost: 0 }, { label: 'Pastel Baby Pink', extra_cost: 0 }, { label: 'Lavender Purple', extra_cost: 0 }] }
-    ]
+      {
+        option_name: 'Color / Theme',
+        is_required: true,
+        choices: [
+          { name: 'Pink', price: 0 },
+          { name: 'White', price: 0 },
+          { name: 'Red', price: 0 },
+          { name: 'Purple', price: 0 },
+          { name: 'Mixed Colors', price: 0 },
+        ],
+      },
+      {
+        option_name: 'Add-ons',
+        is_required: false,
+        choices: [
+          { name: 'Message Card', price: 15 },
+          { name: 'Ribbon', price: 15 },
+          { name: 'Gift Packaging', price: 30 },
+        ],
+      },
+    ],
   },
   {
-    id: 'prod-30',
-    name: 'Galaxy Glitter Floral Resin Ballpoint Pen',
-    slug: 'galaxy-glitter-floral-resin-pen',
-    category_id: null,
-    category: null,
-    base_price: 150,
-    description: 'Smooth refillable ballpoint pen with handcrafted floral crystal barrel and rose gold accents.',
+    id: 'prod-master-05',
+    name: 'Flower Keychain',
+    slug: 'fuzzy-flower-keychain',
+    category_id: 'c0000000-0000-0000-0000-000000000004',
+    category: { name: 'Custom Gifts', slug: 'custom-gifts' },
+    base_price: 80,
+    description: 'Cute fuzzy wire flower charm keychain with sturdy clasp for bags, keys, and backpacks.',
+    is_ready_made: true,
+    ready_made_stock: 20,
+    is_bestseller: true,
     is_available: true,
-    is_bestseller: false,
+    product_photos: [{ url: 'https://images.unsplash.com/photo-1584992236310-6edddc08acff?auto=format&fit=crop&w=800&q=80', is_cover: true }],
+    product_options: [
+      {
+        option_name: 'Color',
+        is_required: true,
+        choices: [
+          { name: 'Pink', price: 0 },
+          { name: 'Red', price: 0 },
+          { name: 'White', price: 0 },
+          { name: 'Purple', price: 0 },
+          { name: 'Mixed Colors', price: 0 },
+        ],
+      },
+      {
+        option_name: 'Add-ons',
+        is_required: false,
+        choices: [
+          { name: 'Message Card', price: 15 },
+          { name: 'Gift Box', price: 30 },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'prod-master-06',
+    name: 'Mini Flower Pot',
+    slug: 'fuzzy-mini-flower-pot',
+    category_id: 'c0000000-0000-0000-0000-000000000004',
+    category: { name: 'Custom Gifts', slug: 'custom-gifts' },
+    base_price: 150,
+    description: 'Handcrafted fuzzy flower potted in a cute miniature pot. Never withers, perfect desk decor.',
     is_ready_made: true,
     ready_made_stock: 12,
-    is_on_sale: false,
-    sale_price: 0,
-    sale_tag: '',
-    is_sold_out: false,
-    display_order: 30,
-    product_photos: [
-      { id: 'ph-30', url: 'https://images.unsplash.com/photo-1583485088034-697b5bc54ccd?auto=format&fit=crop&w=800&q=80', is_cover: true, display_order: 1 }
-    ],
+    is_bestseller: false,
+    is_available: true,
+    product_photos: [{ url: 'https://images.unsplash.com/photo-1513519245088-0e12902e5a38?auto=format&fit=crop&w=800&q=80', is_cover: true }],
     product_options: [
-      { id: 'opt-35', option_name: 'Ink & Trim Tone', is_required: true, display_order: 1, choices: [{ label: 'Black Ink (Rose Gold Barrel)', extra_cost: 0 }, { label: 'Blue Ink (Silver Flake Barrel)', extra_cost: 0 }] }
-    ]
-  }
+      {
+        option_name: 'Flower',
+        is_required: true,
+        choices: [
+          { name: 'Rose', price: 0 },
+          { name: 'Tulip', price: 0 },
+          { name: 'Sunflower', price: 0 },
+          { name: 'Daisy', price: 0 },
+          { name: 'Mixed Flowers', price: 0 },
+        ],
+      },
+      {
+        option_name: 'Add-ons',
+        is_required: false,
+        choices: [
+          { name: 'Message Card', price: 15 },
+          { name: 'Ribbon', price: 15 },
+          { name: 'Gift Box', price: 30 },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'prod-master-07',
+    name: 'Mini Flower Basket',
+    slug: 'fuzzy-mini-flower-basket',
+    category_id: 'c0000000-0000-0000-0000-000000000001',
+    category: { name: 'Bouquets', slug: 'bouquets' },
+    base_price: 180,
+    description: 'Rustic miniature woven basket overflowing with colorful handmade fuzzy pipe cleaner blossoms.',
+    is_ready_made: true,
+    ready_made_stock: 10,
+    is_bestseller: false,
+    is_available: true,
+    product_photos: [{ url: 'https://images.unsplash.com/photo-1561181286-d3fee7d55364?auto=format&fit=crop&w=800&q=80', is_cover: true }],
+    product_options: [
+      {
+        option_name: 'Color',
+        is_required: true,
+        choices: [
+          { name: 'Pink', price: 0 },
+          { name: 'Red', price: 0 },
+          { name: 'White', price: 0 },
+          { name: 'Purple', price: 0 },
+          { name: 'Mixed Colors', price: 0 },
+        ],
+      },
+      {
+        option_name: 'Add-ons',
+        is_required: false,
+        choices: [
+          { name: 'Message Card', price: 15 },
+          { name: 'Ribbon', price: 15 },
+          { name: 'Gift Box', price: 30 },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'prod-master-08',
+    name: 'Flower Pen',
+    slug: 'fuzzy-flower-pen',
+    category_id: 'c0000000-0000-0000-0000-000000000004',
+    category: { name: 'Custom Gifts', slug: 'custom-gifts' },
+    base_price: 60,
+    description: 'Smooth writing ballpoint pen topped with a blooming fuzzy wire flower topper.',
+    is_ready_made: true,
+    ready_made_stock: 25,
+    is_bestseller: false,
+    is_available: true,
+    product_photos: [{ url: 'https://images.unsplash.com/photo-1584992236310-6edddc08acff?auto=format&fit=crop&w=800&q=80', is_cover: true }],
+    product_options: [
+      {
+        option_name: 'Color',
+        is_required: true,
+        choices: [
+          { name: 'Pink', price: 0 },
+          { name: 'Red', price: 0 },
+          { name: 'White', price: 0 },
+          { name: 'Purple', price: 0 },
+          { name: 'Blue', price: 0 },
+        ],
+      },
+      {
+        option_name: 'Add-ons',
+        is_required: false,
+        choices: [
+          { name: 'Message Card', price: 15 },
+          { name: 'Gift Box', price: 30 },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'prod-master-09',
+    name: 'Flower Bookmark',
+    slug: 'fuzzy-flower-bookmark',
+    category_id: 'c0000000-0000-0000-0000-000000000004',
+    category: { name: 'Custom Gifts', slug: 'custom-gifts' },
+    base_price: 50,
+    description: 'Handmade floral wire bookmark with elegant clip and ribbon tail for book lovers.',
+    is_ready_made: true,
+    ready_made_stock: 25,
+    is_bestseller: false,
+    is_available: true,
+    product_photos: [{ url: 'https://images.unsplash.com/photo-1584992236310-6edddc08acff?auto=format&fit=crop&w=800&q=80', is_cover: true }],
+    product_options: [
+      {
+        option_name: 'Color',
+        is_required: true,
+        choices: [
+          { name: 'Pink', price: 0 },
+          { name: 'Red', price: 0 },
+          { name: 'White', price: 0 },
+          { name: 'Purple', price: 0 },
+          { name: 'Blue', price: 0 },
+        ],
+      },
+      {
+        option_name: 'Add-ons',
+        is_required: false,
+        choices: [
+          { name: 'Message Card', price: 15 },
+          { name: 'Gift Box', price: 30 },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'prod-master-10',
+    name: 'Flower Phone Charm',
+    slug: 'fuzzy-flower-phone-charm',
+    category_id: 'c0000000-0000-0000-0000-000000000004',
+    category: { name: 'Custom Gifts', slug: 'custom-gifts' },
+    base_price: 60,
+    description: 'Trendy pastel floral phone strap with beaded accents and velvet-touch fuzzy blossom charm.',
+    is_ready_made: true,
+    ready_made_stock: 20,
+    is_bestseller: false,
+    is_available: true,
+    product_photos: [{ url: 'https://images.unsplash.com/photo-1584992236310-6edddc08acff?auto=format&fit=crop&w=800&q=80', is_cover: true }],
+    product_options: [
+      {
+        option_name: 'Color',
+        is_required: true,
+        choices: [
+          { name: 'Pink', price: 0 },
+          { name: 'Red', price: 0 },
+          { name: 'White', price: 0 },
+          { name: 'Purple', price: 0 },
+          { name: 'Blue', price: 0 },
+        ],
+      },
+      {
+        option_name: 'Add-ons',
+        is_required: false,
+        choices: [
+          { name: 'Message Card', price: 15 },
+          { name: 'Gift Box', price: 30 },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'prod-master-11',
+    name: 'Mini Flower Set',
+    slug: 'fuzzy-mini-flower-set',
+    category_id: 'c0000000-0000-0000-0000-000000000001',
+    category: { name: 'Bouquets', slug: 'bouquets' },
+    base_price: 180,
+    description: 'Curated bundle of mini fuzzy wire flower stems arranged together with decorative wrapper.',
+    is_ready_made: true,
+    ready_made_stock: 12,
+    is_bestseller: false,
+    is_available: true,
+    product_photos: [{ url: 'https://images.unsplash.com/photo-1561181286-d3fee7d55364?auto=format&fit=crop&w=800&q=80', is_cover: true }],
+    product_options: [
+      {
+        option_name: 'Size',
+        is_required: true,
+        choices: [
+          { name: '3 Flowers', price: 0 },
+          { name: '5 Flowers', price: 70 },
+          { name: '7 Flowers', price: 120 },
+        ],
+      },
+      {
+        option_name: 'Add-ons',
+        is_required: false,
+        choices: [
+          { name: 'Message Card', price: 15 },
+          { name: 'Ribbon', price: 15 },
+          { name: 'Gift Box', price: 30 },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'prod-master-12',
+    name: 'Flower Gift Set',
+    slug: 'fuzzy-flower-gift-set',
+    category_id: 'c0000000-0000-0000-0000-000000000004',
+    category: { name: 'Custom Gifts', slug: 'custom-gifts' },
+    base_price: 300,
+    description: 'Complete boxed gift set featuring a flower bouquet, mini flower accessory, and premium presentation.',
+    is_ready_made: true,
+    ready_made_stock: 8,
+    is_bestseller: true,
+    is_available: true,
+    product_photos: [{ url: 'https://images.unsplash.com/photo-1513519245088-0e12902e5a38?auto=format&fit=crop&w=800&q=80', is_cover: true }],
+    product_options: [
+      {
+        option_name: 'Color',
+        is_required: true,
+        choices: [
+          { name: 'Pink', price: 0 },
+          { name: 'Red', price: 0 },
+          { name: 'Pastel', price: 0 },
+          { name: 'Purple', price: 0 },
+          { name: 'Yellow', price: 0 },
+          { name: 'Mixed Colors', price: 0 },
+        ],
+      },
+      {
+        option_name: 'Add-ons',
+        is_required: false,
+        choices: [
+          { name: 'Message Card', price: 15 },
+          { name: 'Ribbon', price: 15 },
+          { name: 'Fairy Lights', price: 35 },
+          { name: 'Gift Box', price: 30 },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'prod-master-13',
+    name: 'Customized Bouquet',
+    slug: 'fuzzy-customized-bouquet',
+    category_id: 'c0000000-0000-0000-0000-000000000001',
+    category: { name: 'Bouquets', slug: 'bouquets' },
+    base_price: 450,
+    description: 'Fully personalized fuzzy wire bouquet tailored to your desired color combination, stem count, and floral variety.',
+    is_ready_made: false,
+    ready_made_stock: 5,
+    is_bestseller: true,
+    is_available: true,
+    product_photos: [{ url: 'https://images.unsplash.com/photo-1561181286-d3fee7d55364?auto=format&fit=crop&w=800&q=80', is_cover: true }],
+    product_options: [
+      {
+        option_name: 'Size',
+        is_required: true,
+        choices: [
+          { name: '6 Stems', price: 0 },
+          { name: '10 Stems', price: 200 },
+          { name: '15 Stems', price: 400 },
+        ],
+      },
+      {
+        option_name: 'Color',
+        is_required: true,
+        choices: [
+          { name: 'Pink', price: 0 },
+          { name: 'Red', price: 0 },
+          { name: 'Pastel', price: 0 },
+          { name: 'Purple', price: 0 },
+          { name: 'Yellow', price: 0 },
+          { name: 'Blue', price: 0 },
+          { name: 'Mixed Colors', price: 0 },
+        ],
+      },
+      {
+        option_name: 'Add-ons',
+        is_required: false,
+        choices: [
+          { name: 'Message Card', price: 15 },
+          { name: 'Ribbon', price: 15 },
+          { name: 'Fairy Lights', price: 35 },
+          { name: 'Gift Box', price: 30 },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'prod-master-14',
+    name: 'Customized Mini Pot',
+    slug: 'fuzzy-customized-mini-pot',
+    category_id: 'c0000000-0000-0000-0000-000000000004',
+    category: { name: 'Custom Gifts', slug: 'custom-gifts' },
+    base_price: 200,
+    description: 'Custom potted fuzzy flower arrangement where you choose the flower variety, colors, and pot styling.',
+    is_ready_made: false,
+    ready_made_stock: 10,
+    is_bestseller: false,
+    is_available: true,
+    product_photos: [{ url: 'https://images.unsplash.com/photo-1513519245088-0e12902e5a38?auto=format&fit=crop&w=800&q=80', is_cover: true }],
+    product_options: [
+      {
+        option_name: 'Flower',
+        is_required: true,
+        choices: [
+          { name: 'Rose & Tulip', price: 0 },
+          { name: 'Sunflower', price: 0 },
+          { name: 'Daisy & Lavender', price: 0 },
+          { name: 'Mixed Flowers', price: 0 },
+        ],
+      },
+      {
+        option_name: 'Add-ons',
+        is_required: false,
+        choices: [
+          { name: 'Message Card', price: 15 },
+          { name: 'Ribbon', price: 15 },
+          { name: 'Gift Box', price: 30 },
+        ],
+      },
+    ],
+  },
+  {
+    id: 'prod-master-15',
+    name: 'Customized Keychain',
+    slug: 'fuzzy-customized-keychain',
+    category_id: 'c0000000-0000-0000-0000-000000000004',
+    category: { name: 'Custom Gifts', slug: 'custom-gifts' },
+    base_price: 100,
+    description: 'Custom personalized fuzzy wire keychain made with your choice of charm design, colors, and initials.',
+    is_ready_made: false,
+    ready_made_stock: 15,
+    is_bestseller: false,
+    is_available: true,
+    product_photos: [{ url: 'https://images.unsplash.com/photo-1584992236310-6edddc08acff?auto=format&fit=crop&w=800&q=80', is_cover: true }],
+    product_options: [
+      {
+        option_name: 'Design',
+        is_required: true,
+        choices: [
+          { name: '1 Flower', price: 0 },
+          { name: '2 Flowers', price: 0 },
+          { name: 'Flower with Leaf', price: 0 },
+          { name: 'Initial Letter + Flower', price: 20 },
+        ],
+      },
+      {
+        option_name: 'Add-ons',
+        is_required: false,
+        choices: [
+          { name: 'Message Card', price: 15 },
+          { name: 'Gift Box', price: 30 },
+        ],
+      },
+    ],
+  },
 ];
 
 export const MOCK_ORDERS = [];
 
 export const MOCK_CUSTOM_REQUESTS = [];
 
-export const MOCK_REVIEWS = [];
+export const MOCK_REVIEWS = [
+  {
+    id: 'rev-001',
+    customer_name: 'Angelica Ramos',
+    rating: 5,
+    comment: 'The colors are so vibrant and lovely! Stems are sturdy and the fuzzy wire craft is very neat and soft.',
+    productSlug: 'fuzzy-customized-bouquet',
+    is_verified_buyer: true,
+    is_approved: true,
+    created_at: new Date(Date.now() - 3600000 * 4).toISOString(), // 4 hrs ago
+  },
+  {
+    id: 'rev-002',
+    customer_name: 'Mark Bautista',
+    rating: 5,
+    comment: 'Bought the customized mini pot as a desk gift for my partner. Loved the flower arrangement and pot finish!',
+    productSlug: 'fuzzy-customized-mini-pot',
+    is_verified_buyer: true,
+    is_approved: true,
+    created_at: new Date(Date.now() - 3600000 * 24).toISOString(), // 1 day ago
+  },
+  {
+    id: 'rev-003',
+    customer_name: 'Patricia Tan',
+    rating: 5,
+    comment: 'Super cute flower charm keychain! Perfect addition to my tote bag, very high quality.',
+    productSlug: 'fuzzy-customized-keychain',
+    is_verified_buyer: true,
+    is_approved: true,
+    created_at: new Date(Date.now() - 3600000 * 48).toISOString(), // 2 days ago
+  },
+  {
+    id: 'rev-004',
+    customer_name: 'Kevin Sy',
+    rating: 4,
+    comment: 'Very nice gift set, beautifully wrapped with ribbon and included message card. Will order again!',
+    productSlug: 'fuzzy-flower-gift-set',
+    is_verified_buyer: true,
+    is_approved: true,
+    created_at: new Date(Date.now() - 3600000 * 72).toISOString(), // 3 days ago
+  },
+];
 
-export const MOCK_FEEDBACKS = [];
+export const MOCK_FEEDBACKS = [
+  {
+    id: 'fb-001',
+    customer_name: 'Maria Santos',
+    topic: 'Order Experience',
+    rating: 5,
+    message: 'Super ganda po ng Customized Bouquet! Well-packaged and dumating on time for my sister’s graduation. Salamat po!',
+    created_at: new Date(Date.now() - 3600000 * 2).toISOString(), // 2 hrs ago
+  },
+  {
+    id: 'fb-002',
+    customer_name: 'Bea Alonzo',
+    topic: 'Rush Crafting',
+    rating: 5,
+    message: 'Sobrang bilis mag-reply sa custom rush order! Napaka-detailed ng floral arrangement at pulido ang pagkakayari.',
+    created_at: new Date(Date.now() - 3600000 * 18).toISOString(), // 18 hrs ago
+  },
+  {
+    id: 'fb-003',
+    customer_name: 'Joshua Garcia',
+    topic: 'Suggestion',
+    rating: 4,
+    message: 'Gaganda po ng mga keychains and pens! Suggestion lang po na sana may metallic clips option din next time.',
+    created_at: new Date(Date.now() - 3600000 * 36).toISOString(), // 1.5 days ago
+  },
+  {
+    id: 'fb-004',
+    customer_name: 'Chloe Rivera',
+    topic: 'Product Quality',
+    rating: 5,
+    message: 'Handmade with love talaga! Walang gusot ang wrapping paper and makapal ang fuzzy wire material. Very satisfied buyer.',
+    created_at: new Date(Date.now() - 3600000 * 60).toISOString(), // 2.5 days ago
+  },
+];
 
 // In-memory storage for active session submissions
 let localReviews = [...MOCK_REVIEWS];

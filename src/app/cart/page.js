@@ -4,7 +4,6 @@ import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { CUSTOM_ORDER_MESSENGER_URL } from '@/lib/constants/customPrompts';
 import BottomNav from '@/components/customer/BottomNav';
 import BrandLogo from '@/components/common/BrandLogo';
 import EmptyState from '@/components/customer/EmptyState';

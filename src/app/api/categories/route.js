@@ -56,3 +56,68 @@ export async function POST(request) {
     return NextResponse.json({ success: false, message: error.message }, { status: 500 });
   }
 }
+
+export async function PUT(request) {
+  try {
+    const body = await request.json();
+    const { id, name, slug, display_order } = body;
+
+    if (!id || !name) {
+      return NextResponse.json({ success: false, message: 'Missing category id or name' }, { status: 400 });
+    }
+
+    const updatedSlug = slug || name.toLowerCase().replace(/[^\w\s-]/g, '').replace(/\s+/g, '-').trim();
+
+    const catObj = {
+      id,
+      name,
+      slug: updatedSlug,
+      display_order: display_order || 1,
+    };
+
+    saveMockCategory(catObj);
+
+    try {
+      const supabase = await createClient();
+      if (supabase) {
+        await supabase
+          .from('categories')
+          .update({
+            name: catObj.name,
+            slug: catObj.slug,
+            display_order: catObj.display_order,
+          })
+          .eq('id', id);
+      }
+    } catch {}
+
+    return NextResponse.json({ success: true, category: catObj });
+  } catch (error) {
+    return NextResponse.json({ success: false, message: error.message }, { status: 500 });
+  }
+}
+
+export async function DELETE(request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+
+    if (!id) {
+      return NextResponse.json({ success: false, message: 'Missing category id' }, { status: 400 });
+    }
+
+    try {
+      const supabase = await createClient();
+      if (supabase) {
+        // Set category_id to NULL on products referencing this category before delete
+        await supabase.from('products').update({ category_id: null }).eq('category_id', id);
+        await supabase.from('categories').delete().eq('id', id);
+      }
+    } catch {}
+
+    return NextResponse.json({ success: true, message: 'Category deleted' });
+  } catch (error) {
+    return NextResponse.json({ success: false, message: error.message }, { status: 500 });
+  }
+}
+

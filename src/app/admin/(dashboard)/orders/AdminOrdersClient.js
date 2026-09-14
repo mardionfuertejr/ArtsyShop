@@ -5,26 +5,32 @@ import Link from 'next/link';
 import { MOCK_ORDERS } from '@/lib/mockData';
 import { createClient } from '@/lib/supabase/client';
 import { formatCurrency } from '@/lib/utils/formatCurrency';
-import { formatDate, formatDateShort, formatRelative } from '@/lib/utils/formatDate';
+import { formatDate, formatDateShort, formatRelative, formatTime12Hour, isRushDate } from '@/lib/utils/formatDate';
 
 export default function AdminOrdersClient({ initialOrders }) {
-  // Helper to resolve 1-hour auto transition to Crafting (preparing)
+  // Helper to preserve order status
   const resolveAutoStatus = (orderList) => {
-    const oneHourMs = 60 * 60 * 1000;
-    const now = Date.now();
-    return orderList.map((ord) => {
-      const orderTime = new Date(ord.created_at || now).getTime();
-      if ((ord.status === 'confirmed' || ord.status === 'pending' || ord.status === 'for_confirmation') && (now - orderTime >= oneHourMs)) {
-        return { ...ord, status: 'preparing' };
-      }
-      if (ord.status === 'pending' || ord.status === 'for_confirmation') {
-        return { ...ord, status: 'confirmed' };
-      }
-      return ord;
-    });
+    return (orderList || []).map((ord) => ord);
   };
 
-  const [orders, setOrders] = useState(() => resolveAutoStatus(initialOrders || MOCK_ORDERS));
+  const [orders, setOrders] = useState(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const local = localStorage.getItem('likha_admin_orders');
+        if (local) {
+          const parsed = JSON.parse(local);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            return resolveAutoStatus(parsed);
+          }
+        }
+      } catch {}
+    }
+    if (Array.isArray(initialOrders) && initialOrders.length > 0) {
+      return resolveAutoStatus(initialOrders);
+    }
+    return resolveAutoStatus(MOCK_ORDERS);
+  });
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
   const [statusFilter, setStatusFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [toastMsg, setToastMsg] = useState('');
@@ -64,7 +70,7 @@ export default function AdminOrdersClient({ initialOrders }) {
     setCurrentPage(1);
   }, [statusFilter, searchQuery, pageSize]);
 
-  // Sync function: combines Supabase orders, localStorage orders, and initialOrders
+  // Sync function: combines Supabase orders, /api/orders API, localStorage orders, and initialOrders
   const syncOrders = useCallback(async () => {
     setIsRefreshing(true);
     try {
@@ -74,85 +80,118 @@ export default function AdminOrdersClient({ initialOrders }) {
       try {
         const localPlaced = JSON.parse(localStorage.getItem('likha_admin_orders') || '[]');
         if (Array.isArray(localPlaced) && localPlaced.length > 0) {
-          const localRefs = new Set(localPlaced.map(o => o.reference_code));
-          combined = [...localPlaced, ...combined.filter(o => !localRefs.has(o.reference_code))];
-        }
-      } catch {}
-
-      // 2. Fetch from Supabase client
-      try {
-        const supabase = createClient();
-        if (supabase) {
-          const { data: dbOrders, error } = await supabase
-            .from('orders')
-            .select(`
-              *,
-              order_items (
-                id,
-                product_name,
-                quantity,
-                unit_price,
-                total_price,
-                unit_cost,
-                total_cost,
-                order_item_options (
-                  id,
-                  option_name,
-                  option_value,
-                  additional_cost
-                )
-              ),
-              delivery_locations (
-                latitude,
-                longitude,
-                address,
-                landmark_notes
-              )
-            `)
-            .order('created_at', { ascending: false });
-
-          if (!error && dbOrders && dbOrders.length > 0) {
-            const formatted = dbOrders.map((ord) => ({
-              id: ord.id,
-              reference_code: ord.reference_code,
-              customer_name: ord.customer_name,
-              customer_phone: ord.customer_phone || '',
-              facebook_name: ord.facebook_name || '',
-              order_type: ord.order_type,
-              status: ord.status,
-              subtotal: parseFloat(ord.subtotal) || 0,
-              delivery_fee: parseFloat(ord.delivery_fee) || 0,
-              total_amount: parseFloat(ord.total_amount) || 0,
-              total_cost: parseFloat(ord.total_cost) || 0,
-              preferred_date: ord.preferred_date || null,
-              notes: ord.notes || '',
-              created_at: ord.created_at,
-              order_items: (ord.order_items || []).map((it) => ({
-                id: it.id,
-                product_name: it.product_name,
-                quantity: it.quantity,
-                unit_price: parseFloat(it.unit_price) || 0,
-                total_price: parseFloat(it.total_price) || 0,
-                unit_cost: parseFloat(it.unit_cost) || 0,
-                total_cost: parseFloat(it.total_cost) || 0,
-                options: (it.order_item_options || []).map((opt) => ({
-                  option_name: opt.option_name,
-                  option_value: opt.option_value,
-                  additional_cost: parseFloat(opt.additional_cost) || 0,
-                })),
-              })),
-              delivery_location: ord.delivery_locations?.[0] || null,
-            }));
-
-            const dbRefs = new Set(formatted.map(o => o.reference_code));
-            combined = [...formatted, ...combined.filter(o => !dbRefs.has(o.reference_code))];
+          const validPlaced = localPlaced.filter(o => o && o.reference_code && !o.reference_code.startsWith('MOCK-') && !o.id?.startsWith('ord-mock'));
+          if (validPlaced.length !== localPlaced.length) {
+            localStorage.setItem('likha_admin_orders', JSON.stringify(validPlaced));
+          }
+          if (validPlaced.length > 0) {
+            const localRefs = new Set(validPlaced.map(o => o.reference_code));
+            combined = [...validPlaced, ...combined.filter(o => !localRefs.has(o.reference_code))];
           }
         }
-      } catch {}
+      } catch { }
+
+      // 2. Fetch from /api/orders backend route (guaranteed server-side access across devices/LAN)
+      try {
+        const res = await fetch('/api/orders');
+        if (res.ok) {
+          const json = await res.json();
+          if (json.success && Array.isArray(json.orders) && json.orders.length > 0) {
+            const apiRefs = new Set(json.orders.map(o => o.reference_code));
+            combined = [...json.orders, ...combined.filter(o => !apiRefs.has(o.reference_code))];
+          }
+        }
+      } catch (apiErr) {
+        // Fallback to Supabase client if /api/orders fails
+        try {
+          const supabase = createClient();
+          if (supabase) {
+            const { data: dbOrders, error } = await supabase
+              .from('orders')
+              .select(`
+                *,
+                order_items (
+                  id,
+                  product_name,
+                  quantity,
+                  unit_price,
+                  total_price,
+                  unit_cost,
+                  total_cost,
+                  order_item_options (
+                    id,
+                    option_name,
+                    option_value,
+                    additional_cost
+                  )
+                ),
+                delivery_locations (
+                  latitude,
+                  longitude,
+                  address,
+                  landmark_notes
+                )
+              `)
+              .order('created_at', { ascending: false });
+
+            if (!error && dbOrders && dbOrders.length > 0) {
+              const formatted = dbOrders.map((ord) => ({
+                id: ord.id,
+                reference_code: ord.reference_code,
+                customer_name: ord.customer_name,
+                customer_phone: ord.customer_phone || '',
+                facebook_name: ord.facebook_name || '',
+                order_type: ord.order_type,
+                status: ord.status,
+                subtotal: parseFloat(ord.subtotal) || 0,
+                delivery_fee: parseFloat(ord.delivery_fee) || 0,
+                rush_fee: parseFloat(ord.rush_fee) || 0,
+                is_rush: Boolean(ord.is_rush),
+                total_amount: parseFloat(ord.total_amount) || 0,
+                total_cost: parseFloat(ord.total_cost) || 0,
+                preferred_date: ord.preferred_date || null,
+                preferred_time: ord.preferred_time || null,
+                notes: ord.notes || '',
+                messenger_opened_at: ord.messenger_opened_at || ord.messengerOpenedAt || null,
+                sent_to_messenger: Boolean(ord.sent_to_messenger || ord.sentToMessenger || ord.messenger_opened_at),
+                created_at: ord.created_at,
+                order_items: (ord.order_items || []).map((it) => ({
+                  id: it.id,
+                  product_name: it.product_name,
+                  quantity: it.quantity,
+                  unit_price: parseFloat(it.unit_price) || 0,
+                  total_price: parseFloat(it.total_price) || 0,
+                  unit_cost: parseFloat(it.unit_cost) || 0,
+                  total_cost: parseFloat(it.total_cost) || 0,
+                  options: (it.order_item_options || []).map((opt) => ({
+                    option_name: opt.option_name,
+                    option_value: opt.option_value,
+                    additional_cost: parseFloat(opt.additional_cost) || 0,
+                  })),
+                })),
+                delivery_location: ord.delivery_locations?.[0] || null,
+              }));
+
+              const dbRefs = new Set(formatted.map(o => o.reference_code));
+              combined = [...formatted, ...combined.filter(o => !dbRefs.has(o.reference_code))];
+            }
+          }
+        } catch { }
+      }
+
+      // Always sort latest order first
+      combined.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+
+      // Keep localStorage in sync so other components have full data
+      try {
+        localStorage.setItem('likha_admin_orders', JSON.stringify(combined));
+      } catch { }
 
       setOrders(resolveAutoStatus(combined));
+      setHasLoadedOnce(true);
     } finally {
       setIsRefreshing(false);
+      setHasLoadedOnce(true);
     }
   }, [initialOrders]);
 
@@ -167,6 +206,11 @@ export default function AdminOrdersClient({ initialOrders }) {
     window.addEventListener('storage', handleNewOrder);
     window.addEventListener('likha_order_placed', handleNewOrder);
 
+    // Periodic auto-sync every 8 seconds to catch orders placed on other devices / browsers
+    const interval = setInterval(() => {
+      syncOrders();
+    }, 8000);
+
     // Supabase Realtime subscription
     let channel = null;
     try {
@@ -179,16 +223,17 @@ export default function AdminOrdersClient({ initialOrders }) {
           })
           .subscribe();
       }
-    } catch {}
+    } catch { }
 
     return () => {
       window.removeEventListener('storage', handleNewOrder);
       window.removeEventListener('likha_order_placed', handleNewOrder);
+      clearInterval(interval);
       if (channel) {
         try {
           const supabase = createClient();
           if (supabase) supabase.removeChannel(channel);
-        } catch {}
+        } catch { }
       }
     };
   }, [syncOrders]);
@@ -209,7 +254,7 @@ export default function AdminOrdersClient({ initialOrders }) {
       if (filterRef.current && !filterRef.current.contains(event.target)) {
         setIsFilterOpen(false);
       }
-      if (actionMenuRef.current && !actionMenuRef.current.contains(event.target)) {
+      if (!event.target.closest('.action-menu-dropdown-container')) {
         setActiveMenuOrderId(null);
       }
     }
@@ -238,7 +283,7 @@ export default function AdminOrdersClient({ initialOrders }) {
         window.dispatchEvent(new Event('storage'));
         window.dispatchEvent(new CustomEvent('likha_order_placed', { detail: { ...ord, status: 'cancelled' } }));
       }
-    } catch {}
+    } catch { }
 
     // 3. Update Supabase
     try {
@@ -250,7 +295,7 @@ export default function AdminOrdersClient({ initialOrders }) {
           await supabase.from('orders').update({ status: 'cancelled' }).eq('reference_code', ord.reference_code);
         }
       }
-    } catch {}
+    } catch { }
 
     setToastMsg(`Order ${ord.reference_code} marked as Cancelled`);
     setTimeout(() => setToastMsg(''), 3000);
@@ -273,7 +318,7 @@ export default function AdminOrdersClient({ initialOrders }) {
         window.dispatchEvent(new Event('storage'));
         window.dispatchEvent(new CustomEvent('likha_order_placed', { detail: { ...ord, deleted: true } }));
       }
-    } catch {}
+    } catch { }
 
     // 3. Update Supabase
     try {
@@ -285,7 +330,7 @@ export default function AdminOrdersClient({ initialOrders }) {
           await supabase.from('orders').delete().eq('reference_code', ord.reference_code);
         }
       }
-    } catch {}
+    } catch { }
 
     setToastMsg(`Order ${ord.reference_code} permanently deleted`);
     setTimeout(() => setToastMsg(''), 3000);
@@ -324,12 +369,14 @@ export default function AdminOrdersClient({ initialOrders }) {
       );
     }
 
+    const timeLabel = ord.preferred_time ? ` · ${formatTime12Hour(ord.preferred_time)}` : '';
+
     const isFinished = ord.status === 'completed' || ord.status === 'cancelled';
     if (isFinished) {
       return (
         <span style={{ fontSize: '11px', color: '#64748b', fontWeight: '500', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
           <i className="fa-regular fa-calendar-check" style={{ fontSize: '9.5px', color: '#94a3b8' }}></i>
-          <span>Needed: {formatDateShort(ord.preferred_date)}</span>
+          <span>Needed: {formatDateShort(ord.preferred_date)}{timeLabel}</span>
         </span>
       );
     }
@@ -344,7 +391,7 @@ export default function AdminOrdersClient({ initialOrders }) {
       return (
         <span style={{ fontSize: '11px', color: '#DC2626', fontWeight: '700', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
           <i className="fa-solid fa-fire" style={{ fontSize: '9.5px' }}></i>
-          <span>Due Today ({formatDateShort(ord.preferred_date)})</span>
+          <span>Due Today ({formatDateShort(ord.preferred_date)}{timeLabel})</span>
         </span>
       );
     }
@@ -352,7 +399,7 @@ export default function AdminOrdersClient({ initialOrders }) {
       return (
         <span style={{ fontSize: '11px', color: '#D97706', fontWeight: '700', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
           <i className="fa-solid fa-clock" style={{ fontSize: '9.5px' }}></i>
-          <span>Due Tomorrow ({formatDateShort(ord.preferred_date)})</span>
+          <span>Due Tomorrow ({formatDateShort(ord.preferred_date)}{timeLabel})</span>
         </span>
       );
     }
@@ -360,7 +407,7 @@ export default function AdminOrdersClient({ initialOrders }) {
       return (
         <span style={{ fontSize: '11px', color: '#EF4444', fontWeight: '700', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
           <i className="fa-solid fa-triangle-exclamation" style={{ fontSize: '9.5px' }}></i>
-          <span>Past due ({formatDateShort(ord.preferred_date)})</span>
+          <span>Past due ({formatDateShort(ord.preferred_date)}{timeLabel})</span>
         </span>
       );
     }
@@ -368,16 +415,67 @@ export default function AdminOrdersClient({ initialOrders }) {
     return (
       <span style={{ fontSize: '11px', color: '#475569', fontWeight: '600', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
         <i className="fa-regular fa-calendar" style={{ fontSize: '9.5px', color: '#64748b' }}></i>
-        <span>Needed: {formatDate(ord.preferred_date)}</span>
+        <span>Needed: {formatDateShort(ord.preferred_date)}{timeLabel}</span>
       </span>
     );
   };
 
-  const totalOrders = filteredOrders.length;
+  const isRushOrder = (ord) => {
+    if (ord.status === 'completed' || ord.status === 'cancelled') return false;
+    if (ord.is_rush) return true;
+    if (ord.preferred_date) {
+      return isRushDate(ord.preferred_date);
+    }
+    return false;
+  };
+
+  const sortedFilteredOrders = [...filteredOrders].sort((a, b) => {
+    // Priority Tiers:
+    // Tier 1: Rush Active Orders (Priority 1)
+    // Tier 2: Regular Active Orders - First Come First Served (Priority 2)
+    // Tier 3: Completed Orders (Priority 3 - Bottom)
+    // Tier 4: Cancelled Orders (Priority 4 - Very Bottom)
+    const getTier = (o) => {
+      if (o.status === 'cancelled') return 4;
+      if (o.status === 'completed') return 3;
+      if (isRushOrder(o)) return 1;
+      return 2; // Regular active order (FCFS)
+    };
+
+    const tierA = getTier(a);
+    const tierB = getTier(b);
+
+    if (tierA !== tierB) {
+      return tierA - tierB;
+    }
+
+    // Tier 1: Rush Orders (Earliest needed date first)
+    if (tierA === 1) {
+      const dateA = a.preferred_date ? new Date(a.preferred_date).getTime() : Infinity;
+      const dateB = b.preferred_date ? new Date(b.preferred_date).getTime() : Infinity;
+      if (dateA !== dateB) return dateA - dateB;
+      return new Date(a.created_at || 0) - new Date(b.created_at || 0);
+    }
+
+    // Tier 2: Regular Active Orders — First Come First Served (Earliest placed order first!)
+    if (tierA === 2) {
+      const timeA = new Date(a.created_at || 0).getTime();
+      const timeB = new Date(b.created_at || 0).getTime();
+      if (timeA !== timeB) return timeA - timeB; // Earliest created_at first (FCFS)
+      return (a.reference_code || '').localeCompare(b.reference_code || '');
+    }
+
+    // Tier 3 (Completed) & Tier 4 (Cancelled): Latest first
+    const timeA = new Date(a.created_at || 0).getTime();
+    const timeB = new Date(b.created_at || 0).getTime();
+    return timeB - timeA;
+  });
+
+  const totalOrders = sortedFilteredOrders.length;
   const totalPages = Math.max(1, Math.ceil(totalOrders / pageSize));
   const safeCurrentPage = Math.min(currentPage, totalPages);
   const startIndex = (safeCurrentPage - 1) * pageSize;
-  const paginatedOrders = filteredOrders.slice(startIndex, startIndex + pageSize);
+  const paginatedOrders = sortedFilteredOrders.slice(startIndex, startIndex + pageSize);
 
   return (
     <div>
@@ -593,14 +691,23 @@ export default function AdminOrdersClient({ initialOrders }) {
             </tr>
           </thead>
           <tbody key={`${statusFilter}-${searchQuery}-${currentPage}`} className="table-fade-enter">
-            {paginatedOrders.length === 0 ? (
+            {!hasLoadedOnce && orders.length === 0 ? (
               <tr>
-                <td colSpan={6} className="table-empty-cell" style={{ textAlign: 'center', padding: '70px 20px', border: 'none' }}>
-                  <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '56px', height: '56px', borderRadius: '50%', background: '#f8fafc', color: '#94a3b8', marginBottom: '14px', fontSize: '22px' }}>
+                <td colSpan={6} style={{ textAlign: 'center', padding: '60px 20px', border: 'none' }}>
+                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', color: '#64748B', fontSize: '13px', fontWeight: '700' }}>
+                    <i className="fa-solid fa-spinner fa-spin" style={{ color: 'var(--color-primary, #EA580C)' }}></i>
+                    <span>Loading orders...</span>
+                  </div>
+                </td>
+              </tr>
+            ) : paginatedOrders.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="table-empty-cell" style={{ textAlign: 'center', padding: '60px 20px 70px', border: 'none' }}>
+                  <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '64px', height: '64px', borderRadius: '50%', background: '#f8fafc', color: '#94a3b8', marginBottom: '16px', fontSize: '26px' }}>
                     <i className="fa-solid fa-cart-shopping" style={{ opacity: 0.8 }}></i>
                   </div>
-                  <p style={{ margin: 0, fontWeight: '800', fontSize: '15px', color: '#0f172a' }}>No orders found</p>
-                  <p style={{ margin: '6px 0 0', fontSize: '13px', color: '#64748b' }}>
+                  <p style={{ margin: 0, fontWeight: '800', fontSize: '16px', color: '#0f172a' }}>No orders found</p>
+                  <p style={{ margin: '8px 0 0', fontSize: '13.5px', color: '#64748b' }}>
                     {searchQuery || statusFilter !== 'all' ? 'Try adjusting your search query or filter tab.' : 'Customer orders will appear here once placed.'}
                   </p>
                 </td>
@@ -618,17 +725,27 @@ export default function AdminOrdersClient({ initialOrders }) {
                   completed: { label: 'COMPLETED', bg: '#D1FAE5', color: '#065F46' },
                   cancelled: { label: 'CANCELLED', bg: '#FEE2E2', color: '#991B1B' },
                 };
-                const badge = statusBadgeConfig[ord.status] || { label: (ord.status || 'CONFIRMED').toUpperCase(), bg: '#F3F4F6', color: '#374151' };
+                const badge = statusBadgeConfig[ord.status] || statusBadgeConfig.confirmed;
+                const rowKey = `${ord.id || ord.reference_code}-${idx}`;
+                const isRush = Boolean(ord.is_rush || (ord.preferred_date && isRushDate(ord.preferred_date)));
 
                 return (
-                  <tr key={ord.id} style={{ borderBottom: '1px solid #E2E8F0', transition: 'background 0.12s ease' }}>
-                    <td style={{ padding: '14px 18px', borderBottom: '1px solid #E2E8F0' }}>
+                  <tr
+                    key={rowKey}
+                    style={{
+                      background: isRush ? '#FFF7ED' : 'transparent',
+                      borderLeft: isRush ? '4px solid #EA580C' : '4px solid transparent',
+                      borderBottom: '1px solid #E2E8F0',
+                      transition: 'background 0.12s ease',
+                    }}
+                  >
+                    <td style={{ padding: '10px 18px', verticalAlign: 'middle', borderBottom: '1px solid #E2E8F0' }}>
                       <Link href={`/admin/orders/${ord.id}`} style={{ display: 'block', marginBottom: '2px', fontWeight: '800', fontSize: '13px', color: '#0f172a', textDecoration: 'none' }}>
                         {ord.reference_code}
                       </Link>
                       {renderNeededDate(ord)}
                     </td>
-                    <td style={{ padding: '14px 18px', borderBottom: '1px solid #E2E8F0', maxWidth: '200px' }}>
+                    <td style={{ padding: '10px 18px', verticalAlign: 'middle', borderBottom: '1px solid #E2E8F0', maxWidth: '200px' }}>
                       <p
                         style={{
                           fontWeight: '700',
@@ -643,18 +760,21 @@ export default function AdminOrdersClient({ initialOrders }) {
                       >
                         {ord.customer_name}
                       </p>
-                      <span style={{
-                        fontSize: '11px',
-                        color: '#64748b',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '4px',
-                      }}>
-                        <i className={ord.order_type === 'delivery' ? 'fa-solid fa-motorcycle' : 'fa-solid fa-store'} style={{ fontSize: '10px', color: '#64748b' }}></i>
-                        <span>{ord.order_type === 'delivery' ? 'Delivery' : 'Pickup'}</span>
-                      </span>
+                      {ord.order_type === 'delivery' && (
+                        <span style={{
+                          fontSize: '11px',
+                          color: 'var(--color-primary, #b45309)',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          fontWeight: '600',
+                        }}>
+                          <i className="fa-solid fa-motorcycle" style={{ fontSize: '10px' }}></i>
+                          <span>Delivery</span>
+                        </span>
+                      )}
                     </td>
-                    <td style={{ padding: '14px 18px', verticalAlign: 'middle', textAlign: 'left', borderBottom: '1px solid #E2E8F0' }}>
+                    <td style={{ padding: '10px 18px', verticalAlign: 'middle', textAlign: 'left', borderBottom: '1px solid #E2E8F0' }}>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'flex-start' }}>
                         {ord.order_items && ord.order_items.length > 0 ? (
                           ord.order_items.map((it, itemIdx) => (
@@ -700,15 +820,17 @@ export default function AdminOrdersClient({ initialOrders }) {
                         )}
                       </div>
                     </td>
-                    <td style={{ padding: '14px 18px', textAlign: 'right', borderBottom: '1px solid #E2E8F0', whiteSpace: 'nowrap' }}>
+                    <td style={{ padding: '10px 18px', verticalAlign: 'middle', textAlign: 'right', borderBottom: '1px solid #E2E8F0', whiteSpace: 'nowrap' }}>
                       <div style={{ fontWeight: '800', fontSize: '13.5px', color: '#0f172a' }}>
                         {formatCurrency(ord.total_amount || 0)}
                       </div>
-                      <div style={{ fontSize: '11px', color: '#64748b', textTransform: 'capitalize', marginTop: '2px', fontWeight: '500' }}>
-                        {ord.payment_method === 'gcash' ? 'GCash' : 'Cash'}
-                      </div>
+                      {ord.payment_method === 'gcash' && (
+                        <div style={{ fontSize: '10.5px', color: '#0284c7', marginTop: '2px', fontWeight: '700' }}>
+                          GCash
+                        </div>
+                      )}
                     </td>
-                    <td style={{ padding: '14px 14px', textAlign: 'center', whiteSpace: 'nowrap', borderBottom: '1px solid #E2E8F0' }}>
+                    <td style={{ padding: '10px 14px', verticalAlign: 'middle', textAlign: 'center', whiteSpace: 'nowrap', borderBottom: '1px solid #E2E8F0' }}>
                       <span style={{
                         background: badge.bg,
                         color: badge.color,
@@ -727,22 +849,45 @@ export default function AdminOrdersClient({ initialOrders }) {
                       }}>
                         {badge.label}
                       </span>
+                      {ord.status === 'pending' && (
+                        <div style={{
+                          marginTop: '4px',
+                          fontSize: '10px',
+                          fontWeight: '600',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '4px',
+                          color: (ord.messenger_opened_at || ord.sent_to_messenger) ? '#16A34A' : '#64748B',
+                        }}>
+                          <span style={{
+                            width: '5px',
+                            height: '5px',
+                            borderRadius: '50%',
+                            background: (ord.messenger_opened_at || ord.sent_to_messenger) ? '#16A34A' : '#CBD5E1',
+                            display: 'inline-block',
+                          }}></span>
+                          <span>
+                            {(ord.messenger_opened_at || ord.sent_to_messenger) ? 'Chat Opened' : 'Awaiting Chat'}
+                          </span>
+                        </div>
+                      )}
                     </td>
-                    <td style={{ padding: '14px 16px', textAlign: 'center', whiteSpace: 'nowrap' }}>
-                      <div style={{ position: 'relative', display: 'inline-block' }}>
+                    <td style={{ padding: '10px 16px', verticalAlign: 'middle', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                      <div className="action-menu-dropdown-container" style={{ position: 'relative', display: 'inline-block' }}>
                         <button
                           type="button"
                           onClick={(e) => {
                             e.stopPropagation();
-                            setActiveMenuOrderId(activeMenuOrderId === ord.id ? null : ord.id);
+                            setActiveMenuOrderId(activeMenuOrderId === rowKey ? null : rowKey);
                           }}
                           style={{
                             width: '28px',
                             height: '28px',
                             borderRadius: '6px',
                             border: 'none',
-                            background: activeMenuOrderId === ord.id ? '#f1f5f9' : 'transparent',
-                            color: activeMenuOrderId === ord.id ? '#0f172a' : '#64748b',
+                            background: activeMenuOrderId === rowKey ? '#f1f5f9' : 'transparent',
+                            color: activeMenuOrderId === rowKey ? '#0f172a' : '#64748b',
                             cursor: 'pointer',
                             display: 'inline-flex',
                             alignItems: 'center',
@@ -750,13 +895,13 @@ export default function AdminOrdersClient({ initialOrders }) {
                             transition: 'all 0.12s ease',
                           }}
                           onMouseEnter={(e) => {
-                            if (activeMenuOrderId !== ord.id) {
+                            if (activeMenuOrderId !== rowKey) {
                               e.currentTarget.style.background = '#f1f5f9';
                               e.currentTarget.style.color = '#0f172a';
                             }
                           }}
                           onMouseLeave={(e) => {
-                            if (activeMenuOrderId !== ord.id) {
+                            if (activeMenuOrderId !== rowKey) {
                               e.currentTarget.style.background = 'transparent';
                               e.currentTarget.style.color = '#64748b';
                             }
@@ -767,7 +912,7 @@ export default function AdminOrdersClient({ initialOrders }) {
                         </button>
 
                         {/* Actions Dropdown Menu with Smart Positioning */}
-                        {activeMenuOrderId === ord.id && (
+                        {activeMenuOrderId === rowKey && (
                           <div
                             ref={actionMenuRef}
                             style={{
@@ -886,143 +1031,144 @@ export default function AdminOrdersClient({ initialOrders }) {
               })
             )}
           </tbody>
-          </table>
+        </table>
 
-          {/* Pagination Controls (only if more than 10 orders) */}
-          {totalOrders > 10 && (
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: '12px 18px',
-              borderTop: '1px solid #E2E8F0',
-              background: '#ffffff',
-              flexWrap: 'wrap',
-              gap: '10px',
-            }}>
-              {/* Entries Info */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <span style={{ fontSize: '12px', color: '#64748b', fontWeight: '500' }}>
-                  Showing <strong style={{ color: '#0f172a', fontWeight: '700' }}>{startIndex + 1}–{Math.min(startIndex + pageSize, totalOrders)}</strong> of <strong style={{ color: '#0f172a', fontWeight: '700' }}>{totalOrders}</strong> orders
-                </span>
+        {/* Pagination Controls (only if more than 10 orders) */}
+        {totalOrders > 10 && (
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '12px 18px',
+            borderTop: '1px solid #E2E8F0',
+            background: '#ffffff',
+            flexWrap: 'wrap',
+            gap: '10px',
+          }}>
+            {/* Entries Info */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span style={{ fontSize: '12px', color: '#64748b', fontWeight: '500' }}>
+                Showing <strong style={{ color: '#0f172a', fontWeight: '700' }}>{startIndex + 1}–{Math.min(startIndex + pageSize, totalOrders)}</strong> of <strong style={{ color: '#0f172a', fontWeight: '700' }}>{totalOrders}</strong> orders
+              </span>
 
-                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', marginLeft: '6px' }}>
-                  <span style={{ fontSize: '11px', color: '#94a3b8' }}>Show:</span>
-                  <select
-                    value={pageSize}
-                    onChange={(e) => setPageSize(Number(e.target.value))}
-                    style={{
-                      fontSize: '11.5px',
-                      fontWeight: '600',
-                      color: '#334155',
-                      background: '#f8fafc',
-                      border: '1px solid #e2e8f0',
-                      borderRadius: '6px',
-                      padding: '2px 6px',
-                      outline: 'none',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <option value={10}>10</option>
-                    <option value={20}>20</option>
-                    <option value={50}>50</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Page Navigation */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <button
-                  type="button"
-                  disabled={safeCurrentPage === 1}
-                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', marginLeft: '6px' }}>
+                <span style={{ fontSize: '11px', color: '#94a3b8' }}>Show:</span>
+                <select
+                  value={pageSize}
+                  onChange={(e) => setPageSize(Number(e.target.value))}
                   style={{
-                    padding: '4px 9px',
                     fontSize: '11.5px',
                     fontWeight: '600',
-                    borderRadius: '6px',
+                    color: '#334155',
+                    background: '#f8fafc',
                     border: '1px solid #e2e8f0',
-                    background: safeCurrentPage === 1 ? '#f8fafc' : '#ffffff',
-                    color: safeCurrentPage === 1 ? '#cbd5e1' : '#334155',
-                    cursor: safeCurrentPage === 1 ? 'not-allowed' : 'pointer',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                    transition: 'all 0.15s ease',
+                    borderRadius: '6px',
+                    padding: '2px 6px',
+                    outline: 'none',
+                    cursor: 'pointer',
                   }}
                 >
-                  <i className="fa-solid fa-chevron-left" style={{ fontSize: '9px' }}></i>
-                  <span>Prev</span>
-                </button>
-
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => {
-                  if (
-                    totalPages > 7 &&
-                    pageNum !== 1 &&
-                    pageNum !== totalPages &&
-                    Math.abs(pageNum - safeCurrentPage) > 1
-                  ) {
-                    if (pageNum === 2 || pageNum === totalPages - 1) {
-                      return <span key={pageNum} style={{ padding: '0 3px', color: '#94a3b8', fontSize: '11px' }}>…</span>;
-                    }
-                    return null;
-                  }
-
-                  const isActive = pageNum === safeCurrentPage;
-                  return (
-                    <button
-                      key={pageNum}
-                      type="button"
-                      onClick={() => setCurrentPage(pageNum)}
-                      style={{
-                        minWidth: '28px',
-                        height: '28px',
-                        padding: '0 6px',
-                        fontSize: '11.5px',
-                        fontWeight: isActive ? '800' : '600',
-                        borderRadius: '6px',
-                        border: isActive ? '1px solid var(--color-primary, #b45309)' : '1px solid #e2e8f0',
-                        background: isActive ? 'var(--color-primary, #b45309)' : '#ffffff',
-                        color: isActive ? '#ffffff' : '#334155',
-                        cursor: 'pointer',
-                        transition: 'all 0.15s ease',
-                      }}
-                    >
-                      {pageNum}
-                    </button>
-                  );
-                })}
-
-                <button
-                  type="button"
-                  disabled={safeCurrentPage === totalPages}
-                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                  style={{
-                    padding: '4px 9px',
-                    fontSize: '11.5px',
-                    fontWeight: '600',
-                    borderRadius: '6px',
-                    border: '1px solid #e2e8f0',
-                    background: safeCurrentPage === totalPages ? '#f8fafc' : '#ffffff',
-                    color: safeCurrentPage === totalPages ? '#cbd5e1' : '#334155',
-                    cursor: safeCurrentPage === totalPages ? 'not-allowed' : 'pointer',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                    transition: 'all 0.15s ease',
-                  }}
-                >
-                  <span>Next</span>
-                  <i className="fa-solid fa-chevron-right" style={{ fontSize: '9px' }}></i>
-                </button>
+                  <option value={10}>10</option>
+                  <option value={20}>20</option>
+                  <option value={50}>50</option>
+                </select>
               </div>
             </div>
-          )}
-        </div>
+
+            {/* Page Navigation */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <button
+                type="button"
+                disabled={safeCurrentPage === 1}
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                style={{
+                  padding: '4px 9px',
+                  fontSize: '11.5px',
+                  fontWeight: '600',
+                  borderRadius: '6px',
+                  border: '1px solid #e2e8f0',
+                  background: safeCurrentPage === 1 ? '#f8fafc' : '#ffffff',
+                  color: safeCurrentPage === 1 ? '#cbd5e1' : '#334155',
+                  cursor: safeCurrentPage === 1 ? 'not-allowed' : 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                <i className="fa-solid fa-chevron-left" style={{ fontSize: '9px' }}></i>
+                <span>Prev</span>
+              </button>
+
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => {
+                if (
+                  totalPages > 7 &&
+                  pageNum !== 1 &&
+                  pageNum !== totalPages &&
+                  Math.abs(pageNum - safeCurrentPage) > 1
+                ) {
+                  if (pageNum === 2 || pageNum === totalPages - 1) {
+                    return <span key={pageNum} style={{ padding: '0 3px', color: '#94a3b8', fontSize: '11px' }}>…</span>;
+                  }
+                  return null;
+                }
+
+                const isActive = pageNum === safeCurrentPage;
+                return (
+                  <button
+                    key={pageNum}
+                    type="button"
+                    onClick={() => setCurrentPage(pageNum)}
+                    style={{
+                      minWidth: '28px',
+                      height: '28px',
+                      padding: '0 6px',
+                      fontSize: '11.5px',
+                      fontWeight: isActive ? '800' : '600',
+                      borderRadius: '6px',
+                      border: isActive ? '1px solid var(--color-primary, #b45309)' : '1px solid #e2e8f0',
+                      background: isActive ? 'var(--color-primary, #b45309)' : '#ffffff',
+                      color: isActive ? '#ffffff' : '#334155',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    {pageNum}
+                  </button>
+                );
+              })}
+
+              <button
+                type="button"
+                disabled={safeCurrentPage === totalPages}
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                style={{
+                  padding: '4px 9px',
+                  fontSize: '11.5px',
+                  fontWeight: '600',
+                  borderRadius: '6px',
+                  border: '1px solid #e2e8f0',
+                  background: safeCurrentPage === totalPages ? '#f8fafc' : '#ffffff',
+                  color: safeCurrentPage === totalPages ? '#cbd5e1' : '#334155',
+                  cursor: safeCurrentPage === totalPages ? 'not-allowed' : 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                <span>Next</span>
+                <i className="fa-solid fa-chevron-right" style={{ fontSize: '9px' }}></i>
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Cancel Order Confirmation Modal */}
       {orderToCancel && (
         <div
+          className="modal-backdrop-animate"
           style={{
             position: 'fixed',
             top: 0,
@@ -1032,27 +1178,30 @@ export default function AdminOrdersClient({ initialOrders }) {
             width: '100vw',
             height: '100vh',
             background: 'rgba(15, 23, 42, 0.65)',
-            backdropFilter: 'blur(6px)',
-            WebkitBackdropFilter: 'blur(6px)',
+            backdropFilter: 'blur(8px)',
+            WebkitBackdropFilter: 'blur(8px)',
             zIndex: 999999,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             padding: '16px',
             boxSizing: 'border-box',
+            animation: 'adminModalFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
           }}
           onClick={() => setOrderToCancel(null)}
         >
           <div
+            className="modal-dialog-animate"
             style={{
               background: '#ffffff',
-              borderRadius: '16px',
+              borderRadius: '18px',
               padding: '24px',
               maxWidth: '380px',
               width: '100%',
               boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
               border: '1px solid #f1f5f9',
               textAlign: 'center',
+              animation: 'adminModalScaleIn 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
             }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -1097,10 +1246,10 @@ export default function AdminOrdersClient({ initialOrders }) {
                   justifyContent: 'center',
                   lineHeight: 1,
                   margin: 0,
-                  transition: 'all 0.15s ease',
+                  transition: 'background 0.12s ease',
                 }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = '#E2E8F0')}
-                onMouseLeave={(e) => (e.currentTarget.style.background = '#F1F5F9')}
+                onMouseEnter={(e) => (e.currentTarget.style.background = '#e2e8f0')}
+                onMouseLeave={(e) => (e.currentTarget.style.background = '#f1f5f9')}
               >
                 Keep Order
               </button>
@@ -1140,6 +1289,7 @@ export default function AdminOrdersClient({ initialOrders }) {
       {/* Delete Order Confirmation Modal */}
       {orderToDelete && (
         <div
+          className="modal-backdrop-animate"
           style={{
             position: 'fixed',
             top: 0,
@@ -1149,27 +1299,30 @@ export default function AdminOrdersClient({ initialOrders }) {
             width: '100vw',
             height: '100vh',
             background: 'rgba(15, 23, 42, 0.65)',
-            backdropFilter: 'blur(6px)',
-            WebkitBackdropFilter: 'blur(6px)',
+            backdropFilter: 'blur(8px)',
+            WebkitBackdropFilter: 'blur(8px)',
             zIndex: 999999,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             padding: '16px',
             boxSizing: 'border-box',
+            animation: 'adminModalFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
           }}
           onClick={() => setOrderToDelete(null)}
         >
           <div
+            className="modal-dialog-animate"
             style={{
               background: '#ffffff',
-              borderRadius: '16px',
+              borderRadius: '18px',
               padding: '24px',
               maxWidth: '380px',
               width: '100%',
               boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
               border: '1px solid #f1f5f9',
               textAlign: 'center',
+              animation: 'adminModalScaleIn 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
             }}
             onClick={(e) => e.stopPropagation()}
           >

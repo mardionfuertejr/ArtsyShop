@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import PremiumDatePicker from '@/components/common/PremiumDatePicker';
+import PremiumDatePicker, { isRushDate } from '@/components/common/PremiumDatePicker';
+import PremiumTimePicker from '@/components/common/PremiumTimePicker';
 import { useRouter } from 'next/navigation';
 import { useCart } from '@/lib/hooks/useCart';
 import { createClient } from '@/lib/supabase/client';
@@ -52,9 +53,12 @@ function calculateDynamicDeliveryFee(settings, deliveryLocation, orderType) {
     return nearFee;
   }
 
+  const shopLat = parseFloat(settings.studio_lat || settings.studioLat) || BARUGO_STUDIO_COORDS.lat;
+  const shopLng = parseFloat(settings.studio_lng || settings.studioLng) || BARUGO_STUDIO_COORDS.lng;
+
   const distKm = computeDistanceKm(
-    BARUGO_STUDIO_COORDS.lat,
-    BARUGO_STUDIO_COORDS.lng,
+    shopLat,
+    shopLng,
     deliveryLocation.lat,
     deliveryLocation.lng
   );
@@ -71,11 +75,12 @@ export default function CheckoutPage() {
   const [isDirectCheckout, setIsDirectCheckout] = useState(false);
   const [selectedIds, setSelectedIds] = useState(null);
   const [orderType, setOrderType] = useState('delivery');
-  const [formData, setFormData] = useState({ name: '', phone: '', facebookName: '', notes: '', preferredDate: '' });
+  const [formData, setFormData] = useState({ name: '', phone: '', facebookName: '', notes: '', preferredDate: '', preferredTime: '' });
   const [deliveryLocation, setDeliveryLocation] = useState(null);
   const [deliveryAddress, setDeliveryAddress] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState({});
   const [settings, setSettings] = useState({
     pickup_address: '',
     pickup_notes: '',
@@ -84,6 +89,8 @@ export default function CheckoutPage() {
     delivery_fee_near: 20,
     delivery_fee_mid: 35,
     delivery_fee_far: 45,
+    rush_fee_enabled: true,
+    rush_fee_amount: 50,
   });
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
@@ -204,10 +211,10 @@ export default function CheckoutPage() {
 
     // Check standard promo codes
     let newVoucher = null;
-    if (cleanCode === 'ARTSYWINNER' || cleanCode.endsWith('-30')) {
-      if (subtotal < 399) {
-        const lacking = (399 - subtotal);
-        const errMsg = `Min. spend ₱399 · Add ₱${lacking % 1 === 0 ? lacking.toFixed(0) : lacking.toFixed(2)} more`;
+    if (cleanCode === 'ARTSYWINNER' || cleanCode.endsWith('-25') || cleanCode === 'MMARTSY25') {
+      if (subtotal < 850) {
+        const lacking = (850 - subtotal);
+        const errMsg = `Min. spend ₱850 · Add ₱${lacking % 1 === 0 ? lacking.toFixed(0) : lacking.toFixed(2)} more`;
         setVoucherError(errMsg);
         if (typeof window !== 'undefined') {
           try {
@@ -218,14 +225,14 @@ export default function CheckoutPage() {
       }
       newVoucher = {
         code: cleanCode,
-        discount: 30,
-        minSpend: 399,
-        label: '₱30 OFF Mini-Game Champion Voucher',
+        discount: 25,
+        minSpend: 850,
+        label: '₱25 OFF Masterpiece Artisan Voucher',
       };
     } else if (cleanCode === 'MMARTSY20' || cleanCode.endsWith('-20')) {
-      if (subtotal < 280) {
-        const lacking = (280 - subtotal);
-        const errMsg = `Min. spend ₱280 · Add ₱${lacking % 1 === 0 ? lacking.toFixed(0) : lacking.toFixed(2)} more`;
+      if (subtotal < 600) {
+        const lacking = (600 - subtotal);
+        const errMsg = `Min. spend ₱600 · Add ₱${lacking % 1 === 0 ? lacking.toFixed(0) : lacking.toFixed(2)} more`;
         setVoucherError(errMsg);
         if (typeof window !== 'undefined') {
           try {
@@ -237,13 +244,31 @@ export default function CheckoutPage() {
       newVoucher = {
         code: cleanCode,
         discount: 20,
-        minSpend: 280,
-        label: '₱20 OFF Gold Tier Voucher',
+        minSpend: 600,
+        label: '₱20 OFF Diamond Tier Voucher',
+      };
+    } else if (cleanCode === 'MMARTSY15' || cleanCode.endsWith('-15')) {
+      if (subtotal < 450) {
+        const lacking = (450 - subtotal);
+        const errMsg = `Min. spend ₱450 · Add ₱${lacking % 1 === 0 ? lacking.toFixed(0) : lacking.toFixed(2)} more`;
+        setVoucherError(errMsg);
+        if (typeof window !== 'undefined') {
+          try {
+            window.dispatchEvent(new CustomEvent('likha_toast', { detail: { type: 'error', title: 'Min. Spend Required ⚠️', message: errMsg, duration: 3500 } }));
+          } catch {}
+        }
+        return;
+      }
+      newVoucher = {
+        code: cleanCode,
+        discount: 15,
+        minSpend: 450,
+        label: '₱15 OFF Gold Tier Voucher',
       };
     } else if (cleanCode === 'MMARTSY10' || cleanCode.endsWith('-10')) {
-      if (subtotal < 150) {
-        const lacking = (150 - subtotal);
-        const errMsg = `Min. spend ₱150 · Add ₱${lacking % 1 === 0 ? lacking.toFixed(0) : lacking.toFixed(2)} more`;
+      if (subtotal < 250) {
+        const lacking = (250 - subtotal);
+        const errMsg = `Min. spend ₱250 · Add ₱${lacking % 1 === 0 ? lacking.toFixed(0) : lacking.toFixed(2)} more`;
         setVoucherError(errMsg);
         if (typeof window !== 'undefined') {
           try {
@@ -255,13 +280,13 @@ export default function CheckoutPage() {
       newVoucher = {
         code: cleanCode,
         discount: 10,
-        minSpend: 150,
+        minSpend: 250,
         label: '₱10 OFF Silver Tier Voucher',
       };
     } else if (cleanCode === 'MMARTSY5' || cleanCode.endsWith('-5') || cleanCode === 'ARTSYLOVE5') {
-      if (subtotal < 100) {
-        const lacking = (100 - subtotal);
-        const errMsg = `Min. spend ₱100 · Add ₱${lacking % 1 === 0 ? lacking.toFixed(0) : lacking.toFixed(2)} more`;
+      if (subtotal < 120) {
+        const lacking = (120 - subtotal);
+        const errMsg = `Min. spend ₱120 · Add ₱${lacking % 1 === 0 ? lacking.toFixed(0) : lacking.toFixed(2)} more`;
         setVoucherError(errMsg);
         if (typeof window !== 'undefined') {
           try {
@@ -273,7 +298,7 @@ export default function CheckoutPage() {
       newVoucher = {
         code: cleanCode,
         discount: 5,
-        minSpend: 100,
+        minSpend: 120,
         label: '₱5 OFF Starter Voucher',
       };
     } else {
@@ -336,7 +361,14 @@ export default function CheckoutPage() {
   // Re-validate applied voucher if cart changes
   const isVoucherApplicable = appliedVoucher && subtotal >= (appliedVoucher.minSpend || 0);
   const voucherDiscount = isVoucherApplicable ? (appliedVoucher.discount || 0) : 0;
-  const totalAmount = Math.max(0, subtotal + dynamicDeliveryFee - voucherDiscount);
+  
+  // Smart Rush Order Detection (Today & Tomorrow)
+  const isRush = isRushDate(formData.preferredDate);
+  const appliedRushFee = (isRush && settings.rush_fee_enabled !== false)
+    ? (settings.rush_fee_amount !== undefined ? settings.rush_fee_amount : 50)
+    : 0;
+
+  const totalAmount = Math.max(0, subtotal + dynamicDeliveryFee + appliedRushFee - voucherDiscount);
 
   // Load business settings & saved customer info
   useEffect(() => {
@@ -361,11 +393,15 @@ export default function CheckoutPage() {
           setSettings({
             pickup_address: data.settings.studioAddress || data.settings.pickup_address,
             pickup_notes: data.settings.pickup_notes || data.settings.pickupNotes || 'Pickup schedule and ready-for-pickup notice will be coordinated via Messenger.',
+            studio_lat: data.settings.studioLat || data.settings.studio_lat,
+            studio_lng: data.settings.studioLng || data.settings.studio_lng,
             delivery_fee: parseFloat(data.settings.deliveryFee) || DEFAULT_DELIVERY_FEE,
             delivery_fee_mode: data.settings.deliveryFeeMode || 'auto',
             delivery_fee_near: parseFloat(data.settings.deliveryFeeNear) || 20,
             delivery_fee_mid: parseFloat(data.settings.deliveryFeeMid) || 35,
             delivery_fee_far: parseFloat(data.settings.deliveryFeeFar) || 45,
+            rush_fee_enabled: data.settings.rushFeeEnabled !== undefined ? data.settings.rushFeeEnabled : true,
+            rush_fee_amount: data.settings.rushFeeAmount !== undefined ? parseFloat(data.settings.rushFeeAmount) : 50,
             gcash_name: data.settings.gcashName,
             gcash_number: data.settings.gcashNumber,
             studio_name: data.settings.studioName,
@@ -381,11 +417,15 @@ export default function CheckoutPage() {
           setSettings({
             pickup_address: parsed.studioAddress || parsed.pickup_address,
             pickup_notes: parsed.pickup_notes || parsed.pickupNotes || 'Pickup schedule and ready-for-pickup notice will be coordinated via Messenger.',
+            studio_lat: parsed.studioLat || parsed.studio_lat,
+            studio_lng: parsed.studioLng || parsed.studio_lng,
             delivery_fee: parseFloat(parsed.deliveryFee) || DEFAULT_DELIVERY_FEE,
             delivery_fee_mode: parsed.deliveryFeeMode || 'auto',
             delivery_fee_near: parseFloat(parsed.deliveryFeeNear) || 20,
             delivery_fee_mid: parseFloat(parsed.deliveryFeeMid) || 35,
             delivery_fee_far: parseFloat(parsed.deliveryFeeFar) || 45,
+            rush_fee_enabled: parsed.rushFeeEnabled !== undefined ? parsed.rushFeeEnabled : true,
+            rush_fee_amount: parsed.rushFeeAmount !== undefined ? parseFloat(parsed.rushFeeAmount) : 50,
             gcash_name: parsed.gcashName,
             gcash_number: parsed.gcashNumber,
             studio_name: parsed.studioName,
@@ -439,6 +479,9 @@ export default function CheckoutPage() {
   }, []);
 
   const handleInputChange = (field, value) => {
+    if (fieldErrors[field]) {
+      setFieldErrors(prev => ({ ...prev, [field]: null }));
+    }
     setFormData(prev => {
       const updated = { ...prev, [field]: value };
       try {
@@ -596,6 +639,9 @@ export default function CheckoutPage() {
         markerRef.current.on('dragend', onMarkerDrag);
       }
     }
+    if (fieldErrors.mapPin) {
+      setFieldErrors(prev => ({ ...prev, mapPin: null }));
+    }
     setDeliveryLocation({ lat, lng });
     reverseGeocode(lat, lng);
   };
@@ -679,16 +725,56 @@ export default function CheckoutPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (checkoutCart.length === 0) return;
+
+    const newErrors = {};
+    if (!formData.name || !formData.name.trim()) {
+      newErrors.name = 'Paki-lagay ang iyong Full Name.';
+    }
+    if (orderType === 'delivery') {
+      if (!deliveryLocation) {
+        newErrors.mapPin = 'Paki-tap o i-drag ang iyong delivery pin sa mapa.';
+      }
+      if (!deliveryAddress || !deliveryAddress.trim()) {
+        newErrors.landmark = 'Paki-lagay ang iyong kumpletong address o landmark.';
+      }
+    }
     if (!formData.preferredDate) {
-      setError(`Paki-pili ang ${orderType === 'pickup' ? 'Pickup Date' : 'Delivery Date'} bago mag-submit.`);
+      newErrors.preferredDate = `Paki-pili ang target ${orderType === 'pickup' ? 'pickup' : 'delivery'} date.`;
+    }
+    if (!formData.preferredTime) {
+      newErrors.preferredTime = 'Paki-pili ang target time needed.';
+    }
+
+    if (Object.keys(newErrors).length > 0) {
+      setFieldErrors(newErrors);
+      setError('May mga kulang na impormasyon. Paki-kumpleto ang mga naka-highlight na field.');
+
+      setTimeout(() => {
+        const order = ['name', 'mapPin', 'landmark', 'preferredDate', 'preferredTime'];
+        for (const k of order) {
+          if (newErrors[k]) {
+            let elId = '';
+            if (k === 'name') elId = 'name';
+            else if (k === 'mapPin') elId = 'map-container-wrapper';
+            else if (k === 'landmark') elId = 'landmark';
+            else if (k === 'preferredDate') elId = orderType === 'delivery' ? 'preferred-date' : 'preferred-date-pickup';
+            else if (k === 'preferredTime') elId = orderType === 'delivery' ? 'preferred-time' : 'preferred-time-pickup';
+
+            const el = document.getElementById(elId);
+            if (el) {
+              el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              if (el.focus && typeof el.focus === 'function') el.focus();
+              break;
+            }
+          }
+        }
+      }, 60);
       return;
     }
-    if (orderType === 'delivery' && !deliveryLocation) {
-      setError('Paki-tap ang iyong delivery pin sa mapa.');
-      return;
-    }
+
     setSubmitting(true);
     setError('');
+    setFieldErrors({});
 
     const deliveryFee = dynamicDeliveryFee;
     const orderTotalAmount = subtotal + deliveryFee;
@@ -733,9 +819,13 @@ export default function CheckoutPage() {
       status: 'pending',
       subtotal,
       delivery_fee: deliveryFee,
+      rush_fee: appliedRushFee,
+      is_rush: isRush,
+      voucher_discount: voucherDiscount || 0,
       total_amount: totalAmount,
       notes: customerNotes,
       preferred_date: formData.preferredDate || null,
+      preferred_time: formData.preferredTime || null,
       order_items: formattedOrderItems,
       delivery_location: deliveryLocation ? {
         latitude: deliveryLocation.lat,
@@ -753,11 +843,17 @@ export default function CheckoutPage() {
         customerPhone: formData.phone,
         facebookName: formData.facebookName,
         orderType,
+        deliveryAddress: deliveryAddress || '',
         subtotal,
         deliveryFee,
+        rushFee: appliedRushFee,
+        isRush: isRush,
+        voucherDiscount: voucherDiscount || 0,
+        appliedVoucherCode: appliedVoucher?.code || null,
         totalAmount,
         notes: customerNotes,
         preferredDate: formData.preferredDate,
+        preferredTime: formData.preferredTime,
         items: checkoutCart,
         createdAt: new Date().toISOString(),
       };
@@ -792,9 +888,12 @@ export default function CheckoutPage() {
         status: 'confirmed',
         subtotal,
         delivery_fee: deliveryFee,
+        rush_fee: appliedRushFee,
+        is_rush: isRush,
         total_amount: totalAmount,
         total_cost: checkoutCart.reduce((s, i) => s + (((parseFloat(i.unitPrice) || 0) * 0.4) * (i.quantity || 1)), 0),
         preferred_date: formData.preferredDate || null,
+        preferred_time: formData.preferredTime || null,
         notes: customerNotes || '',
         created_at: new Date().toISOString(),
         order_items: formattedOrderItems.map((item, idx) => ({
@@ -831,37 +930,53 @@ export default function CheckoutPage() {
       }
     } catch {}
 
-    // Insert into Supabase if connected
+    // 1. Post to /api/orders endpoint for cross-device, LAN, and multi-browser persistence
+    try {
+      await fetch('/api/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(fullAdminOrder),
+      });
+    } catch (apiErr) {
+      console.warn('API /api/orders sync note:', apiErr);
+    }
+
+    // 2. Also insert into Supabase directly if client is available
     try {
       const supabase = createClient();
       if (supabase) {
         const { data: order, error: orderErr } = await supabase
           .from('orders')
-          .insert({
+          .upsert({
             reference_code: referenceCode,
             customer_name: formData.name,
-            customer_phone: formData.phone,
+            customer_phone: formData.phone || '',
+            facebook_name: formData.facebookName || '',
             order_type: orderType,
-            status: 'pending',
+            status: 'confirmed',
             subtotal,
             delivery_fee: deliveryFee,
+            rush_fee: appliedRushFee || 0,
+            is_rush: Boolean(isRush),
             total_amount: totalAmount,
-            notes: customerNotes,
+            total_cost: fullAdminOrder.total_cost || 0,
+            notes: customerNotes || '',
             preferred_date: formData.preferredDate || null,
-          })
+            preferred_time: formData.preferredTime || null,
+          }, { onConflict: 'reference_code' })
           .select()
           .single();
 
         if (!orderErr && order) {
           const dbOrderItems = formattedOrderItems.map((item) => ({
             order_id: order.id,
-            product_id: item.product_id,
+            product_id: item.product_id || null,
             product_name: item.product_name,
             quantity: item.quantity,
             unit_price: item.unit_price,
             total_price: item.total_price,
-            unit_cost: 0,
-            total_cost: 0,
+            unit_cost: item.unit_price * 0.4,
+            total_cost: item.total_price * 0.4,
           }));
 
           const { data: insertedItems } = await supabase
@@ -937,7 +1052,7 @@ export default function CheckoutPage() {
 
   return (
     <div className="customer-shell">
-      <header className="top-bar">
+      <header className="top-bar" style={{ width: '100%', maxWidth: '100vw', boxSizing: 'border-box' }}>
         <button
           type="button"
           onClick={handleGoBack}
@@ -951,16 +1066,19 @@ export default function CheckoutPage() {
             display: 'inline-flex',
             alignItems: 'center',
             justifyContent: 'center',
+            width: '40px',
+            height: '40px',
+            flexShrink: 0,
           }}
         >
           <i className="fa-solid fa-arrow-left"></i>
         </button>
-        <span className="top-bar-title" style={{ flex: 1, margin: 0 }}>Checkout</span>
-        <div style={{ width: 40 }} />
+        <span className="top-bar-title" style={{ flex: 1, margin: 0, textAlign: 'center' }}>Checkout</span>
+        <div style={{ width: 40, flexShrink: 0 }} />
       </header>
 
-      <main className="page-content page-enter">
-        <form onSubmit={handleSubmit} style={{ maxWidth: '640px', margin: '0 auto' }}>
+      <main className="page-content page-enter" style={{ width: '100%', maxWidth: '100vw', boxSizing: 'border-box', overflowX: 'hidden' }}>
+        <form onSubmit={handleSubmit} style={{ width: '100%', maxWidth: '640px', margin: '0 auto', boxSizing: 'border-box', overflowX: 'hidden' }}>
           {/* Customer Details */}
           <div className="section" style={{ paddingTop: 'var(--space-2)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-3)' }}>
@@ -996,9 +1114,20 @@ export default function CheckoutPage() {
                 placeholder="Enter your full name"
                 value={formData.name}
                 onChange={(e) => handleInputChange('name', e.target.value)}
-                required
                 autoComplete="name"
+                style={{
+                  width: '100%',
+                  boxSizing: 'border-box',
+                  borderColor: fieldErrors.name ? '#EF4444' : undefined,
+                  boxShadow: fieldErrors.name ? '0 0 0 3px rgba(239, 68, 68, 0.14)' : undefined,
+                }}
               />
+              {fieldErrors.name && (
+                <p style={{ color: '#EF4444', fontSize: '11px', marginTop: '4px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <i className="fa-solid fa-circle-exclamation" style={{ fontSize: '10px' }}></i>
+                  <span>{fieldErrors.name}</span>
+                </p>
+              )}
             </div>
           </div>
 
@@ -1009,7 +1138,7 @@ export default function CheckoutPage() {
             <h2 className="section-title" style={{ fontSize: 'var(--text-base)', marginBottom: 'var(--space-3)' }}>
               Claim Method
             </h2>
-            <div className="fulfillment-toggle" role="radiogroup" aria-label="Claim method">
+            <div className="fulfillment-toggle" role="radiogroup" aria-label="Claim method" style={{ width: '100%', boxSizing: 'border-box' }}>
               <button
                 type="button"
                 className={`fulfillment-option${orderType === 'delivery' ? ' selected' : ''}`}
@@ -1017,6 +1146,7 @@ export default function CheckoutPage() {
                 role="radio"
                 aria-checked={orderType === 'delivery'}
                 id="fulfillment-delivery"
+                style={{ boxSizing: 'border-box' }}
               >
                 <span className="fulfillment-option-icon">
                   <i className="fa-solid fa-truck"></i>
@@ -1030,6 +1160,7 @@ export default function CheckoutPage() {
                 role="radio"
                 aria-checked={orderType === 'pickup'}
                 id="fulfillment-pickup"
+                style={{ boxSizing: 'border-box' }}
               >
                 <span className="fulfillment-option-icon">
                   <i className="fa-solid fa-store"></i>
@@ -1040,8 +1171,8 @@ export default function CheckoutPage() {
 
             {/* Delivery Flow: Pin -> Address -> Target Delivery Date */}
             {orderType === 'delivery' && (
-              <div style={{ marginTop: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
-                <div>
+              <div style={{ marginTop: 'var(--space-4)', display: 'flex', flexDirection: 'column', gap: 'var(--space-3)', width: '100%', boxSizing: 'border-box' }}>
+                <div style={{ width: '100%', boxSizing: 'border-box' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-2)' }}>
                     <label className="input-label" style={{ margin: 0 }}>
                       Pin Location <span className="required">*</span>
@@ -1067,18 +1198,29 @@ export default function CheckoutPage() {
                   </div>
 
                   <div
+                    id="map-container-wrapper"
+                    tabIndex={-1}
                     ref={mapRef}
                     className="map-container"
                     style={{
+                      width: '100%',
+                      maxWidth: '100%',
                       height: '240px',
                       borderRadius: 'var(--radius-xl)',
                       overflow: 'hidden',
-                      border: '1.5px solid var(--color-border)',
-                      boxShadow: '0 2px 10px rgba(0,0,0,0.08)',
+                      border: fieldErrors.mapPin ? '2px solid #EF4444' : '1.5px solid var(--color-border)',
+                      boxShadow: fieldErrors.mapPin ? '0 0 0 3px rgba(239, 68, 68, 0.14)' : '0 2px 10px rgba(0,0,0,0.08)',
                       marginBottom: 'var(--space-2)',
                       zIndex: 1,
+                      boxSizing: 'border-box',
                     }}
                   />
+                  {fieldErrors.mapPin && (
+                    <p style={{ color: '#EF4444', fontSize: '11px', marginTop: '2px', marginBottom: '8px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <i className="fa-solid fa-circle-exclamation" style={{ fontSize: '10px' }}></i>
+                      <span>{fieldErrors.mapPin}</span>
+                    </p>
+                  )}
                 </div>
 
                 <div className="input-group">
@@ -1098,26 +1240,64 @@ export default function CheckoutPage() {
                     type="text"
                     placeholder="House/Unit No., Street, Barangay, or nearby Landmark"
                     value={deliveryAddress}
-                    onChange={(e) => setDeliveryAddress(e.target.value)}
-                    required={orderType === 'delivery'}
-                    style={{ marginTop: 'var(--space-1)' }}
+                    onChange={(e) => {
+                      setDeliveryAddress(e.target.value);
+                      if (fieldErrors.landmark) setFieldErrors(prev => ({ ...prev, landmark: null }));
+                    }}
+                    style={{
+                      marginTop: 'var(--space-1)',
+                      borderColor: fieldErrors.landmark ? '#EF4444' : undefined,
+                      boxShadow: fieldErrors.landmark ? '0 0 0 3px rgba(239, 68, 68, 0.14)' : undefined,
+                    }}
                   />
+                  {fieldErrors.landmark && (
+                    <p style={{ color: '#EF4444', fontSize: '11px', marginTop: '4px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <i className="fa-solid fa-circle-exclamation" style={{ fontSize: '10px' }}></i>
+                      <span>{fieldErrors.landmark}</span>
+                    </p>
+                  )}
                   <span style={{ fontSize: '11px', color: 'var(--color-text-muted)', marginTop: '4px', display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     💡 Tip: I-drag ang pin o magdagdag ng landmark (hal. kulay ng gate).
                   </span>
                 </div>
 
-                <div className="input-group">
-                  <PremiumDatePicker
-                    id="preferred-date"
-                    name="preferredDate"
-                    label="Target Delivery Date"
-                    placeholder="Select delivery date..."
-                    value={formData.preferredDate}
-                    onChange={(val) => handleInputChange('preferredDate', val)}
-                    minDate={new Date().toISOString().split('T')[0]}
-                    required
-                  />
+                <div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.25fr) minmax(0, 1fr)', gap: '10px', alignItems: 'start' }}>
+                    <PremiumDatePicker
+                      id="preferred-date"
+                      name="preferredDate"
+                      label="Target Delivery Date"
+                      placeholder="Select date..."
+                      value={formData.preferredDate}
+                      onChange={(val) => handleInputChange('preferredDate', val)}
+                      minDate={new Date().toISOString().split('T')[0]}
+                      error={fieldErrors.preferredDate}
+                    />
+                    <PremiumTimePicker
+                      id="preferred-time"
+                      name="preferredTime"
+                      label="Time Needed"
+                      placeholder="Select time..."
+                      value={formData.preferredTime}
+                      onChange={(val) => handleInputChange('preferredTime', val)}
+                      error={fieldErrors.preferredTime}
+                    />
+                  </div>
+                  {isRush && (
+                    <div style={{
+                      marginTop: '6px',
+                      fontSize: '12px',
+                      color: '#C2410C',
+                      background: '#FFF7ED',
+                      border: '1px solid #FFEDD5',
+                      borderRadius: '6px',
+                      padding: '6px 10px',
+                      fontWeight: '500',
+                      lineHeight: 1.3,
+                    }}>
+                      Rush Order: Priority crafting queue (Within 24-48h)
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -1161,17 +1341,43 @@ export default function CheckoutPage() {
                   </div>
                 </div>
 
-                <div className="input-group">
-                  <PremiumDatePicker
-                    id="preferred-date"
-                    name="preferredDate"
-                    label="Target Pickup Date"
-                    placeholder="Select pickup date..."
-                    value={formData.preferredDate}
-                    onChange={(val) => handleInputChange('preferredDate', val)}
-                    minDate={new Date().toISOString().split('T')[0]}
-                    required
-                  />
+                <div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.25fr) minmax(0, 1fr)', gap: '10px', alignItems: 'start' }}>
+                    <PremiumDatePicker
+                      id="preferred-date-pickup"
+                      name="preferredDate"
+                      label="Target Pickup Date"
+                      placeholder="Select date..."
+                      value={formData.preferredDate}
+                      onChange={(val) => handleInputChange('preferredDate', val)}
+                      minDate={new Date().toISOString().split('T')[0]}
+                      error={fieldErrors.preferredDate}
+                    />
+                    <PremiumTimePicker
+                      id="preferred-time-pickup"
+                      name="preferredTime"
+                      label="Time Needed"
+                      placeholder="Select time..."
+                      value={formData.preferredTime}
+                      onChange={(val) => handleInputChange('preferredTime', val)}
+                      error={fieldErrors.preferredTime}
+                    />
+                  </div>
+                  {isRush && (
+                    <div style={{
+                      marginTop: '6px',
+                      fontSize: '12px',
+                      color: '#C2410C',
+                      background: '#FFF7ED',
+                      border: '1px solid #FFEDD5',
+                      borderRadius: '6px',
+                      padding: '6px 10px',
+                      fontWeight: '500',
+                      lineHeight: 1.3,
+                    }}>
+                      Rush Order: Priority crafting queue (Within 24-48h)
+                    </div>
+                  )}
                 </div>
 
                 <div style={{
@@ -1294,6 +1500,14 @@ export default function CheckoutPage() {
                   {orderType === 'delivery' ? formatCurrency(dynamicDeliveryFee) : 'FREE (Pickup)'}
                 </span>
               </div>
+
+              {/* Rush Fee Line in Breakdown */}
+              {appliedRushFee > 0 && (
+                <div className="order-summary-row" style={{ padding: '3px 0', fontSize: '13px', color: '#EA580C' }}>
+                  <span style={{ fontWeight: '500' }}>Rush Fee</span>
+                  <span style={{ fontWeight: '700' }}>+{formatCurrency(appliedRushFee)}</span>
+                </div>
+              )}
 
               {/* Promo / Game Voucher Line in Breakdown (No ticket icon, clean text) */}
               {appliedVoucher && (
@@ -1507,6 +1721,20 @@ export default function CheckoutPage() {
               <i className={submitting ? 'fa-solid fa-spinner fa-spin' : 'fa-solid fa-paper-plane'}></i>
               <span>{submitting ? 'Submitting Order...' : 'Submit Order Request'}</span>
             </button>
+            <p style={{
+              fontSize: '11.5px',
+              color: 'var(--color-text-muted)',
+              textAlign: 'center',
+              marginTop: '10px',
+              lineHeight: 1.3,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '5px',
+            }}>
+              <i className="fa-solid fa-circle-info" style={{ color: 'var(--color-primary)', fontSize: '12px' }}></i>
+              <span>I-send ang resibo sa Messenger after checkout para ma-confirm.</span>
+            </p>
           </div>
         </form>
       </main>

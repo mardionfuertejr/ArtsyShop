@@ -109,14 +109,33 @@ export default function AdminDashboardClient({ initialOrders = [], initialMateri
   useEffect(() => {
     syncDashboardData();
 
-    // Listen for storage events across tabs
-    const handleStorage = (e) => {
-      if (e.key === 'likha_admin_orders') {
-        syncDashboardData();
+    let supabase = null;
+    let channel = null;
+    try {
+      supabase = createClient();
+      if (supabase) {
+        channel = supabase.channel('admin-dashboard-realtime')
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'orders' }, () => {
+            syncDashboardData();
+          })
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'materials' }, () => {
+            syncDashboardData();
+          })
+          .subscribe();
       }
-    };
+    } catch {}
+
+    const handleStorage = () => syncDashboardData();
     window.addEventListener('storage', handleStorage);
-    return () => window.removeEventListener('storage', handleStorage);
+    window.addEventListener('likha_order_placed', handleStorage);
+    window.addEventListener('likha_order_updated', handleStorage);
+
+    return () => {
+      window.removeEventListener('storage', handleStorage);
+      window.removeEventListener('likha_order_placed', handleStorage);
+      window.removeEventListener('likha_order_updated', handleStorage);
+      if (supabase && channel) supabase.removeChannel(channel);
+    };
   }, [syncDashboardData]);
 
   // Calculations
@@ -127,7 +146,7 @@ export default function AdminDashboardClient({ initialOrders = [], initialMateri
   const completedOrders = orders.filter((o) => o.status === 'completed');
   const collectedRevenue = completedOrders.reduce((s, o) => s + (parseFloat(o.total_amount) || 0), 0);
   const pendingRevenue = activeOrders.reduce((s, o) => s + (parseFloat(o.total_amount) || 0), 0);
-  const calculatedSales = collectedRevenue + pendingRevenue;
+  const calculatedSales = collectedRevenue; // Realized Kita from completed orders
   const calculatedExpenses = orders.reduce((s, o) => s + (parseFloat(o.total_cost) || 0), 0);
 
   const lowStockMaterials = (materials || []).filter(
@@ -293,10 +312,12 @@ export default function AdminDashboardClient({ initialOrders = [], initialMateri
                       <p style={{ fontWeight: '700', color: '#0f172a', margin: '0 0 2px', fontSize: '13px', whiteSpace: 'nowrap' }}>
                         {ord.customer_name}
                       </p>
-                      <span style={{ fontSize: '10.5px', color: '#64748b', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                        <i className={ord.order_type === 'delivery' ? 'fa-solid fa-motorcycle' : 'fa-solid fa-store'} style={{ fontSize: '9.5px', color: '#64748b' }}></i>
-                        <span>{ord.order_type === 'delivery' ? 'Delivery' : 'Pickup'}</span>
-                      </span>
+                      {ord.order_type === 'delivery' && (
+                        <span style={{ fontSize: '10.5px', color: 'var(--color-primary, #b45309)', display: 'inline-flex', alignItems: 'center', gap: '4px', fontWeight: '600' }}>
+                          <i className="fa-solid fa-motorcycle" style={{ fontSize: '9.5px' }}></i>
+                          <span>Delivery</span>
+                        </span>
+                      )}
                     </td>
                     <td style={{ padding: '12px 14px', verticalAlign: 'middle', borderBottom: '1px solid #E2E8F0' }}>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>

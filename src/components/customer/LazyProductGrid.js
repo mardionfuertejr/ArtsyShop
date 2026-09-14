@@ -3,13 +3,38 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import ProductCard from './ProductCard';
-import { FUN_CUSTOM_PROMPTS, getRandomCustomPrompt, getPromptMessengerUrl, CUSTOM_ORDER_MESSENGER_URL } from '@/lib/constants/customPrompts';
+import { FUN_CUSTOM_PROMPTS, getRandomCustomPrompt, getPromptMessengerUrl, CUSTOM_ORDER_MESSENGER_URL, CUSTOM_ORDER_TEMPLATE } from '@/lib/constants/customPrompts';
+import { openMessengerDirect } from '@/lib/utils/browserNav';
 
 export default function LazyProductGrid({ products = [], initialCount = 10, batchSize = 10 }) {
   const [items, setItems] = useState(products);
   const [visibleCount, setVisibleCount] = useState(initialCount);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [prompt, setPrompt] = useState(FUN_CUSTOM_PROMPTS[0]);
+
+  const sortStorefront = (a, b) => {
+    const aSold = Boolean(a.is_sold_out || (a.is_ready_made && a.ready_made_stock === 0));
+    const bSold = Boolean(b.is_sold_out || (b.is_ready_made && b.ready_made_stock === 0));
+    if (aSold && !bSold) return 1;
+    if (!aSold && bSold) return -1;
+
+    const aSale = Boolean(a.is_on_sale && a.sale_price);
+    const bSale = Boolean(b.is_on_sale && b.sale_price);
+    if (aSale && !bSale) return -1;
+    if (!aSale && bSale) return 1;
+
+    const aBest = Boolean(a.is_bestseller);
+    const bBest = Boolean(b.is_bestseller);
+    if (aBest && !bBest) return -1;
+    if (!aBest && bBest) return 1;
+
+    const aReady = Boolean(a.is_ready_made);
+    const bReady = Boolean(b.is_ready_made);
+    if (aReady && !bReady) return -1;
+    if (!aReady && bReady) return 1;
+
+    return (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base' });
+  };
 
   // Merge custom products / updates on mount or props change
   useEffect(() => {
@@ -27,12 +52,12 @@ export default function LazyProductGrid({ products = [], initialCount = 10, batc
               merged.unshift(p);
             }
           }
-          setItems(merged);
+          setItems(merged.sort(sortStorefront));
           return;
         }
       }
     } catch {}
-    setItems(products);
+    setItems([...products].sort(sortStorefront));
   }, [products]);
 
   // Pick a random fun prompt on mount
@@ -95,6 +120,10 @@ export default function LazyProductGrid({ products = [], initialCount = 10, batc
             href={CUSTOM_ORDER_MESSENGER_URL}
             target="_blank"
             rel="noopener noreferrer"
+            onClick={(e) => {
+              e.preventDefault();
+              openMessengerDirect(CUSTOM_ORDER_TEMPLATE);
+            }}
             className="btn btn-secondary btn-sm ripple"
             style={{ borderRadius: 'var(--radius-full)', padding: '8px 18px', fontSize: '12.5px', fontWeight: '600' }}
           >

@@ -7,6 +7,8 @@ import HeaderSearchBar from '@/components/customer/HeaderSearchBar';
 import CartIconBtn from '@/components/customer/CartIconBtn';
 import BottomNav from '@/components/customer/BottomNav';
 import LazyProductGrid from '@/components/customer/LazyProductGrid';
+import StoreAnnouncementBar from '@/components/customer/StoreAnnouncementBar';
+import SiteFooter from '@/components/common/SiteFooter';
 
 export default function ShopClient({
   initialProducts = [],
@@ -28,7 +30,11 @@ export default function ShopClient({
           if (Array.isArray(parsed) && parsed.length > 0) {
             setCategories((prev) => {
               const map = new Map();
-              [...prev, ...parsed].forEach((c) => {
+              (prev || []).forEach((c) => {
+                const key = (c.slug || c.name || c.id).toString().toLowerCase();
+                map.set(key, c);
+              });
+              (parsed || []).forEach((c) => {
                 const key = (c.slug || c.name || c.id).toString().toLowerCase();
                 map.set(key, c);
               });
@@ -41,11 +47,24 @@ export default function ShopClient({
         if (localProds) {
           const parsed = JSON.parse(localProds);
           if (Array.isArray(parsed) && parsed.length > 0) {
-            setProducts((prev) => {
-              const map = new Map();
-              [...parsed, ...prev].forEach((p) => map.set(p.id || p.slug, p));
-              return Array.from(map.values());
-            });
+            const cleanCustom = parsed.filter((p) => p && p.id && !p.id.startsWith('prod-0') && !p.id.startsWith('prod-1') && !p.id.startsWith('prod-2') && !p.id.startsWith('prod-3'));
+            if (cleanCustom.length !== parsed.length) {
+              localStorage.setItem('likha_custom_products', JSON.stringify(cleanCustom));
+            }
+            if (cleanCustom.length > 0) {
+              setProducts((prev) => {
+                const map = new Map();
+                (prev || []).forEach((p) => {
+                  const key = String(p.id || p.slug || '').trim();
+                  if (key) map.set(key, p);
+                });
+                cleanCustom.forEach((p) => {
+                  const key = String(p.id || p.slug || '').trim();
+                  if (key) map.set(key, p);
+                });
+                return Array.from(map.values());
+              });
+            }
           }
         }
       }
@@ -123,7 +142,35 @@ export default function ShopClient({
       }
 
       return matchesCat && matchesSearch;
-    });
+    })
+      .sort((a, b) => {
+        // 1. Sold-out products ALWAYS go to the very bottom
+        const aSold = Boolean(a.is_sold_out || (a.is_ready_made && a.ready_made_stock === 0));
+        const bSold = Boolean(b.is_sold_out || (b.is_ready_made && b.ready_made_stock === 0));
+        if (aSold && !bSold) return 1;
+        if (!aSold && bSold) return -1;
+
+        // 2. On-sale / Promo items priority on top
+        const aSale = Boolean(a.is_on_sale && a.sale_price);
+        const bSale = Boolean(b.is_on_sale && b.sale_price);
+        if (aSale && !bSale) return -1;
+        if (!aSale && bSale) return 1;
+
+        // 3. Bestsellers priority next
+        const aBest = Boolean(a.is_bestseller);
+        const bBest = Boolean(b.is_bestseller);
+        if (aBest && !bBest) return -1;
+        if (!aBest && bBest) return 1;
+
+        // 4. Ready-made / On-hand priority next
+        const aReady = Boolean(a.is_ready_made);
+        const bReady = Boolean(b.is_ready_made);
+        if (aReady && !bReady) return -1;
+        if (!aReady && bReady) return 1;
+
+        // 5. Alphabetical by name for the rest
+        return (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base' });
+      });
   }, [products, selectedCategory, searchQuery]);
 
   return (
@@ -146,6 +193,9 @@ export default function ShopClient({
         </div>
       </header>
 
+      {/* Store Announcement Bar */}
+      <StoreAnnouncementBar />
+
       <main className="page-content">
         {/* Category Filter Tabs */}
         <nav aria-label="Filter by category">
@@ -154,7 +204,6 @@ export default function ShopClient({
               type="button"
               onClick={() => setSelectedCategory('all')}
               className={`category-tab${selectedCategory === 'all' ? ' active' : ''}`}
-              style={{ cursor: 'pointer', border: 'none', background: 'none', font: 'inherit' }}
             >
               All Pieces
             </button>
@@ -164,7 +213,6 @@ export default function ShopClient({
                 type="button"
                 onClick={() => setSelectedCategory(cat.slug || cat.id)}
                 className={`category-tab${selectedCategory === (cat.slug || cat.id) ? ' active' : ''}`}
-                style={{ cursor: 'pointer', border: 'none', background: 'none', font: 'inherit' }}
               >
                 {cat.name}
               </button>
@@ -174,8 +222,11 @@ export default function ShopClient({
 
         {/* Product Grid */}
         <section className="section" aria-label="Products">
-          <LazyProductGrid products={filteredProducts} initialCount={10} batchSize={10} />
+          <LazyProductGrid products={filteredProducts} initialCount={12} batchSize={12} />
         </section>
+
+        {/* Minimal End-of-Collection Footer with Custom Order Link */}
+        <SiteFooter />
       </main>
 
       <BottomNav />

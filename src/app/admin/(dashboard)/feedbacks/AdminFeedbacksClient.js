@@ -1,13 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import {
   getMockFeedbacks,
-  deleteMockFeedback,
   getAllMockReviews,
-  deleteMockReview,
   toggleMockReviewApproval,
 } from '@/lib/mockData';
 import { formatRelative, formatDate } from '@/lib/utils/formatDate';
@@ -19,29 +17,27 @@ export default function AdminFeedbacksClient() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [ratingFilter, setRatingFilter] = useState('all');
-  const [actionSuccess, setActionSuccess] = useState('');
+  const [isRatingOpen, setIsRatingOpen] = useState(false);
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const [actionToast, setActionToast] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
-  const [activeMenuId, setActiveMenuId] = useState(null);
-  const [itemToDelete, setItemToDelete] = useState(null); // { type: 'feedback' | 'review', item: obj }
 
-  // Lock body scroll and listen for ESC key when modal is open
+  const searchInputRef = useRef(null);
+  const ratingDropdownRef = useRef(null);
+
+  // Close rating dropdown on outside click
   useEffect(() => {
-    if (itemToDelete) {
-      const origOverflow = document.body.style.overflow;
-      document.body.style.overflow = 'hidden';
-      const handleKeyDown = (e) => {
-        if (e.key === 'Escape') setItemToDelete(null);
-      };
-      window.addEventListener('keydown', handleKeyDown);
-      return () => {
-        document.body.style.overflow = origOverflow;
-        window.removeEventListener('keydown', handleKeyDown);
-      };
+    function handleClickOutside(e) {
+      if (ratingDropdownRef.current && !ratingDropdownRef.current.contains(e.target)) {
+        setIsRatingOpen(false);
+      }
     }
-  }, [itemToDelete]);
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
-  // Load Feedbacks and Reviews
+  // Load Feedbacks and Reviews with real-time Supabase integration & fallback
   useEffect(() => {
     let isMounted = true;
     async function loadData() {
@@ -55,13 +51,13 @@ export default function AdminFeedbacksClient() {
           ]);
 
           if (isMounted) {
-            if (!fbRes.error && fbRes.data) {
+            if (!fbRes.error && fbRes.data && fbRes.data.length > 0) {
               setFeedbacks(fbRes.data);
             } else {
               setFeedbacks(getMockFeedbacks());
             }
 
-            if (!revRes.error && revRes.data) {
+            if (!revRes.error && revRes.data && revRes.data.length > 0) {
               setReviews(revRes.data);
             } else {
               setReviews(getAllMockReviews());
@@ -70,7 +66,7 @@ export default function AdminFeedbacksClient() {
             return;
           }
         }
-      } catch {}
+      } catch { }
 
       if (isMounted) {
         setFeedbacks(getMockFeedbacks());
@@ -90,55 +86,14 @@ export default function AdminFeedbacksClient() {
     setCurrentPage(1);
   }, [activeTab, searchTerm, ratingFilter, pageSize]);
 
-  // Close action menu on click outside
-  useEffect(() => {
-    function handleClickOutside(e) {
-      if (!e.target.closest('.action-menu-dropdown-container')) {
-        setActiveMenuId(null);
-      }
-    }
-    document.addEventListener('click', handleClickOutside);
-    return () => document.removeEventListener('click', handleClickOutside);
-  }, []);
-
   const showToast = (msg) => {
-    setActionSuccess(msg);
+    setActionToast(msg);
     setTimeout(() => {
-      setActionSuccess('');
-    }, 2500);
+      setActionToast('');
+    }, 2800);
   };
 
-  // Delete Feedback
-  const handleConfirmDeleteFeedback = async (id) => {
-    try {
-      const supabase = createClient();
-      if (supabase) {
-        await supabase.from('feedbacks').delete().eq('id', id);
-      }
-    } catch {}
-
-    deleteMockFeedback(id);
-    setFeedbacks((prev) => prev.filter((f) => f.id !== id));
-    showToast('Feedback removed successfully');
-    setItemToDelete(null);
-  };
-
-  // Delete Review
-  const handleConfirmDeleteReview = async (id) => {
-    try {
-      const supabase = createClient();
-      if (supabase) {
-        await supabase.from('product_reviews').delete().eq('id', id);
-      }
-    } catch {}
-
-    deleteMockReview(id);
-    setReviews((prev) => prev.filter((r) => r.id !== id));
-    showToast('Product review deleted');
-    setItemToDelete(null);
-  };
-
-  // Toggle Review Approval / Visibility
+  // Toggle Review Approval / Storefront Visibility
   const handleToggleApprove = async (review) => {
     const newStatus = review.is_approved === false ? true : false;
     try {
@@ -146,13 +101,13 @@ export default function AdminFeedbacksClient() {
       if (supabase) {
         await supabase.from('product_reviews').update({ is_approved: newStatus }).eq('id', review.id);
       }
-    } catch {}
+    } catch { }
 
     toggleMockReviewApproval(review.id);
     setReviews((prev) =>
       prev.map((r) => (r.id === review.id ? { ...r, is_approved: newStatus } : r))
     );
-    showToast(newStatus ? 'Review approved & live on storefront' : 'Review hidden from storefront');
+    showToast(newStatus ? 'Review is now visible on storefront' : 'Review hidden from storefront');
   };
 
   // Calculations
@@ -164,23 +119,28 @@ export default function AdminFeedbacksClient() {
 
   // Filtered lists
   const filteredFeedbacks = feedbacks.filter((item) => {
+    const q = searchTerm.toLowerCase().trim();
     const matchesSearch =
-      (item.customer_name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (item.message || '').toLowerCase().includes(searchTerm.toLowerCase());
+      !q ||
+      (item.customer_name || '').toLowerCase().includes(q) ||
+      (item.message || '').toLowerCase().includes(q);
     const matchesRating = ratingFilter === 'all' || String(item.rating) === ratingFilter;
     return matchesSearch && matchesRating;
   });
 
   const filteredReviews = reviews.filter((item) => {
+    const q = searchTerm.toLowerCase().trim();
     const matchesSearch =
-      (item.customer_name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (item.comment || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (item.productSlug || '').toLowerCase().includes(searchTerm.toLowerCase());
+      !q ||
+      (item.customer_name || '').toLowerCase().includes(q) ||
+      (item.comment || '').toLowerCase().includes(q) ||
+      (item.productSlug || '').toLowerCase().includes(q) ||
+      (item.products?.name || '').toLowerCase().includes(q);
     const matchesRating = ratingFilter === 'all' || String(item.rating) === ratingFilter;
     return matchesSearch && matchesRating;
   });
 
-  // Current active list pagination
+  // Active list & pagination
   const currentList = activeTab === 'feedbacks' ? filteredFeedbacks : filteredReviews;
   const totalItems = currentList.length;
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
@@ -188,623 +148,800 @@ export default function AdminFeedbacksClient() {
   const startIndex = (safeCurrentPage - 1) * pageSize;
   const paginatedItems = currentList.slice(startIndex, startIndex + pageSize);
 
+  const isFiltered = searchTerm.trim() !== '' || ratingFilter !== 'all';
+
+  const ratingOptions = [
+    { key: 'all', label: 'All Ratings' },
+    { key: '5', label: '5 Stars (⭐⭐⭐⭐⭐)' },
+    { key: '4', label: '4 Stars (⭐⭐⭐⭐)' },
+    { key: '3', label: '3 Stars (⭐⭐⭐)' },
+    { key: '2', label: '2 Stars (⭐⭐)' },
+    { key: '1', label: '1 Star (⭐)' },
+  ];
+
   return (
-    <div style={{ width: '100%', maxWidth: '1160px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+    <div style={{ width: '100%', maxWidth: '1180px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '18px' }}>
       {/* Toast Notification */}
-      {actionSuccess && (
-        <div className="admin-toast" style={{ position: 'fixed', top: '24px', right: '24px', zIndex: 999999 }}>
-          <span>{actionSuccess}</span>
+      {actionToast && (
+        <div
+          style={{
+            position: 'fixed',
+            bottom: '24px',
+            right: '24px',
+            zIndex: 999999,
+            background: '#0F172A',
+            color: '#FFFFFF',
+            padding: '10px 18px',
+            borderRadius: '12px',
+            fontSize: '13px',
+            fontWeight: '700',
+            boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.3)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            animation: 'adminModalScaleIn 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+          }}
+        >
+          <i className="fa-solid fa-circle-check" style={{ color: '#10B981', fontSize: '14px' }}></i>
+          <span>{actionToast}</span>
         </div>
       )}
 
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '14px', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <h1 className="admin-page-title" style={{ margin: 0, fontSize: '22px', fontWeight: '800' }}>
-            Reviews
+          <h1 style={{ margin: 0, fontSize: '23px', fontWeight: '800', color: '#0F172A', letterSpacing: '-0.02em' }}>
+            Reviews & Feedbacks
           </h1>
-          <span style={{
-            background: 'rgba(180, 83, 9, 0.1)',
-            color: 'var(--color-primary, #b45309)',
-            fontSize: '12px',
-            fontWeight: '700',
-            padding: '2px 8px',
-            borderRadius: '9999px',
-          }}>
+          <span
+            style={{
+              background: 'rgba(234, 88, 12, 0.1)',
+              color: 'var(--color-primary, #EA580C)',
+              fontSize: '12px',
+              fontWeight: '800',
+              padding: '2.5px 9px',
+              borderRadius: '9999px',
+            }}
+          >
             {allItems.length} Total
           </span>
         </div>
       </div>
 
-      {/* Summary KPI Cards */}
-      <div className="admin-stats-grid" style={{ marginBottom: '4px' }}>
-        <div className="stat-card" style={{ background: '#fff', borderRadius: '12px', padding: '16px 20px', border: 'none', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
-          <p className="stat-card-label" style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em', margin: '0 0 4px' }}>Average Rating</p>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: '6px' }}>
-            <p className="stat-card-value" style={{ fontSize: '22px', fontWeight: '800', color: '#0f172a', margin: '0 0 2px' }}>{avgRating}</p>
-            <span style={{ fontSize: '12px', color: '#94a3b8', fontWeight: '600' }}>/ 5.0</span>
+      {/* Concise KPI Cards */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+          gap: '12px',
+        }}
+      >
+        {/* Average Rating */}
+        <div
+          style={{
+            background: '#FFFFFF',
+            borderRadius: '14px',
+            padding: '16px 20px',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
+            border: '1px solid #F1F5F9',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          <div>
+            <p style={{ fontSize: '11px', fontWeight: '800', color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.04em', margin: '0 0 4px' }}>
+              Average Rating
+            </p>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: '5px' }}>
+              <span style={{ fontSize: '24px', fontWeight: '900', color: '#0F172A', lineHeight: 1 }}>{avgRating}</span>
+              <span style={{ fontSize: '12px', color: '#94A3B8', fontWeight: '700' }}>/ 5.0</span>
+            </div>
           </div>
-          <p className="stat-card-sub" style={{ fontSize: '11.5px', color: '#94a3b8', margin: 0 }}>Across all customer reviews</p>
+          <div
+            style={{
+              width: '42px',
+              height: '42px',
+              borderRadius: '11px',
+              background: '#FEF3C7',
+              color: '#D97706',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '18px',
+            }}
+          >
+            <i className="fa-solid fa-star"></i>
+          </div>
         </div>
 
-        <div className="stat-card" style={{ background: '#fff', borderRadius: '12px', padding: '16px 20px', border: 'none', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
-          <p className="stat-card-label" style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em', margin: '0 0 4px' }}>Customer Feedbacks</p>
-          <p className="stat-card-value" style={{ fontSize: '22px', fontWeight: '800', color: 'var(--color-primary, #b45309)', margin: '0 0 2px' }}>{feedbacks.length}</p>
-          <p className="stat-card-sub" style={{ fontSize: '11.5px', color: '#94a3b8', margin: 0 }}>General suggestions & notes</p>
+        {/* Customer Feedbacks */}
+        <div
+          onClick={() => setActiveTab('feedbacks')}
+          style={{
+            background: '#FFFFFF',
+            borderRadius: '14px',
+            padding: '16px 20px',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
+            border: activeTab === 'feedbacks' ? '2px solid var(--color-primary, #EA580C)' : '1px solid #F1F5F9',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            transition: 'all 0.15s ease',
+          }}
+        >
+          <div>
+            <p style={{ fontSize: '11px', fontWeight: '800', color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.04em', margin: '0 0 4px' }}>
+              Customer Feedbacks
+            </p>
+            <span style={{ fontSize: '24px', fontWeight: '900', color: 'var(--color-primary, #EA580C)', lineHeight: 1 }}>
+              {feedbacks.length}
+            </span>
+          </div>
+          <div
+            style={{
+              width: '42px',
+              height: '42px',
+              borderRadius: '11px',
+              background: '#FFF5F2',
+              color: 'var(--color-primary, #EA580C)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '18px',
+            }}
+          >
+            <i className="fa-regular fa-comments"></i>
+          </div>
         </div>
 
-        <div className="stat-card" style={{ background: '#fff', borderRadius: '12px', padding: '16px 20px', border: 'none', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
-          <p className="stat-card-label" style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em', margin: '0 0 4px' }}>Product Reviews</p>
-          <p className="stat-card-value" style={{ fontSize: '22px', fontWeight: '800', color: '#16a34a', margin: '0 0 2px' }}>{reviews.length}</p>
-          <p className="stat-card-sub" style={{ fontSize: '11.5px', color: '#94a3b8', margin: 0 }}>Store item ratings</p>
+        {/* Product Reviews */}
+        <div
+          onClick={() => setActiveTab('reviews')}
+          style={{
+            background: '#FFFFFF',
+            borderRadius: '14px',
+            padding: '16px 20px',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
+            border: activeTab === 'reviews' ? '2px solid var(--color-primary, #EA580C)' : '1px solid #F1F5F9',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            transition: 'all 0.15s ease',
+          }}
+        >
+          <div>
+            <p style={{ fontSize: '11px', fontWeight: '800', color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.04em', margin: '0 0 4px' }}>
+              Product Reviews
+            </p>
+            <span style={{ fontSize: '24px', fontWeight: '900', color: '#0EA5E9', lineHeight: 1 }}>
+              {reviews.length}
+            </span>
+          </div>
+          <div
+            style={{
+              width: '42px',
+              height: '42px',
+              borderRadius: '11px',
+              background: '#EFF6FF',
+              color: '#0EA5E9',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '18px',
+            }}
+          >
+            <i className="fa-solid fa-award"></i>
+          </div>
         </div>
       </div>
 
-      {/* Main Tabs and Filter Controls */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
-        {/* Category Tab Switcher */}
-        <div className="admin-filter-tabs" style={{ margin: 0, display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+      {/* Tabs and Search / Filter Controls Bar */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '12px',
+          flexWrap: 'wrap',
+        }}
+      >
+        {/* Clean Filter Tabs */}
+        <div
+          style={{
+            display: 'inline-flex',
+            background: '#F1F5F9',
+            padding: '3.5px',
+            borderRadius: '11px',
+            gap: '3px',
+          }}
+        >
           <button
             type="button"
-            className={`filter-tab ${activeTab === 'feedbacks' ? 'active' : ''}`}
             onClick={() => setActiveTab('feedbacks')}
             style={{
               border: 'none',
-              padding: '6px 12px',
+              padding: '7px 16px',
               borderRadius: '8px',
-              fontSize: '12px',
-              fontWeight: activeTab === 'feedbacks' ? '700' : '500',
-              background: activeTab === 'feedbacks' ? 'var(--color-primary, #b45309)' : '#ffffff',
-              color: activeTab === 'feedbacks' ? '#ffffff' : '#64748b',
+              fontSize: '12.5px',
+              fontWeight: activeTab === 'feedbacks' ? '800' : '600',
+              background: activeTab === 'feedbacks' ? '#FFFFFF' : 'transparent',
+              color: activeTab === 'feedbacks' ? 'var(--color-primary, #EA580C)' : '#64748B',
+              boxShadow: activeTab === 'feedbacks' ? '0 1px 3px rgba(0,0,0,0.06)' : 'none',
               cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
               transition: 'all 0.15s ease',
             }}
           >
-            Customer Feedbacks ({feedbacks.length})
+            <i className="fa-regular fa-comments"></i>
+            <span>Customer Feedbacks ({feedbacks.length})</span>
           </button>
+
           <button
             type="button"
-            className={`filter-tab ${activeTab === 'reviews' ? 'active' : ''}`}
             onClick={() => setActiveTab('reviews')}
             style={{
               border: 'none',
-              padding: '6px 12px',
+              padding: '7px 16px',
               borderRadius: '8px',
-              fontSize: '12px',
-              fontWeight: activeTab === 'reviews' ? '700' : '500',
-              background: activeTab === 'reviews' ? 'var(--color-primary, #b45309)' : '#ffffff',
-              color: activeTab === 'reviews' ? '#ffffff' : '#64748b',
+              fontSize: '12.5px',
+              fontWeight: activeTab === 'reviews' ? '800' : '600',
+              background: activeTab === 'reviews' ? '#FFFFFF' : 'transparent',
+              color: activeTab === 'reviews' ? 'var(--color-primary, #EA580C)' : '#64748B',
+              boxShadow: activeTab === 'reviews' ? '0 1px 3px rgba(0,0,0,0.06)' : 'none',
               cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
               transition: 'all 0.15s ease',
             }}
           >
-            Product Reviews ({reviews.length})
+            <i className="fa-regular fa-star"></i>
+            <span>Product Reviews ({reviews.length})</span>
           </button>
         </div>
 
-        {/* Filter & Search */}
+        {/* Integrated Search & Rating Dropdown with Smooth Chevron Transition */}
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-          <select
-            value={ratingFilter}
-            onChange={(e) => setRatingFilter(e.target.value)}
+          <div
             style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              background: '#FFFFFF',
+              border: isSearchFocused ? '1.5px solid var(--color-primary, #EA580C)' : '1.5px solid #E2E8F0',
+              borderRadius: '11px',
               height: '38px',
-              padding: '0 10px',
-              fontSize: '12px',
-              fontWeight: '600',
-              borderRadius: '10px',
-              border: '1px solid #e2e8f0',
-              background: '#ffffff',
-              color: '#334155',
-              cursor: 'pointer',
-              outline: 'none',
+              padding: '0 4px 0 12px',
+              boxShadow: isSearchFocused ? '0 0 0 3px rgba(234, 88, 12, 0.1)' : '0 1px 2px rgba(0,0,0,0.02)',
+              transition: 'border-color 0.2s ease, box-shadow 0.2s ease',
+              position: 'relative',
             }}
           >
-            <option value="all">All Ratings</option>
-            <option value="5">5 Stars</option>
-            <option value="4">4 Stars</option>
-            <option value="3">3 Stars</option>
-            <option value="2">2 Stars</option>
-            <option value="1">1 Star</option>
-          </select>
-
-          <div style={{
-            position: 'relative',
-            display: 'inline-flex',
-            alignItems: 'center',
-            background: '#ffffff',
-            border: '1px solid #e2e8f0',
-            borderRadius: '10px',
-            height: '38px',
-            padding: '0 12px',
-            width: '240px',
-            maxWidth: '100%',
-            boxSizing: 'border-box',
-          }}>
-            <i className="fa-solid fa-magnifying-glass" style={{ color: '#94a3b8', fontSize: '12px', marginRight: '8px' }}></i>
+            <i
+              className="fa-solid fa-magnifying-glass"
+              style={{
+                color: isSearchFocused ? 'var(--color-primary, #EA580C)' : '#94A3B8',
+                fontSize: '12px',
+                marginRight: '8px',
+                transition: 'color 0.2s ease',
+              }}
+            />
             <input
+              ref={searchInputRef}
               type="text"
               placeholder="Search keyword or customer..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
+              onFocus={() => setIsSearchFocused(true)}
+              onBlur={() => setIsSearchFocused(false)}
               style={{
                 border: 'none',
                 background: 'transparent',
                 outline: 'none',
                 fontSize: '12.5px',
-                color: '#0f172a',
-                width: '100%',
+                color: '#0F172A',
+                width: '180px',
                 padding: 0,
               }}
             />
+
             {searchTerm && (
               <button
                 type="button"
-                onClick={() => setSearchTerm('')}
-                style={{ border: 'none', background: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '12px', padding: 0 }}
+                onClick={() => {
+                  setSearchTerm('');
+                  if (searchInputRef.current) searchInputRef.current.focus();
+                }}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#94A3B8',
+                  cursor: 'pointer',
+                  padding: '4px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '12px',
+                  marginRight: '4px',
+                }}
+                title="Clear search"
               >
-                ✕
+                <i className="fa-solid fa-circle-xmark" />
               </button>
             )}
+
+            {/* Dividing separator */}
+            <div style={{ width: '1px', height: '20px', background: '#E2E8F0', margin: '0 4px' }} />
+
+            {/* Custom Rating Dropdown Button with Smooth Animated Chevron */}
+            <div ref={ratingDropdownRef} style={{ position: 'relative' }}>
+              <button
+                type="button"
+                onClick={() => setIsRatingOpen(!isRatingOpen)}
+                style={{
+                  height: '30px',
+                  padding: '0 10px',
+                  borderRadius: '7px',
+                  border: 'none',
+                  background: ratingFilter !== 'all' ? 'rgba(234, 88, 12, 0.1)' : 'transparent',
+                  color: ratingFilter !== 'all' ? 'var(--color-primary, #EA580C)' : '#64748B',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  cursor: 'pointer',
+                  fontSize: '12px',
+                  fontWeight: '700',
+                  whiteSpace: 'nowrap',
+                  transition: 'all 0.15s ease',
+                  outline: 'none',
+                }}
+              >
+                {ratingFilter !== 'all' && (
+                  <span
+                    style={{
+                      width: '6px',
+                      height: '6px',
+                      borderRadius: '50%',
+                      background: 'var(--color-primary, #EA580C)',
+                      display: 'inline-block',
+                      flexShrink: 0,
+                    }}
+                  />
+                )}
+                <span>{ratingFilter === 'all' ? 'All Ratings' : `${ratingFilter} Stars`}</span>
+                <i
+                  className="fa-solid fa-chevron-down"
+                  style={{
+                    fontSize: '9.5px',
+                    color: isRatingOpen || ratingFilter !== 'all' ? 'var(--color-primary, #EA580C)' : '#94A3B8',
+                    transition: 'transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), color 0.2s ease',
+                    transform: isRatingOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                  }}
+                />
+              </button>
+
+              {/* Floating Rating Menu */}
+              {isRatingOpen && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: 'calc(100% + 6px)',
+                    right: 0,
+                    background: '#FFFFFF',
+                    borderRadius: '11px',
+                    boxShadow: '0 12px 30px rgba(0, 0, 0, 0.12)',
+                    border: '1px solid #E2E8F0',
+                    padding: '4px',
+                    zIndex: 60,
+                    minWidth: '190px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '2px',
+                    animation: 'adminModalScaleIn 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
+                  }}
+                >
+                  {ratingOptions.map((opt) => {
+                    const isSelected = ratingFilter === opt.key;
+                    return (
+                      <button
+                        key={opt.key}
+                        type="button"
+                        onClick={() => {
+                          setRatingFilter(opt.key);
+                          setIsRatingOpen(false);
+                        }}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          width: '100%',
+                          padding: '7px 10px',
+                          borderRadius: '7px',
+                          border: 'none',
+                          background: isSelected ? '#FFF5F2' : 'transparent',
+                          color: isSelected ? 'var(--color-primary, #EA580C)' : '#334155',
+                          fontSize: '12px',
+                          fontWeight: isSelected ? '800' : '500',
+                          cursor: 'pointer',
+                          textAlign: 'left',
+                          transition: 'background 0.1s ease',
+                        }}
+                        onMouseEnter={(e) => {
+                          if (!isSelected) e.currentTarget.style.background = '#F8FAFC';
+                        }}
+                        onMouseLeave={(e) => {
+                          if (!isSelected) e.currentTarget.style.background = 'transparent';
+                        }}
+                      >
+                        <span>{opt.label}</span>
+                        {isSelected && (
+                          <i className="fa-solid fa-check" style={{ fontSize: '11px', color: 'var(--color-primary, #EA580C)' }} />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
+
+          {/* Reset Filters button if active */}
+          {isFiltered && (
+            <button
+              type="button"
+              onClick={() => {
+                setSearchTerm('');
+                setRatingFilter('all');
+              }}
+              style={{
+                height: '38px',
+                padding: '0 12px',
+                borderRadius: '10px',
+                border: '1px solid #CBD5E1',
+                background: '#F8FAFC',
+                color: '#475569',
+                fontSize: '12px',
+                fontWeight: '700',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
+              }}
+            >
+              <i className="fa-solid fa-rotate-left"></i> Reset
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Table Card */}
-      <div className="data-table-wrapper" style={{ background: '#ffffff', borderRadius: '12px', overflow: 'visible', margin: 0, border: 'none', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
+      {/* Main Table Card */}
+      <div
+        style={{
+          background: '#FFFFFF',
+          borderRadius: '14px',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
+          border: '1px solid #F1F5F9',
+          overflow: 'hidden',
+        }}
+      >
         {activeTab === 'feedbacks' ? (
           /* ── FEEDBACKS TABLE ── */
-          <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ background: '#F8FAFC', borderBottom: '1.5px solid #E2E8F0' }}>
-                <th style={{ width: '18%', padding: '13px 18px', textAlign: 'left', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#334155', borderBottom: '1.5px solid #E2E8F0' }}>Date</th>
-                <th style={{ width: '22%', padding: '13px 16px', textAlign: 'left', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#334155', borderBottom: '1.5px solid #E2E8F0' }}>Customer</th>
-                <th style={{ width: '14%', padding: '13px 14px', textAlign: 'center', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#334155', borderBottom: '1.5px solid #E2E8F0' }}>Rating</th>
-                <th style={{ width: '40%', padding: '13px 16px', textAlign: 'left', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#334155', borderBottom: '1.5px solid #E2E8F0' }}>Message / Suggestion</th>
-                <th style={{ width: '6%', padding: '13px 14px', textAlign: 'center', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#334155', borderBottom: '1.5px solid #E2E8F0' }}>Action</th>
-              </tr>
-            </thead>
-            <tbody key={`feedbacks-${searchTerm}-${ratingFilter}-${currentPage}`} className="table-fade-enter">
-              {paginatedItems.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="table-empty-cell" style={{ textAlign: 'center', padding: '120px 20px', border: 'none' }}>
-                    <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '56px', height: '56px', borderRadius: '50%', background: '#f8fafc', color: '#94a3b8', marginBottom: '14px', fontSize: '22px' }}>
-                      <i className="fa-regular fa-comments" style={{ opacity: 0.8 }}></i>
-                    </div>
-                    <p style={{ margin: 0, fontWeight: '800', fontSize: '15px', color: '#0f172a' }}>No feedbacks found</p>
-                    <p style={{ margin: '6px 0 0', fontSize: '13px', color: '#64748b' }}>
-                      {searchTerm || ratingFilter !== 'all' ? 'Try adjusting your search or filter.' : 'Customer feedback submissions will appear here.'}
-                    </p>
-                  </td>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+              <thead>
+                <tr style={{ background: '#F8FAFC', borderBottom: '1.5px solid #E2E8F0' }}>
+                  <th style={{ width: '18%', padding: '13px 18px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#475569' }}>
+                    Date
+                  </th>
+                  <th style={{ width: '24%', padding: '13px 16px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#475569' }}>
+                    Customer
+                  </th>
+                  <th style={{ width: '14%', padding: '13px 16px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#475569', textAlign: 'center' }}>
+                    Rating
+                  </th>
+                  <th style={{ width: '44%', padding: '13px 18px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#475569' }}>
+                    Feedback Message
+                  </th>
                 </tr>
-              ) : (
-                paginatedItems.map((fb, idx) => {
-                  const isNearBottom = paginatedItems.length <= 3 ? idx >= 1 : idx >= paginatedItems.length - 2;
-
-                  return (
-                    <tr key={fb.id} style={{ borderBottom: '1px solid #E2E8F0', transition: 'background 0.12s ease' }}>
-                      <td style={{ padding: '13px 18px', verticalAlign: 'top', whiteSpace: 'nowrap', borderBottom: '1px solid #E2E8F0' }}>
-                        <span style={{ fontSize: '12.5px', fontWeight: '700', color: '#0f172a', display: 'block' }}>
+              </thead>
+              <tbody>
+                {paginatedItems.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} style={{ textAlign: 'center', padding: '60px 20px' }}>
+                      <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: '#FFF5F2', color: 'var(--color-primary, #EA580C)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', marginBottom: '10px' }}>
+                        <i className="fa-regular fa-comments"></i>
+                      </div>
+                      <p style={{ margin: 0, fontWeight: '800', fontSize: '14.5px', color: '#0F172A' }}>No feedbacks found</p>
+                      <p style={{ margin: '4px 0 14px', fontSize: '12.5px', color: '#64748B' }}>
+                        {isFiltered ? 'No entries match your search or filter.' : 'Customer feedbacks will appear here.'}
+                      </p>
+                      {isFiltered && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSearchTerm('');
+                            setRatingFilter('all');
+                          }}
+                          style={{
+                            padding: '7px 14px',
+                            background: 'var(--color-primary, #EA580C)',
+                            color: '#FFFFFF',
+                            border: 'none',
+                            borderRadius: '8px',
+                            fontSize: '12px',
+                            fontWeight: '700',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          Clear Filters
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ) : (
+                  paginatedItems.map((fb, idx) => (
+                    <tr
+                      key={fb.id || idx}
+                      style={{
+                        borderBottom: '1px solid #F1F5F9',
+                        transition: 'background-color 0.12s ease',
+                      }}
+                      onMouseEnter={(e) => (e.currentTarget.style.background = '#FAFBFD')}
+                      onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                    >
+                      {/* Date */}
+                      <td style={{ padding: '13px 18px', verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
+                        <span style={{ fontSize: '12.5px', fontWeight: '800', color: '#0F172A', display: 'block' }}>
                           {formatDate(fb.created_at)}
                         </span>
-                        <span style={{ fontSize: '11px', color: '#64748b' }}>
+                        <span style={{ fontSize: '11px', color: '#64748B' }}>
                           {formatRelative(fb.created_at)}
                         </span>
                       </td>
-                      <td style={{ padding: '13px 16px', verticalAlign: 'top' }}>
-                        <p style={{ fontWeight: '700', color: '#0f172a', margin: '0 0 2px', fontSize: '13px' }}>
+
+                      {/* Customer */}
+                      <td style={{ padding: '13px 16px', verticalAlign: 'middle' }}>
+                        <span style={{ fontWeight: '800', color: '#0F172A', fontSize: '13px' }}>
                           {fb.customer_name || 'Anonymous'}
-                        </p>
-                        <span style={{ fontSize: '11px', color: '#64748b', background: '#f8fafc', padding: '2px 6px', borderRadius: '4px' }}>
-                          {fb.topic || 'General Feedback'}
                         </span>
                       </td>
-                      <td style={{ padding: '13px 14px', textAlign: 'center', verticalAlign: 'top' }}>
-                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '2px', color: '#F59E0B' }}>
-                          {[...Array(fb.rating || 5)].map((_, i) => (
-                            <i key={i} className="fa-solid fa-star" style={{ fontSize: '11px' }}></i>
-                          ))}
-                        </div>
-                      </td>
-                      <td style={{ padding: '13px 16px', verticalAlign: 'top' }}>
-                        <p style={{ fontSize: '12.5px', color: '#334155', lineHeight: 1.45, margin: 0 }}>
-                          {fb.message}
-                        </p>
-                      </td>
-                      <td style={{ padding: '13px 14px', textAlign: 'center', verticalAlign: 'top', whiteSpace: 'nowrap' }}>
-                        <div className="action-menu-dropdown-container" style={{ position: 'relative', display: 'inline-block' }}>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setActiveMenuId(activeMenuId === fb.id ? null : fb.id);
-                            }}
-                            style={{
-                              width: '28px',
-                              height: '28px',
-                              borderRadius: '6px',
-                              border: 'none',
-                              background: activeMenuId === fb.id ? '#f1f5f9' : 'transparent',
-                              color: activeMenuId === fb.id ? '#0f172a' : '#64748b',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              cursor: 'pointer',
-                              fontSize: '14px',
-                              transition: 'all 0.12s ease',
-                            }}
-                            onMouseEnter={(e) => {
-                              if (activeMenuId !== fb.id) {
-                                e.currentTarget.style.background = '#f1f5f9';
-                                e.currentTarget.style.color = '#0f172a';
-                              }
-                            }}
-                            onMouseLeave={(e) => {
-                              if (activeMenuId !== fb.id) {
-                                e.currentTarget.style.background = 'transparent';
-                                e.currentTarget.style.color = '#64748b';
-                              }
-                            }}
-                            title="Actions"
-                          >
-                            <i className="fa-solid fa-ellipsis-vertical"></i>
-                          </button>
 
-                          {/* Dropdown Menu */}
-                          {activeMenuId === fb.id && (
-                            <div
-                              style={{
-                                position: 'absolute',
-                                ...(isNearBottom
-                                  ? { bottom: 'calc(100% + 4px)', transformOrigin: 'bottom right' }
-                                  : { top: 'calc(100% + 4px)', transformOrigin: 'top right' }),
-                                right: 0,
-                                background: '#ffffff',
-                                borderRadius: '10px',
-                                boxShadow: '0 10px 25px rgba(0, 0, 0, 0.12)',
-                                border: '1px solid #f1f5f9',
-                                padding: '4px',
-                                zIndex: 50,
-                                minWidth: '140px',
-                                display: 'flex',
-                                flexDirection: 'column',
-                                gap: '2px',
-                                textAlign: 'left',
-                              }}
-                            >
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setActiveMenuId(null);
-                                  setItemToDelete({ type: 'feedback', item: fb });
-                                }}
-                                style={{
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  gap: '8px',
-                                  width: '100%',
-                                  padding: '7px 10px',
-                                  borderRadius: '6px',
-                                  border: 'none',
-                                  background: 'transparent',
-                                  color: '#dc2626',
-                                  fontSize: '12px',
-                                  fontWeight: '600',
-                                  cursor: 'pointer',
-                                  textAlign: 'left',
-                                  transition: 'background 0.1s ease',
-                                }}
-                                onMouseEnter={(e) => (e.currentTarget.style.background = '#fef2f2')}
-                                onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-                              >
-                                <i className="fa-regular fa-trash-can" style={{ fontSize: '12px', color: '#dc2626', width: '14px' }}></i>
-                                <span>Delete Feedback</span>
-                              </button>
-                            </div>
-                          )}
+                      {/* Rating */}
+                      <td style={{ padding: '13px 16px', verticalAlign: 'middle', textAlign: 'center' }}>
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                          <div style={{ display: 'inline-flex', gap: '2px', color: '#F59E0B', fontSize: '11px' }}>
+                            {[...Array(fb.rating || 5)].map((_, i) => (
+                              <i key={i} className="fa-solid fa-star" />
+                            ))}
+                          </div>
+                          <span style={{ fontSize: '12px', fontWeight: '800', color: '#0F172A' }}>
+                            {fb.rating || 5}.0
+                          </span>
                         </div>
+                      </td>
+
+                      {/* Message */}
+                      <td style={{ padding: '13px 18px', verticalAlign: 'middle' }}>
+                        <span style={{ fontSize: '12.5px', color: '#334155', lineHeight: 1.45, display: 'block' }}>
+                          {fb.message}
+                        </span>
                       </td>
                     </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
         ) : (
           /* ── PRODUCT REVIEWS TABLE ── */
-          <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ background: '#F8FAFC', borderBottom: '1.5px solid #E2E8F0' }}>
-                <th style={{ width: '16%', padding: '13px 18px', textAlign: 'left', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#334155', borderBottom: '1.5px solid #E2E8F0' }}>Date</th>
-                <th style={{ width: '18%', padding: '13px 16px', textAlign: 'left', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#334155', borderBottom: '1.5px solid #E2E8F0' }}>Customer</th>
-                <th style={{ width: '12%', padding: '13px 14px', textAlign: 'center', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#334155', borderBottom: '1.5px solid #E2E8F0' }}>Rating</th>
-                <th style={{ width: '36%', padding: '13px 16px', textAlign: 'left', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#334155', borderBottom: '1.5px solid #E2E8F0' }}>Product & Review</th>
-                <th style={{ width: '12%', padding: '13px 14px', textAlign: 'center', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#334155', borderBottom: '1.5px solid #E2E8F0' }}>Status</th>
-                <th style={{ width: '6%', padding: '13px 14px', textAlign: 'center', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#334155', borderBottom: '1.5px solid #E2E8F0' }}>Action</th>
-              </tr>
-            </thead>
-            <tbody key={`reviews-${searchTerm}-${ratingFilter}-${currentPage}`} className="table-fade-enter">
-              {paginatedItems.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="table-empty-cell" style={{ textAlign: 'center', padding: '120px 20px', border: 'none' }}>
-                    <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '56px', height: '56px', borderRadius: '50%', background: '#f8fafc', color: '#94a3b8', marginBottom: '14px', fontSize: '22px' }}>
-                      <i className="fa-regular fa-star" style={{ opacity: 0.8 }}></i>
-                    </div>
-                    <p style={{ margin: 0, fontWeight: '800', fontSize: '15px', color: '#0f172a' }}>No product reviews found</p>
-                    <p style={{ margin: '6px 0 0', fontSize: '13px', color: '#64748b' }}>
-                      {searchTerm || ratingFilter !== 'all' ? 'Try adjusting your search or filter.' : 'Verified product reviews will appear here.'}
-                    </p>
-                  </td>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+              <thead>
+                <tr style={{ background: '#F8FAFC', borderBottom: '1.5px solid #E2E8F0' }}>
+                  <th style={{ width: '16%', padding: '13px 18px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#475569' }}>
+                    Date
+                  </th>
+                  <th style={{ width: '22%', padding: '13px 16px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#475569' }}>
+                    Customer
+                  </th>
+                  <th style={{ width: '20%', padding: '13px 16px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#475569' }}>
+                    Product
+                  </th>
+                  <th style={{ width: '12%', padding: '13px 16px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#475569', textAlign: 'center' }}>
+                    Rating
+                  </th>
+                  <th style={{ width: '22%', padding: '13px 16px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#475569' }}>
+                    Review Comment
+                  </th>
+                  <th style={{ width: '8%', padding: '13px 18px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#475569', textAlign: 'center' }}>
+                    Storefront
+                  </th>
                 </tr>
-              ) : (
-                paginatedItems.map((rev, idx) => {
-                  const isNearBottom = paginatedItems.length <= 3 ? idx >= 1 : idx >= paginatedItems.length - 2;
-                  const isLive = rev.is_approved !== false;
-                  const productSlug = rev.products?.slug || rev.productSlug;
-
-                  return (
-                    <tr key={rev.id} style={{ borderBottom: '1px solid #E2E8F0', transition: 'background 0.12s ease' }}>
-                      <td style={{ padding: '13px 18px', verticalAlign: 'top', whiteSpace: 'nowrap', borderBottom: '1px solid #E2E8F0' }}>
-                        <span style={{ fontSize: '12.5px', fontWeight: '700', color: '#0f172a', display: 'block' }}>
-                          {formatDate(rev.created_at)}
-                        </span>
-                        <span style={{ fontSize: '11px', color: '#64748b' }}>
-                          {formatRelative(rev.created_at)}
-                        </span>
-                      </td>
-                      <td style={{ padding: '13px 16px', verticalAlign: 'top' }}>
-                        <p style={{ fontWeight: '700', color: '#0f172a', margin: '0 0 2px', fontSize: '13px' }}>
-                          {rev.customer_name || 'Anonymous Buyer'}
-                        </p>
-                        {rev.is_verified_buyer && (
-                          <span style={{ fontSize: '10.5px', color: '#166534', fontWeight: '800', background: '#DCFCE7', padding: '1px 6px', borderRadius: '4px' }}>
-                            VERIFIED BUYER
-                          </span>
-                        )}
-                      </td>
-                      <td style={{ padding: '13px 14px', textAlign: 'center', verticalAlign: 'top' }}>
-                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '2px', color: '#F59E0B' }}>
-                          {[...Array(rev.rating || 5)].map((_, i) => (
-                            <i key={i} className="fa-solid fa-star" style={{ fontSize: '11px' }}></i>
-                          ))}
-                        </div>
-                      </td>
-                      <td style={{ padding: '13px 16px', verticalAlign: 'top' }}>
-                        {(rev.products?.name || rev.productSlug) && (
-                          <span style={{
-                            display: 'inline-block',
-                            fontSize: '11px',
-                            fontWeight: '700',
-                            color: 'var(--color-primary, #b45309)',
-                            background: '#FAF6F0',
-                            padding: '2px 8px',
-                            borderRadius: '6px',
-                            marginBottom: '4px',
-                          }}>
-                            {rev.products?.name || rev.productSlug.replace(/-/g, ' ')}
-                          </span>
-                        )}
-                        <p style={{ fontSize: '12.5px', color: '#334155', lineHeight: 1.45, margin: 0 }}>
-                          {rev.comment}
-                        </p>
-                      </td>
-                      <td style={{ padding: '13px 14px', textAlign: 'center', verticalAlign: 'top' }}>
+              </thead>
+              <tbody>
+                {paginatedItems.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} style={{ textAlign: 'center', padding: '60px 20px' }}>
+                      <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: '#EFF6FF', color: '#0EA5E9', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', marginBottom: '10px' }}>
+                        <i className="fa-regular fa-star"></i>
+                      </div>
+                      <p style={{ margin: 0, fontWeight: '800', fontSize: '14.5px', color: '#0F172A' }}>No product reviews found</p>
+                      <p style={{ margin: '4px 0 14px', fontSize: '12.5px', color: '#64748B' }}>
+                        {isFiltered ? 'No entries match your search or filter.' : 'Verified product reviews will appear here.'}
+                      </p>
+                      {isFiltered && (
                         <button
                           type="button"
-                          onClick={() => handleToggleApprove(rev)}
-                          style={{
-                            cursor: 'pointer',
-                            border: 'none',
-                            fontSize: '11px',
-                            padding: '0 8px',
-                            height: '24px',
-                            borderRadius: '9999px',
-                            fontWeight: '800',
-                            letterSpacing: '0.04em',
-                            width: '96px',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            boxSizing: 'border-box',
-                            textAlign: 'center',
-                            background: isLive ? '#DCFCE7' : '#F1F5F9',
-                            color: isLive ? '#166534' : '#64748b',
+                          onClick={() => {
+                            setSearchTerm('');
+                            setRatingFilter('all');
                           }}
-                          title="Click to toggle visibility"
+                          style={{
+                            padding: '7px 14px',
+                            background: 'var(--color-primary, #EA580C)',
+                            color: '#FFFFFF',
+                            border: 'none',
+                            borderRadius: '8px',
+                            fontSize: '12px',
+                            fontWeight: '700',
+                            cursor: 'pointer',
+                          }}
                         >
-                          {isLive ? 'LIVE' : 'HIDDEN'}
+                          Clear Filters
                         </button>
-                      </td>
-                      <td style={{ padding: '13px 14px', textAlign: 'center', verticalAlign: 'top', whiteSpace: 'nowrap' }}>
-                        <div className="action-menu-dropdown-container" style={{ position: 'relative', display: 'inline-block' }}>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setActiveMenuId(activeMenuId === rev.id ? null : rev.id);
-                            }}
-                            style={{
-                              width: '28px',
-                              height: '28px',
-                              borderRadius: '6px',
-                              border: 'none',
-                              background: activeMenuId === rev.id ? '#f1f5f9' : 'transparent',
-                              color: activeMenuId === rev.id ? '#0f172a' : '#64748b',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              cursor: 'pointer',
-                              fontSize: '14px',
-                              transition: 'all 0.12s ease',
-                            }}
-                            onMouseEnter={(e) => {
-                              if (activeMenuId !== rev.id) {
-                                e.currentTarget.style.background = '#f1f5f9';
-                                e.currentTarget.style.color = '#0f172a';
-                              }
-                            }}
-                            onMouseLeave={(e) => {
-                              if (activeMenuId !== rev.id) {
-                                e.currentTarget.style.background = 'transparent';
-                                e.currentTarget.style.color = '#64748b';
-                              }
-                            }}
-                            title="Actions"
-                          >
-                            <i className="fa-solid fa-ellipsis-vertical"></i>
-                          </button>
+                      )}
+                    </td>
+                  </tr>
+                ) : (
+                  paginatedItems.map((rev, idx) => {
+                    const isLive = rev.is_approved !== false;
+                    const productSlug = rev.products?.slug || rev.productSlug;
+                    const productName = rev.products?.name || (productSlug ? productSlug.replace(/-/g, ' ') : 'Handmade Product');
 
-                          {/* Dropdown Menu */}
-                          {activeMenuId === rev.id && (
-                            <div
+                    return (
+                      <tr
+                        key={rev.id || idx}
+                        style={{
+                          borderBottom: '1px solid #F1F5F9',
+                          transition: 'background-color 0.12s ease',
+                        }}
+                        onMouseEnter={(e) => (e.currentTarget.style.background = '#FAFBFD')}
+                        onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                      >
+                        {/* Date */}
+                        <td style={{ padding: '13px 18px', verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
+                          <span style={{ fontSize: '12.5px', fontWeight: '800', color: '#0F172A', display: 'block' }}>
+                            {formatDate(rev.created_at)}
+                          </span>
+                          <span style={{ fontSize: '11px', color: '#64748B' }}>
+                            {formatRelative(rev.created_at)}
+                          </span>
+                        </td>
+
+                        {/* Customer */}
+                        <td style={{ padding: '13px 16px', verticalAlign: 'middle' }}>
+                          <span style={{ fontWeight: '800', color: '#0F172A', fontSize: '13px' }}>
+                            {rev.customer_name || 'Customer'}
+                          </span>
+                        </td>
+
+                        {/* Product */}
+                        <td style={{ padding: '13px 16px', verticalAlign: 'middle' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span
                               style={{
-                                position: 'absolute',
-                                ...(isNearBottom
-                                  ? { bottom: 'calc(100% + 4px)', transformOrigin: 'bottom right' }
-                                  : { top: 'calc(100% + 4px)', transformOrigin: 'top right' }),
-                                right: 0,
-                                background: '#ffffff',
-                                borderRadius: '10px',
-                                boxShadow: '0 10px 25px rgba(0, 0, 0, 0.12)',
-                                border: '1px solid #f1f5f9',
-                                padding: '4px',
-                                zIndex: 50,
-                                minWidth: '150px',
-                                display: 'flex',
-                                flexDirection: 'column',
-                                gap: '2px',
-                                textAlign: 'left',
+                                fontSize: '12.5px',
+                                fontWeight: '700',
+                                color: '#0F172A',
+                                textTransform: 'capitalize',
                               }}
                             >
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setActiveMenuId(null);
-                                  handleToggleApprove(rev);
-                                }}
-                                style={{
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  gap: '8px',
-                                  width: '100%',
-                                  padding: '7px 10px',
-                                  borderRadius: '6px',
-                                  border: 'none',
-                                  background: 'transparent',
-                                  color: '#334155',
-                                  fontSize: '12px',
-                                  fontWeight: '600',
-                                  cursor: 'pointer',
-                                  textAlign: 'left',
-                                  transition: 'background 0.1s ease',
-                                }}
-                                onMouseEnter={(e) => (e.currentTarget.style.background = '#f8fafc')}
-                                onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                              {productName}
+                            </span>
+                            {productSlug && (
+                              <Link
+                                href={`/shop/${productSlug}`}
+                                target="_blank"
+                                style={{ color: 'var(--color-primary, #EA580C)', fontSize: '11px' }}
+                                title="View product in shop"
                               >
-                                <i className={isLive ? 'fa-regular fa-eye-slash' : 'fa-regular fa-eye'} style={{ fontSize: '12px', color: '#64748b', width: '14px' }}></i>
-                                <span>{isLive ? 'Hide Review' : 'Approve Review'}</span>
-                              </button>
+                                <i className="fa-solid fa-arrow-up-right-from-square"></i>
+                              </Link>
+                            )}
+                          </div>
+                        </td>
 
-                              {productSlug && (
-                                <Link
-                                  href={`/shop/${productSlug}`}
-                                  target="_blank"
-                                  onClick={() => setActiveMenuId(null)}
-                                  style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '8px',
-                                    width: '100%',
-                                    padding: '7px 10px',
-                                    borderRadius: '6px',
-                                    border: 'none',
-                                    background: 'transparent',
-                                    color: '#334155',
-                                    fontSize: '12px',
-                                    fontWeight: '600',
-                                    textDecoration: 'none',
-                                    boxSizing: 'border-box',
-                                    transition: 'background 0.1s ease',
-                                  }}
-                                  onMouseEnter={(e) => (e.currentTarget.style.background = '#f8fafc')}
-                                  onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-                                >
-                                  <i className="fa-solid fa-arrow-up-right-from-square" style={{ fontSize: '11px', color: '#64748b', width: '14px' }}></i>
-                                  <span>View Product</span>
-                                </Link>
-                              )}
-
-                              <div style={{ height: '1px', background: '#f1f5f9', margin: '2px 0' }}></div>
-
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setActiveMenuId(null);
-                                  setItemToDelete({ type: 'review', item: rev });
-                                }}
-                                style={{
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  gap: '8px',
-                                  width: '100%',
-                                  padding: '7px 10px',
-                                  borderRadius: '6px',
-                                  border: 'none',
-                                  background: 'transparent',
-                                  color: '#dc2626',
-                                  fontSize: '12px',
-                                  fontWeight: '600',
-                                  cursor: 'pointer',
-                                  textAlign: 'left',
-                                  transition: 'background 0.1s ease',
-                                }}
-                                onMouseEnter={(e) => (e.currentTarget.style.background = '#fef2f2')}
-                                onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-                              >
-                                <i className="fa-regular fa-trash-can" style={{ fontSize: '12px', color: '#dc2626', width: '14px' }}></i>
-                                <span>Delete</span>
-                              </button>
+                        {/* Rating */}
+                        <td style={{ padding: '13px 16px', verticalAlign: 'middle', textAlign: 'center' }}>
+                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                            <div style={{ display: 'inline-flex', gap: '2px', color: '#F59E0B', fontSize: '11px' }}>
+                              {[...Array(rev.rating || 5)].map((_, i) => (
+                                <i key={i} className="fa-solid fa-star" />
+                              ))}
                             </div>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
+                            <span style={{ fontSize: '12px', fontWeight: '800', color: '#0F172A' }}>
+                              {rev.rating || 5}.0
+                            </span>
+                          </div>
+                        </td>
+
+                        {/* Review Comment */}
+                        <td style={{ padding: '13px 16px', verticalAlign: 'middle' }}>
+                          <span style={{ fontSize: '12.5px', color: '#334155', lineHeight: 1.45, display: 'block' }}>
+                            {rev.comment}
+                          </span>
+                        </td>
+
+                        {/* Storefront Visibility Toggle */}
+                        <td style={{ padding: '13px 18px', verticalAlign: 'middle', textAlign: 'center' }}>
+                          <button
+                            type="button"
+                            onClick={() => handleToggleApprove(rev)}
+                            style={{
+                              border: isLive ? '1px solid #86EFAC' : '1px solid #CBD5E1',
+                              background: isLive ? '#DCFCE7' : '#F1F5F9',
+                              color: isLive ? '#166534' : '#64748B',
+                              padding: '4px 10px',
+                              borderRadius: '9999px',
+                              fontSize: '11px',
+                              fontWeight: '800',
+                              cursor: 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              transition: 'all 0.15s ease',
+                              whiteSpace: 'nowrap',
+                            }}
+                            title={isLive ? 'Click to hide from store' : 'Click to show on store'}
+                          >
+                            <i className={isLive ? 'fa-solid fa-eye' : 'fa-solid fa-eye-slash'} style={{ fontSize: '10px' }}></i>
+                            <span>{isLive ? 'Live' : 'Hidden'}</span>
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
         )}
 
-        {/* Pagination Controls (only if more than 10 items) */}
+        {/* Pagination Controls */}
         {totalItems > 10 && (
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: '12px 18px',
-            borderTop: '1px solid #E2E8F0',
-            background: '#ffffff',
-            flexWrap: 'wrap',
-            gap: '10px',
-          }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '12px 18px',
+              borderTop: '1px solid #E2E8F0',
+              background: '#FFFFFF',
+              flexWrap: 'wrap',
+              gap: '10px',
+            }}
+          >
             {/* Entries Info */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <span style={{ fontSize: '12px', color: '#64748b', fontWeight: '500' }}>
-                Showing <strong style={{ color: '#0f172a', fontWeight: '700' }}>{startIndex + 1}–{Math.min(startIndex + pageSize, totalItems)}</strong> of <strong style={{ color: '#0f172a', fontWeight: '700' }}>{totalItems}</strong> {activeTab === 'feedbacks' ? 'feedbacks' : 'reviews'}
+              <span style={{ fontSize: '12px', color: '#64748B', fontWeight: '500' }}>
+                Showing <strong style={{ color: '#0F172A', fontWeight: '800' }}>{startIndex + 1}–{Math.min(startIndex + pageSize, totalItems)}</strong> of <strong style={{ color: '#0F172A', fontWeight: '800' }}>{totalItems}</strong> entries
               </span>
 
               <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', marginLeft: '6px' }}>
-                <span style={{ fontSize: '11px', color: '#94a3b8' }}>Show:</span>
+                <span style={{ fontSize: '11px', color: '#94A3B8' }}>Show:</span>
                 <select
                   value={pageSize}
                   onChange={(e) => setPageSize(Number(e.target.value))}
                   style={{
                     fontSize: '11.5px',
-                    fontWeight: '600',
+                    fontWeight: '700',
                     color: '#334155',
-                    background: '#f8fafc',
-                    border: '1px solid #e2e8f0',
+                    background: '#F8FAFC',
+                    border: '1px solid #E2E8F0',
                     borderRadius: '6px',
                     padding: '2px 6px',
                     outline: 'none',
@@ -825,37 +962,24 @@ export default function AdminFeedbacksClient() {
                 disabled={safeCurrentPage === 1}
                 onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                 style={{
-                  padding: '4px 9px',
-                  fontSize: '11.5px',
-                  fontWeight: '600',
-                  borderRadius: '6px',
-                  border: '1px solid #e2e8f0',
-                  background: safeCurrentPage === 1 ? '#f8fafc' : '#ffffff',
-                  color: safeCurrentPage === 1 ? '#cbd5e1' : '#334155',
+                  padding: '5px 10px',
+                  fontSize: '12px',
+                  fontWeight: '700',
+                  borderRadius: '8px',
+                  border: '1px solid #E2E8F0',
+                  background: safeCurrentPage === 1 ? '#F8FAFC' : '#FFFFFF',
+                  color: safeCurrentPage === 1 ? '#CBD5E1' : '#334155',
                   cursor: safeCurrentPage === 1 ? 'not-allowed' : 'pointer',
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: '4px',
-                  transition: 'all 0.15s ease',
                 }}
               >
-                <i className="fa-solid fa-chevron-left" style={{ fontSize: '9px' }}></i>
+                <i className="fa-solid fa-chevron-left" style={{ fontSize: '10px' }}></i>
                 <span>Prev</span>
               </button>
 
               {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => {
-                if (
-                  totalPages > 7 &&
-                  pageNum !== 1 &&
-                  pageNum !== totalPages &&
-                  Math.abs(pageNum - safeCurrentPage) > 1
-                ) {
-                  if (pageNum === 2 || pageNum === totalPages - 1) {
-                    return <span key={pageNum} style={{ padding: '0 3px', color: '#94a3b8', fontSize: '11px' }}>…</span>;
-                  }
-                  return null;
-                }
-
                 const isActive = pageNum === safeCurrentPage;
                 return (
                   <button
@@ -863,17 +987,16 @@ export default function AdminFeedbacksClient() {
                     type="button"
                     onClick={() => setCurrentPage(pageNum)}
                     style={{
-                      minWidth: '28px',
-                      height: '28px',
+                      minWidth: '30px',
+                      height: '30px',
                       padding: '0 6px',
-                      fontSize: '11.5px',
+                      fontSize: '12px',
                       fontWeight: isActive ? '800' : '600',
-                      borderRadius: '6px',
-                      border: isActive ? '1px solid var(--color-primary, #b45309)' : '1px solid #e2e8f0',
-                      background: isActive ? 'var(--color-primary, #b45309)' : '#ffffff',
-                      color: isActive ? '#ffffff' : '#334155',
+                      borderRadius: '8px',
+                      border: isActive ? '1px solid var(--color-primary, #EA580C)' : '1px solid #E2E8F0',
+                      background: isActive ? 'var(--color-primary, #EA580C)' : '#FFFFFF',
+                      color: isActive ? '#FFFFFF' : '#334155',
                       cursor: 'pointer',
-                      transition: 'all 0.15s ease',
                     }}
                   >
                     {pageNum}
@@ -886,147 +1009,26 @@ export default function AdminFeedbacksClient() {
                 disabled={safeCurrentPage === totalPages}
                 onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                 style={{
-                  padding: '4px 9px',
-                  fontSize: '11.5px',
-                  fontWeight: '600',
-                  borderRadius: '6px',
-                  border: '1px solid #e2e8f0',
-                  background: safeCurrentPage === totalPages ? '#f8fafc' : '#ffffff',
-                  color: safeCurrentPage === totalPages ? '#cbd5e1' : '#334155',
+                  padding: '5px 10px',
+                  fontSize: '12px',
+                  fontWeight: '700',
+                  borderRadius: '8px',
+                  border: '1px solid #E2E8F0',
+                  background: safeCurrentPage === totalPages ? '#F8FAFC' : '#FFFFFF',
+                  color: safeCurrentPage === totalPages ? '#CBD5E1' : '#334155',
                   cursor: safeCurrentPage === totalPages ? 'not-allowed' : 'pointer',
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: '4px',
-                  transition: 'all 0.15s ease',
                 }}
               >
                 <span>Next</span>
-                <i className="fa-solid fa-chevron-right" style={{ fontSize: '9px' }}></i>
+                <i className="fa-solid fa-chevron-right" style={{ fontSize: '10px' }}></i>
               </button>
             </div>
           </div>
         )}
       </div>
-
-      {/* Delete Confirmation Modal */}
-      {itemToDelete && (
-        <div
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            width: '100vw',
-            height: '100vh',
-            background: 'rgba(15, 23, 42, 0.65)',
-            backdropFilter: 'blur(6px)',
-            WebkitBackdropFilter: 'blur(6px)',
-            zIndex: 999999,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '16px',
-            boxSizing: 'border-box',
-          }}
-          onClick={() => setItemToDelete(null)}
-        >
-          <div
-            style={{
-              background: '#ffffff',
-              borderRadius: '16px',
-              padding: '24px',
-              maxWidth: '380px',
-              width: '100%',
-              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
-              border: '1px solid #f1f5f9',
-              textAlign: 'center',
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div style={{
-              width: '48px',
-              height: '48px',
-              borderRadius: '50%',
-              background: '#FEE2E2',
-              color: '#DC2626',
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '20px',
-              margin: '0 auto 14px',
-            }}>
-              <i className="fa-regular fa-trash-can"></i>
-            </div>
-            <h3 style={{ margin: '0 0 8px', fontSize: '17px', fontWeight: '800', color: '#0f172a' }}>
-              Delete {itemToDelete.type === 'feedback' ? 'Feedback' : 'Review'}?
-            </h3>
-            <p style={{ margin: '0 0 20px', fontSize: '13px', color: '#64748b', lineHeight: 1.5 }}>
-              Are you sure you want to permanently remove this entry? This action cannot be undone.
-            </p>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', width: '100%' }}>
-              <button
-                type="button"
-                onClick={() => setItemToDelete(null)}
-                style={{
-                  height: '38px',
-                  boxSizing: 'border-box',
-                  padding: '0 16px',
-                  fontSize: '12.5px',
-                  fontWeight: '700',
-                  borderRadius: '999px',
-                  border: '1px solid #e2e8f0',
-                  background: '#f1f5f9',
-                  color: '#475569',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  lineHeight: 1,
-                  margin: 0,
-                  transition: 'background 0.12s ease',
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = '#e2e8f0')}
-                onMouseLeave={(e) => (e.currentTarget.style.background = '#f1f5f9')}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  if (itemToDelete.type === 'feedback') {
-                    handleConfirmDeleteFeedback(itemToDelete.item.id);
-                  } else {
-                    handleConfirmDeleteReview(itemToDelete.item.id);
-                  }
-                }}
-                style={{
-                  height: '38px',
-                  boxSizing: 'border-box',
-                  padding: '0 16px',
-                  fontSize: '12.5px',
-                  fontWeight: '800',
-                  borderRadius: '999px',
-                  border: 'none',
-                  background: '#dc2626',
-                  color: '#ffffff',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  lineHeight: 1,
-                  margin: 0,
-                  transition: 'background 0.12s ease',
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = '#b91c1c')}
-                onMouseLeave={(e) => (e.currentTarget.style.background = '#dc2626')}
-              >
-                Delete
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

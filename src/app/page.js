@@ -1,5 +1,4 @@
 import Link from 'next/link';
-import { CUSTOM_ORDER_MESSENGER_URL } from '@/lib/constants/customPrompts';
 import BottomNav from '@/components/customer/BottomNav';
 import BrandLogo from '@/components/common/BrandLogo';
 import HomeShowcaseTabs from '@/components/customer/HomeShowcaseTabs';
@@ -24,7 +23,7 @@ async function getFeaturedProducts() {
         .select(`
           id, name, slug, base_price, is_ready_made, ready_made_stock,
           is_on_sale, sale_price, sale_tag, is_sold_out, is_bestseller,
-          product_photos (storage_path, is_cover, display_order)
+          product_photos (id, url, storage_path, is_cover, display_order)
         `)
         .eq('is_available', true)
         .order('display_order', { ascending: true });
@@ -45,7 +44,7 @@ async function getReadyMadeProducts() {
         .select(`
           id, name, slug, base_price, is_ready_made, ready_made_stock,
           is_on_sale, sale_price, sale_tag, is_sold_out, is_bestseller,
-          product_photos (storage_path, is_cover, display_order)
+          product_photos (id, url, storage_path, is_cover, display_order)
         `)
         .eq('is_available', true)
         .eq('is_ready_made', true)
@@ -78,6 +77,8 @@ async function getCategories() {
 }
 
 import HeaderSearchBar from '@/components/customer/HeaderSearchBar';
+import StoreAnnouncementBar from '@/components/customer/StoreAnnouncementBar';
+import SiteFooter from '@/components/common/SiteFooter';
 
 export default async function HomePage() {
   const [products, readyMadeProducts] = await Promise.all([
@@ -106,9 +107,15 @@ export default async function HomePage() {
         </div>
       </header>
 
+      {/* Store Announcement Bar */}
+      <StoreAnnouncementBar />
+
       <main className="page-content">
         {/* ── CURATED SHOWCASE TABS (Bestsellers | On-Hand | Promos) ──────────────── */}
         <HomeShowcaseTabs allProducts={products} />
+
+        {/* Minimal Footer */}
+        <SiteFooter />
       </main>
 
       <BottomNav />

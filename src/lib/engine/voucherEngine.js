@@ -6,38 +6,30 @@
  */
 
 export const VOUCHER_TIERS = {
-  BRONZE: {
-    name: 'Bronze Starter',
-    discount: 5,
-    minSpend: 100, // ₱5 off on ₱100+ spend
-    badge: '🥉',
-    color: '#D97706',
-    scoreRange: '80-139 pts',
-  },
   SILVER: {
     name: 'Silver Blossom',
     discount: 10,
-    minSpend: 150, // ₱10 off on ₱150+ spend (Instantly works for small single item orders!)
+    minSpend: 350,
     badge: '🥈',
     color: '#64748B',
-    scoreRange: '140-199 pts',
+    scoreRange: '100-199 pts',
   },
   GOLD: {
     name: 'Gold Master Florist',
     discount: 20,
-    minSpend: 280, // ₱20 off on ₱280+ spend
+    minSpend: 600,
     badge: '🥇',
     color: '#EA580C',
-    scoreRange: '200-249 pts',
+    scoreRange: '200-299 pts',
   },
   DIAMOND: {
     name: 'Diamond Artisan Legend',
-    discount: 30,
-    minSpend: 399, // ₱30 off on ₱399+ spend
+    discount: 50,
+    minSpend: 1200,
     badge: '💎',
     color: '#7C3AED',
-    scoreRange: '250+ pts',
-  },
+    scoreRange: '300+ pts',
+  }
 };
 
 export const SWEET_ARTISAN_QUOTES = [
@@ -93,78 +85,68 @@ function saveVoucherWallet(wallet) {
   } catch {}
 }
 
-const TIER_KEYS_HIERARCHY = ['BRONZE', 'SILVER', 'GOLD', 'DIAMOND'];
-
-// Issue a voucher to customer's wallet (Cumulative: grants target tier AND all lower tiers so any cart size enjoys discounts!)
+// Issue a voucher to customer's wallet (Single Voucher Issuance, 1 win per day)
 export function issueVoucherForTier(tierKey) {
   const tier = VOUCHER_TIERS[tierKey];
   if (!tier) return null;
 
-  const targetIdx = TIER_KEYS_HIERARCHY.indexOf(tierKey);
-  const eligibleTierKeys = targetIdx >= 0
-    ? TIER_KEYS_HIERARCHY.slice(0, targetIdx + 1)
-    : [tierKey];
+  try {
+    const todayStr = new Date().toDateString();
+    const lastVoucherDate = localStorage.getItem('mm_last_voucher_date');
+    if (lastVoucherDate === todayStr) {
+      return { voucher: null, upgraded: false, message: 'Daily limit reached.' };
+    }
 
-  const now = new Date();
-  const expiresAt = new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString(); // 24 hours
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString(); // 24 hours
 
-  const vouchersToIssue = eligibleTierKeys.map((k) => {
-    const t = VOUCHER_TIERS[k];
-    return {
-      code: generateRandomVoucherCode(t.discount),
-      tierKey: k,
-      tierName: t.name,
-      discount: t.discount,
-      minSpend: t.minSpend,
-      badge: t.badge,
-      color: t.color,
-      label: `₱${t.discount} OFF (Min. spend ₱${t.minSpend})`,
+    const newVoucher = {
+      code: generateRandomVoucherCode(tier.discount),
+      tierKey: tierKey,
+      tierName: tier.name,
+      discount: tier.discount,
+      minSpend: tier.minSpend,
+      badge: tier.badge,
+      color: tier.color,
+      label: `₱${tier.discount} OFF (Min. spend ₱${tier.minSpend})`,
       createdAt: now.toISOString(),
       expiresAt,
       used: false,
     };
-  });
 
-  const mainVoucher = vouchersToIssue[vouchersToIssue.length - 1];
-
-  try {
     const currentWallet = getVoucherWallet();
     let updatedWallet = [...currentWallet];
 
-    vouchersToIssue.forEach((newV) => {
-      const existingIdx = updatedWallet.findIndex((v) => v.tierKey === newV.tierKey);
-      if (existingIdx >= 0) {
-        updatedWallet[existingIdx] = newV;
-      } else {
-        updatedWallet.push(newV);
-      }
-    });
-
-    saveVoucherWallet(updatedWallet);
-    // Also update active single voucher reference for quick compatibility
-    localStorage.setItem('mm_active_voucher', JSON.stringify(mainVoucher));
-    window.dispatchEvent(new CustomEvent('mm_voucher_updated', { detail: mainVoucher }));
-
-    if (typeof window !== 'undefined') {
-      try {
-        window.dispatchEvent(
-          new CustomEvent('likha_toast', {
-            detail: {
-              type: 'success',
-              title: `Vouchers Unlocked! ${tier.badge || '🎁'}`,
-              message: `₱${tier.discount} OFF & all tier discounts added to your wallet!`,
-              actionLabel: 'Shop Now',
-              actionUrl: '/shop',
-              duration: 3800,
-            },
-          })
-        );
-      } catch {}
+    const existingIdx = updatedWallet.findIndex((v) => v.tierKey === newVoucher.tierKey);
+    if (existingIdx >= 0) {
+      updatedWallet[existingIdx] = newVoucher;
+    } else {
+      updatedWallet.push(newVoucher);
     }
 
-    return { voucher: mainVoucher, upgraded: true, message: 'Vouchers saved to wallet' };
+    saveVoucherWallet(updatedWallet);
+    localStorage.setItem('mm_active_voucher', JSON.stringify(newVoucher));
+    localStorage.setItem('mm_last_voucher_date', todayStr);
+    window.dispatchEvent(new CustomEvent('mm_voucher_updated', { detail: newVoucher }));
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(
+        new CustomEvent('likha_toast', {
+          detail: {
+            type: 'success',
+            title: `Voucher Unlocked! ${tier.badge || '🎁'}`,
+            message: `₱${tier.discount} OFF added to your wallet!`,
+            actionLabel: 'Shop Now',
+            actionUrl: '/shop',
+            duration: 3800,
+          },
+        })
+      );
+    }
+
+    return { voucher: newVoucher, upgraded: true, message: 'Voucher saved to wallet' };
   } catch {
-    return { voucher: mainVoucher, upgraded: true, message: 'Voucher created' };
+    return { voucher: null, upgraded: false, message: 'Error processing voucher' };
   }
 }
 

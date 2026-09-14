@@ -45,7 +45,14 @@ export default function HeaderSearchBar() {
           const localProds = JSON.parse(localStorage.getItem('likha_custom_products') || '[]');
           if (Array.isArray(localProds) && localProds.length > 0) {
             const map = new Map();
-            [...localProds, ...loaded].forEach((p) => map.set(p.id || p.slug, p));
+            (loaded || []).forEach((p) => {
+              const key = String(p.id || p.slug || '').trim();
+              if (key) map.set(key, p);
+            });
+            (localProds || []).forEach((p) => {
+              const key = String(p.id || p.slug || '').trim();
+              if (key) map.set(key, p);
+            });
             loaded = Array.from(map.values());
           }
         }

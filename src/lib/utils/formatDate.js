@@ -83,3 +83,55 @@ export function toInputDate(date) {
   const d = new Date(date);
   return d.toISOString().split('T')[0];
 }
+
+/**
+ * Format HH:MM 24-hr time string (e.g. "14:30") to "2:30 PM"
+ */
+export function formatTime12Hour(timeStr) {
+  if (!timeStr) return '';
+  try {
+    const parts = String(timeStr).split(':');
+    if (parts.length < 2) return timeStr;
+    const h = parseInt(parts[0], 10);
+    const m = parts[1].slice(0, 2).padStart(2, '0');
+    if (isNaN(h)) return timeStr;
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    const formattedHour = h % 12 || 12;
+    return `${formattedHour}:${m} ${ampm}`;
+  } catch {
+    return timeStr;
+  }
+}
+
+/**
+ * Helper: Parse YYYY-MM-DD string to local Date
+ */
+export function parseDateString(dateStr) {
+  if (!dateStr || typeof dateStr !== 'string') return null;
+  const parts = dateStr.split('-');
+  if (parts.length !== 3) return null;
+  const year = parseInt(parts[0], 10);
+  const month = parseInt(parts[1], 10) - 1;
+  const day = parseInt(parts[2], 10);
+  const d = new Date(year, month, day);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+/**
+ * Detect if date is within 24-48 hours (Rush order)
+ */
+export function isRushDate(dateStr) {
+  if (!dateStr) return false;
+  const d = parseDateString(dateStr) || new Date(dateStr);
+  if (isNaN(d.getTime())) return false;
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const target = new Date(d);
+  target.setHours(0, 0, 0, 0);
+
+  const diffDays = Math.round((target - today) / (1000 * 60 * 60 * 24));
+  return diffDays === 0 || diffDays === 1;
+}
+

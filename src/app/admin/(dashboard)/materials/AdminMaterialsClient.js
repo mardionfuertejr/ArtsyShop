@@ -3,9 +3,10 @@
 import { useState, useEffect } from 'react';
 import { MOCK_MATERIALS, getMockMaterials, saveMockMaterial, deleteMockMaterial } from '@/lib/mockData';
 import { formatCurrency } from '@/lib/utils/formatCurrency';
+import { createClient } from '@/lib/supabase/client';
 
-export default function AdminMaterialsClient() {
-  const [materials, setMaterials] = useState(getMockMaterials);
+export default function AdminMaterialsClient({ initialMaterials = [] }) {
+  const [materials, setMaterials] = useState(() => (initialMaterials.length > 0 ? initialMaterials : getMockMaterials()));
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState('all');
   const [toastMsg, setToastMsg] = useState('');
@@ -14,36 +15,66 @@ export default function AdminMaterialsClient() {
   const [activeMenuId, setActiveMenuId] = useState(null);
   const [materialToDelete, setMaterialToDelete] = useState(null);
 
-  // Sync custom materials on mount
+  // Sync custom materials or initial materials on mount
   useEffect(() => {
+    const sanitizeUnits = (list) =>
+      list.map((m) => ({
+        ...m,
+        unit: m.unit === '100 pcs' || m.unit === '100pcs' ? 'pack' : (m.unit || 'pcs'),
+      }));
+
+    if (initialMaterials && initialMaterials.length > 0) {
+      setMaterials(sanitizeUnits(initialMaterials));
+      return;
+    }
     try {
       if (typeof window !== 'undefined') {
         const saved = localStorage.getItem('likha_custom_materials');
         if (saved) {
           const parsed = JSON.parse(saved);
           if (Array.isArray(parsed) && parsed.length > 0) {
-            setMaterials(parsed);
+            const clean = sanitizeUnits(
+              parsed.filter((m) => m && m.id && !m.id.startsWith('mat-0') && !m.id.startsWith('mat-1'))
+            );
+            localStorage.setItem('likha_custom_materials', JSON.stringify(clean));
+            if (clean.length > 0) {
+              setMaterials(clean);
+            }
           }
         }
       }
     } catch {}
-  }, []);
+  }, [initialMaterials]);
 
-  // Lock body scroll and listen for ESC key when modal is open
+  // Modal State for New / Edit Material
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingMaterial, setEditingMaterial] = useState(null);
+
+  // Lock body & html scroll and listen for ESC key when any modal is open
+  const isAnyMaterialModalOpen = Boolean(materialToDelete || isModalOpen);
+
   useEffect(() => {
-    if (materialToDelete) {
-      const origOverflow = document.body.style.overflow;
+    if (isAnyMaterialModalOpen) {
+      const origBodyOverflow = document.body.style.overflow;
+      const origDocOverflow = document.documentElement.style.overflow;
       document.body.style.overflow = 'hidden';
+      document.documentElement.style.overflow = 'hidden';
+
       const handleKeyDown = (e) => {
-        if (e.key === 'Escape') setMaterialToDelete(null);
+        if (e.key === 'Escape') {
+          if (materialToDelete) setMaterialToDelete(null);
+          else if (isModalOpen) setIsModalOpen(false);
+        }
       };
+
       window.addEventListener('keydown', handleKeyDown);
       return () => {
-        document.body.style.overflow = origOverflow;
+        document.body.style.overflow = origBodyOverflow;
+        document.documentElement.style.overflow = origDocOverflow;
         window.removeEventListener('keydown', handleKeyDown);
       };
     }
-  }, [materialToDelete]);
+  }, [isAnyMaterialModalOpen, materialToDelete, isModalOpen]);
 
   // Reset page on category, search query, or page size change
   useEffect(() => {
@@ -57,13 +88,9 @@ export default function AdminMaterialsClient() {
         setActiveMenuId(null);
       }
     }
-    document.addEventListener('click', handleClickOutside);
-    return () => document.removeEventListener('click', handleClickOutside);
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
-
-  // Modal State for New / Edit Material
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingMaterial, setEditingMaterial] = useState(null);
   const [formData, setFormData] = useState({
     id: '',
     name: '',
@@ -79,16 +106,26 @@ export default function AdminMaterialsClient() {
     setTimeout(() => setToastMsg(''), 3000);
   };
 
-  const categories = ['all', 'Chenille Stems', 'Floral Supplies', 'Wrappers & Ribbons', 'Resin & Glitters', 'Packaging'];
+  const [isCustomCategory, setIsCustomCategory] = useState(false);
+  const [customCategoryInput, setCustomCategoryInput] = useState('');
 
-  const filteredMaterials = materials.filter((m) => {
-    const matchesCat = activeCategory === 'all' || m.category === activeCategory;
-    const matchesSearch =
-      !searchQuery.trim() ||
-      m.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      m.id.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesCat && matchesSearch;
-  });
+  const defaultCategories = ['Chenille Stems', 'Floral Supplies', 'Wrappers & Ribbons', 'Packaging'];
+  const availableCategories = Array.from(new Set([
+    ...defaultCategories,
+    ...materials.map(m => m.category).filter(Boolean),
+  ]));
+  const categories = ['all', ...availableCategories];
+
+  const filteredMaterials = materials
+    .filter((m) => {
+      const matchesCat = activeCategory === 'all' || m.category === activeCategory;
+      const matchesSearch =
+        !searchQuery.trim() ||
+        m.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        m.id.toLowerCase().includes(searchQuery.toLowerCase());
+      return matchesCat && matchesSearch;
+    })
+    .sort((a, b) => (a.name || '').localeCompare(b.name || '', undefined, { sensitivity: 'base' }));
 
   const totalMaterials = filteredMaterials.length;
   const totalPages = Math.max(1, Math.ceil(totalMaterials / pageSize));
@@ -100,22 +137,36 @@ export default function AdminMaterialsClient() {
   const totalValuation = materials.reduce((sum, m) => sum + m.current_stock * m.cost_per_unit, 0);
 
   // Quick adjust stock
-  const handleQuickAdjust = (id, delta) => {
+  const handleQuickAdjust = async (id, delta) => {
+    let targetNewStock = 0;
     setMaterials((prev) =>
       prev.map((m) => {
         if (m.id === id) {
           const newStock = Math.max(0, m.current_stock + delta);
+          targetNewStock = newStock;
           return { ...m, current_stock: newStock };
         }
         return m;
       })
     );
+
+    try {
+      const supabase = createClient();
+      if (supabase && id && !id.startsWith('mat-')) {
+        await supabase.from('materials').update({ current_stock: targetNewStock }).eq('id', id);
+      }
+    } catch (err) {
+      console.error('Failed to sync stock with Supabase:', err);
+    }
+
     showToast(`Stock updated!`);
   };
 
   // Open Add Modal
   const handleOpenAdd = () => {
     setEditingMaterial(null);
+    setIsCustomCategory(false);
+    setCustomCategoryInput('');
     setFormData({
       id: `mat-${Date.now()}`,
       name: '',
@@ -131,12 +182,14 @@ export default function AdminMaterialsClient() {
   // Open Edit Modal
   const handleOpenEdit = (m) => {
     setEditingMaterial(m);
+    setIsCustomCategory(false);
+    setCustomCategoryInput('');
     setFormData({ ...m });
     setIsModalOpen(true);
   };
 
   // Confirm Delete
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (!materialToDelete) return;
     const matId = materialToDelete.id;
     deleteMockMaterial(matId);
@@ -149,17 +202,32 @@ export default function AdminMaterialsClient() {
       } catch {}
       return next;
     });
+
+    try {
+      const supabase = createClient();
+      if (supabase && matId && !matId.startsWith('mat-')) {
+        await supabase.from('materials').delete().eq('id', matId);
+      }
+    } catch (err) {
+      console.error('Failed to delete material in Supabase:', err);
+    }
+
     showToast(`Deleted ${materialToDelete.name}`);
     setMaterialToDelete(null);
   };
 
   // Save Material
-  const handleSave = (e) => {
+  const handleSave = async (e) => {
     e.preventDefault();
     if (!formData.name.trim()) return;
 
+    const finalCategory = (isCustomCategory && customCategoryInput.trim())
+      ? customCategoryInput.trim()
+      : (formData.category || 'Chenille Stems');
+
     const payload = {
       ...formData,
+      category: finalCategory,
       id: formData.id || `mat-${Date.now()}`,
       current_stock: parseFloat(formData.current_stock) || 0,
       cost_per_unit: parseFloat(formData.cost_per_unit) || 0,
@@ -182,6 +250,31 @@ export default function AdminMaterialsClient() {
       } catch {}
       return next;
     });
+
+    try {
+      const supabase = createClient();
+      if (supabase) {
+        const dbPayload = {
+          name: payload.name,
+          category: payload.category,
+          unit: payload.unit,
+          current_unit_cost: payload.cost_per_unit,
+          current_stock: payload.current_stock,
+          minimum_stock: payload.minimum_stock,
+        };
+
+        if (editingMaterial && editingMaterial.id && !editingMaterial.id.startsWith('mat-')) {
+          await supabase.from('materials').update(dbPayload).eq('id', editingMaterial.id);
+        } else {
+          const { data: inserted } = await supabase.from('materials').insert(dbPayload).select('id').single();
+          if (inserted && inserted.id) {
+            setMaterials(prev => prev.map(m => m.id === payload.id ? { ...m, id: inserted.id } : m));
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Failed to save material to Supabase:', err);
+    }
 
     showToast(editingMaterial ? `Updated material ${formData.name}` : `Added new material ${formData.name}`);
     setIsModalOpen(false);
@@ -223,53 +316,70 @@ export default function AdminMaterialsClient() {
         </button>
       </div>
 
-      {/* Quick Summary Cards */}
-      <div className="admin-stats-grid" style={{ marginBottom: '4px' }}>
-        <div className="stat-card" style={{ background: '#fff', borderRadius: '12px', padding: '16px 20px', border: 'none', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
-          <p className="stat-card-label" style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em', margin: '0 0 4px' }}>Total Material Items</p>
-          <p className="stat-card-value" style={{ fontSize: '22px', fontWeight: '800', color: '#0f172a', margin: '0 0 2px' }}>{materials.length}</p>
-          <p className="stat-card-sub" style={{ fontSize: '11.5px', color: '#94a3b8', margin: 0 }}>In craft stock room</p>
-        </div>
-
-        <div className="stat-card" style={{ background: '#fff', borderRadius: '12px', padding: '16px 20px', border: 'none', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
-          <p className="stat-card-label" style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em', margin: '0 0 4px' }}>Low Stock Alerts</p>
-          <p className="stat-card-value" style={{ fontSize: '22px', fontWeight: '800', color: lowStockCount > 0 ? '#dc2626' : '#16a34a', margin: '0 0 2px' }}>
-            {lowStockCount}
-          </p>
-          <p className="stat-card-sub" style={{ fontSize: '11.5px', color: '#94a3b8', margin: 0 }}>Items need replenishment</p>
-        </div>
-
-        <div className="stat-card" style={{ background: '#fff', borderRadius: '12px', padding: '16px 20px', border: 'none', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
-          <p className="stat-card-label" style={{ fontSize: '11px', fontWeight: '700', color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em', margin: '0 0 4px' }}>Inventory Valuation</p>
-          <p className="stat-card-value" style={{ fontSize: '22px', fontWeight: '800', color: 'var(--color-primary, #b45309)', margin: '0 0 2px' }}>{formatCurrency(totalValuation)}</p>
-          <p className="stat-card-sub" style={{ fontSize: '11.5px', color: '#94a3b8', margin: 0 }}>At current unit cost</p>
-        </div>
-      </div>
-
       {/* Filter and Search Bar */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
-        <div className="admin-filter-tabs" style={{ margin: 0, display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-          {categories.map((cat) => (
-            <button
-              key={cat}
-              type="button"
-              className={`filter-tab ${activeCategory === cat ? 'active' : ''}`}
-              onClick={() => setActiveCategory(cat)}
-              style={{
-                border: 'none',
-                padding: '6px 12px',
-                borderRadius: '8px',
-                fontSize: '12px',
-                fontWeight: activeCategory === cat ? '700' : '500',
-                background: activeCategory === cat ? 'var(--color-primary, #b45309)' : '#ffffff',
-                color: activeCategory === cat ? '#ffffff' : '#64748b',
-                cursor: 'pointer',
-                transition: 'all 0.15s ease',
-              }}
-            >
-              {cat === 'all' ? `All (${materials.length})` : cat}
-            </button>
-          ))}
+        <div className="admin-filter-tabs" style={{ margin: 0, display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
+          {categories.map((cat) => {
+            const count = cat === 'all' 
+              ? materials.length 
+              : materials.filter(m => m.category === cat).length;
+            const isActive = activeCategory === cat;
+            return (
+              <button
+                key={cat}
+                type="button"
+                className={`filter-tab ${isActive ? 'active' : ''}`}
+                onClick={() => {
+                  setActiveCategory(cat);
+                  setCurrentPage(1);
+                }}
+                style={{
+                  border: isActive ? '1px solid var(--color-primary, #b45309)' : '1px solid #e2e8f0',
+                  padding: '7px 14px',
+                  borderRadius: '9999px',
+                  fontSize: '12px',
+                  fontWeight: isActive ? '700' : '600',
+                  background: isActive ? 'var(--color-primary, #b45309)' : '#ffffff',
+                  color: isActive ? '#ffffff' : '#64748b',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  transition: 'all 0.18s cubic-bezier(0.4, 0, 0.2, 1)',
+                  boxShadow: isActive ? '0 2px 6px rgba(180, 83, 9, 0.2)' : '0 1px 2px rgba(0,0,0,0.03)',
+                }}
+                onMouseEnter={(e) => {
+                  if (!isActive) {
+                    e.currentTarget.style.borderColor = '#cbd5e1';
+                    e.currentTarget.style.color = '#0f172a';
+                    e.currentTarget.style.background = '#f8fafc';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!isActive) {
+                    e.currentTarget.style.borderColor = '#e2e8f0';
+                    e.currentTarget.style.color = '#64748b';
+                    e.currentTarget.style.background = '#ffffff';
+                  }
+                }}
+              >
+                <span>{cat === 'all' ? 'All Materials' : cat}</span>
+                <span
+                  style={{
+                    fontSize: '10.5px',
+                    fontWeight: '700',
+                    padding: '1px 6px',
+                    borderRadius: '9999px',
+                    background: isActive ? 'rgba(255, 255, 255, 0.22)' : '#f1f5f9',
+                    color: isActive ? '#ffffff' : '#64748b',
+                    transition: 'all 0.18s ease',
+                  }}
+                >
+                  {count}
+                </span>
+              </button>
+            );
+          })}
         </div>
 
         <div style={{
@@ -284,13 +394,17 @@ export default function AdminMaterialsClient() {
           width: '260px',
           maxWidth: '100%',
           boxSizing: 'border-box',
+          boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
         }}>
           <i className="fa-solid fa-magnifying-glass" style={{ color: '#94a3b8', fontSize: '12px', marginRight: '8px' }}></i>
           <input
             type="text"
-            placeholder="Search materials or SKU..."
+            placeholder="Search materials..."
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              setCurrentPage(1);
+            }}
             style={{
               border: 'none',
               background: 'transparent',
@@ -304,7 +418,10 @@ export default function AdminMaterialsClient() {
           {searchQuery && (
             <button
               type="button"
-              onClick={() => setSearchQuery('')}
+              onClick={() => {
+                setSearchQuery('');
+                setCurrentPage(1);
+              }}
               style={{ border: 'none', background: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '12px', padding: 0 }}
             >
               ✕
@@ -318,12 +435,12 @@ export default function AdminMaterialsClient() {
         <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ background: '#F8FAFC', borderBottom: '1.5px solid #E2E8F0' }}>
-              <th style={{ width: '32%', padding: '13px 18px', textAlign: 'left', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#334155', borderBottom: '1.5px solid #E2E8F0' }}>Material & SKU</th>
-              <th style={{ width: '20%', padding: '13px 16px', textAlign: 'left', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#334155', borderBottom: '1.5px solid #E2E8F0' }}>Category</th>
-              <th style={{ width: '16%', padding: '13px 16px', textAlign: 'left', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#334155', borderBottom: '1.5px solid #E2E8F0' }}>Current Stock</th>
+              <th style={{ width: '30%', padding: '13px 18px', textAlign: 'left', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#334155', borderBottom: '1.5px solid #E2E8F0' }}>Material Name</th>
+              <th style={{ width: '18%', padding: '13px 16px', textAlign: 'left', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#334155', borderBottom: '1.5px solid #E2E8F0' }}>Category</th>
+              <th style={{ width: '18%', padding: '13px 16px', textAlign: 'left', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#334155', borderBottom: '1.5px solid #E2E8F0' }}>Current Stock</th>
               <th style={{ width: '14%', padding: '13px 16px', textAlign: 'left', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#334155', borderBottom: '1.5px solid #E2E8F0' }}>Unit Cost</th>
               <th style={{ width: '12%', padding: '13px 14px', textAlign: 'center', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#334155', borderBottom: '1.5px solid #E2E8F0' }}>Status</th>
-              <th style={{ width: '6%', padding: '13px 14px', textAlign: 'center', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#334155', borderBottom: '1.5px solid #E2E8F0' }}>Action</th>
+              <th style={{ width: '8%', padding: '13px 14px', textAlign: 'center', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#334155', borderBottom: '1.5px solid #E2E8F0' }}>Action</th>
             </tr>
           </thead>
           <tbody key={`${activeCategory}-${searchQuery}-${currentPage}`} className="table-fade-enter">
@@ -341,47 +458,42 @@ export default function AdminMaterialsClient() {
               </tr>
             ) : (
               paginatedMaterials.map((m, idx) => {
+                const rowKey = `${m.id}-${idx}`;
                 const isNearBottom = paginatedMaterials.length <= 3 ? idx >= 1 : idx >= paginatedMaterials.length - 2;
                 const isLow = m.current_stock <= m.minimum_stock;
                 const isOut = m.current_stock === 0;
 
                 return (
-                  <tr key={m.id} style={{ borderBottom: '1px solid #E2E8F0', transition: 'background 0.12s ease' }}>
+                  <tr key={rowKey} style={{ borderBottom: '1px solid #E2E8F0', transition: 'background 0.12s ease' }}>
                     <td style={{ padding: '13px 18px', borderBottom: '1px solid #E2E8F0' }}>
-                      <p style={{ fontWeight: '700', color: '#0f172a', margin: 0, fontSize: '13px' }}>
+                      <p style={{ fontWeight: '700', color: '#0f172a', margin: 0, fontSize: '13.5px' }}>
                         {m.name}
-                      </p>
-                      <p style={{ fontSize: '11px', color: '#64748b', margin: '2px 0 0' }}>
-                        SKU: MAT-{m.id.substring(0, 6)}
                       </p>
                     </td>
                     <td style={{ padding: '13px 16px' }}>
-                      <span style={{ background: '#FAF6F0', color: 'var(--color-primary, #b45309)', fontWeight: '700', fontSize: '11px', padding: '3px 8px', borderRadius: '6px' }}>
+                      <span style={{ color: '#475569', fontWeight: '600', fontSize: '13px' }}>
                         {m.category}
                       </span>
                     </td>
                     <td style={{ padding: '13px 16px' }}>
-                      <span style={{ fontWeight: '800', fontSize: '13.5px', color: isLow ? '#dc2626' : '#0f172a' }}>
-                        {m.current_stock}
-                      </span>
-                      <span style={{ fontSize: '11px', color: '#64748b', marginLeft: '4px', fontWeight: '500' }}>
-                        {m.unit} (Min: {m.minimum_stock})
+                      <span style={{ fontWeight: '700', color: '#0f172a', fontSize: '13px' }}>
+                        {m.current_stock} {m.unit || 'pcs'}
                       </span>
                     </td>
-                    <td style={{ padding: '13px 16px', fontWeight: '700', color: '#0f172a', fontSize: '12.5px' }}>
-                      {formatCurrency(m.cost_per_unit)} <span style={{ fontSize: '10.5px', color: '#64748b', fontWeight: '500' }}>/ {m.unit}</span>
+                    <td style={{ padding: '13px 16px', fontWeight: '700', color: '#0f172a', fontSize: '13px' }}>
+                      {formatCurrency(m.cost_per_unit ?? m.current_unit_cost ?? 0)}
                     </td>
                     <td style={{ padding: '13px 14px', textAlign: 'center' }}>
                       {isOut ? (
-                        <span style={{ fontSize: '11px', fontWeight: '800', letterSpacing: '0.04em', padding: '0 4px', height: '24px', borderRadius: '9999px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '96px', boxSizing: 'border-box', textAlign: 'center', background: '#FEE2E2', color: '#991B1B' }}>
+                        <span style={{ background: '#FEE2E2', color: '#991B1B', fontSize: '11px', fontWeight: '800', letterSpacing: '0.04em', padding: '0 8px', height: '24px', borderRadius: '9999px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '96px', boxSizing: 'border-box', textAlign: 'center' }}>
                           OUT OF STOCK
                         </span>
                       ) : isLow ? (
-                        <span style={{ fontSize: '11px', fontWeight: '800', letterSpacing: '0.04em', padding: '0 8px', height: '24px', borderRadius: '9999px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '96px', boxSizing: 'border-box', textAlign: 'center', background: '#FEF3C7', color: '#92400E' }}>
+                        <span style={{ background: '#FEF3C7', color: '#92400E', fontSize: '11px', fontWeight: '800', letterSpacing: '0.04em', padding: '0 8px', height: '24px', borderRadius: '9999px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '96px', boxSizing: 'border-box', textAlign: 'center' }}>
                           LOW STOCK
                         </span>
                       ) : (
-                        <span style={{ fontSize: '11px', fontWeight: '800', letterSpacing: '0.04em', padding: '0 8px', height: '24px', borderRadius: '9999px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '96px', boxSizing: 'border-box', textAlign: 'center', background: '#DCFCE7', color: '#166534' }}>
+                        <span style={{ background: '#DCFCE7', color: '#166534', fontSize: '11px', fontWeight: '800', letterSpacing: '0.04em', padding: '0 8px', height: '24px', borderRadius: '9999px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '96px', boxSizing: 'border-box', textAlign: 'center' }}>
                           IN STOCK
                         </span>
                       )}
@@ -392,15 +504,15 @@ export default function AdminMaterialsClient() {
                           type="button"
                           onClick={(e) => {
                             e.stopPropagation();
-                            setActiveMenuId(activeMenuId === m.id ? null : m.id);
+                            setActiveMenuId(activeMenuId === rowKey ? null : rowKey);
                           }}
                           style={{
                             width: '28px',
                             height: '28px',
                             borderRadius: '6px',
                             border: 'none',
-                            background: activeMenuId === m.id ? '#f1f5f9' : 'transparent',
-                            color: activeMenuId === m.id ? '#0f172a' : '#64748b',
+                            background: activeMenuId === rowKey ? '#f1f5f9' : 'transparent',
+                            color: activeMenuId === rowKey ? '#0f172a' : '#64748b',
                             display: 'inline-flex',
                             alignItems: 'center',
                             justifyContent: 'center',
@@ -409,13 +521,13 @@ export default function AdminMaterialsClient() {
                             transition: 'all 0.12s ease',
                           }}
                           onMouseEnter={(e) => {
-                            if (activeMenuId !== m.id) {
+                            if (activeMenuId !== rowKey) {
                               e.currentTarget.style.background = '#f1f5f9';
                               e.currentTarget.style.color = '#0f172a';
                             }
                           }}
                           onMouseLeave={(e) => {
-                            if (activeMenuId !== m.id) {
+                            if (activeMenuId !== rowKey) {
                               e.currentTarget.style.background = 'transparent';
                               e.currentTarget.style.color = '#64748b';
                             }
@@ -426,7 +538,7 @@ export default function AdminMaterialsClient() {
                         </button>
 
                         {/* Dropdown Menu with Icons and Divider */}
-                        {activeMenuId === m.id && (
+                        {activeMenuId === rowKey && (
                           <div
                             style={{
                               position: 'absolute',
@@ -708,27 +820,32 @@ export default function AdminMaterialsClient() {
       {/* Add / Edit Material Modal */}
       {isModalOpen && (
         <div
+          className="modal-backdrop-animate"
           style={{
             position: 'fixed',
             inset: 0,
             background: 'rgba(15, 23, 42, 0.65)',
             backdropFilter: 'blur(8px)',
+            WebkitBackdropFilter: 'blur(8px)',
             zIndex: 999999,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             padding: '20px',
+            animation: 'adminModalFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
           }}
           onClick={() => setIsModalOpen(false)}
         >
           <div
+            className="modal-dialog-animate"
             style={{
               background: '#ffffff',
-              borderRadius: '14px',
+              borderRadius: '16px',
               maxWidth: '460px',
               width: '100%',
               boxShadow: '0 20px 40px rgba(0,0,0,0.15)',
               overflow: 'hidden',
+              animation: 'adminModalScaleIn 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
             }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -762,20 +879,72 @@ export default function AdminMaterialsClient() {
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', color: '#334155', marginBottom: '6px' }}>
-                    Category
-                  </label>
-                  <select
-                    style={{ width: '100%', height: '38px', padding: '0 10px', borderRadius: '9px', border: '1.5px solid #E2E8F0', background: '#F8FAFC', fontSize: '12.5px', fontWeight: '600', color: '#0F172A', boxSizing: 'border-box' }}
-                    value={formData.category}
-                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                  >
-                    <option value="Chenille Stems">Chenille Stems</option>
-                    <option value="Floral Supplies">Floral Supplies</option>
-                    <option value="Wrappers & Ribbons">Wrappers & Ribbons</option>
-                    <option value="Resin & Glitters">Resin & Glitters</option>
-                    <option value="Packaging">Packaging</option>
-                  </select>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                    <label style={{ fontSize: '12px', fontWeight: '700', color: '#334155', margin: 0 }}>
+                      Category
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsCustomCategory(!isCustomCategory);
+                        if (!isCustomCategory) {
+                          setCustomCategoryInput('');
+                        }
+                      }}
+                      style={{
+                        border: 'none',
+                        background: 'none',
+                        color: 'var(--color-primary, #b45309)',
+                        fontSize: '11px',
+                        fontWeight: '700',
+                        cursor: 'pointer',
+                        padding: 0,
+                      }}
+                    >
+                      {isCustomCategory ? 'Select existing' : '+ New Category'}
+                    </button>
+                  </div>
+
+                  {isCustomCategory ? (
+                    <input
+                      type="text"
+                      placeholder="Type category name (e.g. Tools)..."
+                      value={customCategoryInput}
+                      onChange={(e) => setCustomCategoryInput(e.target.value)}
+                      style={{
+                        width: '100%',
+                        height: '38px',
+                        padding: '0 10px',
+                        borderRadius: '9px',
+                        border: '1.5px solid var(--color-primary, #b45309)',
+                        background: '#FFFFFF',
+                        fontSize: '12.5px',
+                        fontWeight: '600',
+                        color: '#0F172A',
+                        boxSizing: 'border-box',
+                        outline: 'none',
+                      }}
+                      autoFocus
+                    />
+                  ) : (
+                    <select
+                      style={{ width: '100%', height: '38px', padding: '0 10px', borderRadius: '9px', border: '1.5px solid #E2E8F0', background: '#F8FAFC', fontSize: '12.5px', fontWeight: '600', color: '#0F172A', boxSizing: 'border-box' }}
+                      value={formData.category}
+                      onChange={(e) => {
+                        if (e.target.value === '__custom__') {
+                          setIsCustomCategory(true);
+                          setCustomCategoryInput('');
+                        } else {
+                          setFormData({ ...formData, category: e.target.value });
+                        }
+                      }}
+                    >
+                      {availableCategories.map((cat) => (
+                        <option key={cat} value={cat}>{cat}</option>
+                      ))}
+                      <option value="__custom__">+ Add Custom Category...</option>
+                    </select>
+                  )}
                 </div>
 
                 <div>
@@ -899,6 +1068,7 @@ export default function AdminMaterialsClient() {
       {/* Delete Confirmation Modal */}
       {materialToDelete && (
         <div
+          className="modal-backdrop-animate"
           style={{
             position: 'fixed',
             top: 0,
@@ -908,27 +1078,30 @@ export default function AdminMaterialsClient() {
             width: '100vw',
             height: '100vh',
             background: 'rgba(15, 23, 42, 0.65)',
-            backdropFilter: 'blur(6px)',
-            WebkitBackdropFilter: 'blur(6px)',
+            backdropFilter: 'blur(8px)',
+            WebkitBackdropFilter: 'blur(8px)',
             zIndex: 999999,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             padding: '16px',
             boxSizing: 'border-box',
+            animation: 'adminModalFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
           }}
           onClick={() => setMaterialToDelete(null)}
         >
           <div
+            className="modal-dialog-animate"
             style={{
               background: '#ffffff',
-              borderRadius: '16px',
+              borderRadius: '18px',
               padding: '24px',
               maxWidth: '380px',
               width: '100%',
               boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
               border: '1px solid #f1f5f9',
               textAlign: 'center',
+              animation: 'adminModalScaleIn 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
             }}
             onClick={(e) => e.stopPropagation()}
           >

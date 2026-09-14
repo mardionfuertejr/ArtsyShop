@@ -28,7 +28,7 @@ export default function AdminNotepad() {
           setItems(data.notes);
           try {
             localStorage.setItem('mmartsy_admin_checklist', JSON.stringify(data.notes));
-          } catch (e) {}
+          } catch (e) { }
         }
       }
     } catch (err) {
@@ -63,7 +63,7 @@ export default function AdminNotepad() {
           }
         };
       }
-    } catch (e) {}
+    } catch (e) { }
 
     // 4. Supabase Realtime Channel for Cross-Device / Cloud Realtime Sync
     let supabase = null;
@@ -80,7 +80,7 @@ export default function AdminNotepad() {
               setItems(payload.payload.items);
               try {
                 localStorage.setItem('mmartsy_admin_checklist', JSON.stringify(payload.payload.items));
-              } catch (e) {}
+              } catch (e) { }
             }
           })
           .on('postgres_changes', { event: '*', schema: 'public', table: 'studio_notes' }, () => {
@@ -90,7 +90,7 @@ export default function AdminNotepad() {
 
         channelRef.current = channel;
       }
-    } catch (e) {}
+    } catch (e) { }
 
     // 5. Periodic polling heartbeat (every 4 seconds) to ensure 100% sync across all admin devices
     const intervalId = setInterval(fetchNotes, 4000);
@@ -109,7 +109,7 @@ export default function AdminNotepad() {
       if (localBcRef.current) {
         localBcRef.current.postMessage({ type: 'SYNC_NOTES', items: updatedItems });
       }
-    } catch (e) {}
+    } catch (e) { }
 
     // Supabase Cloud Realtime Broadcast
     try {
@@ -120,7 +120,7 @@ export default function AdminNotepad() {
           payload: { items: updatedItems },
         });
       }
-    } catch (e) {}
+    } catch (e) { }
   };
 
   // Helper to commit and sync changes
@@ -129,14 +129,14 @@ export default function AdminNotepad() {
     broadcastChange(newItems);
     try {
       localStorage.setItem('mmartsy_admin_checklist', JSON.stringify(newItems));
-    } catch (e) {}
+    } catch (e) { }
 
     // Send API update in background
     if (apiAction) {
       setIsSyncing(true);
       try {
         await apiAction();
-      } catch (e) {}
+      } catch (e) { }
       setIsSyncing(false);
     }
   };
@@ -255,53 +255,55 @@ export default function AdminNotepad() {
         )}
       </button>
 
-      {/* Clean Modal with Soft Frosted Blur Backdrop & Stable Position */}
+      {/* Clean Modal with Standard Animated Backdrop & Scale Dialog */}
       {isOpen && (
         <div
+          className="modal-backdrop-animate"
           style={{
             position: 'fixed',
             inset: 0,
-            background: 'rgba(15, 23, 42, 0.68)',
-            backdropFilter: 'blur(30px) saturate(150%)',
-            WebkitBackdropFilter: 'blur(30px) saturate(150%)',
+            background: 'rgba(15, 23, 42, 0.65)',
+            backdropFilter: 'blur(8px)',
+            WebkitBackdropFilter: 'blur(8px)',
             zIndex: 99999,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             padding: '16px',
-            animation: 'fadeIn 0.12s ease',
+            animation: 'adminModalFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
           }}
           onClick={(e) => {
             if (e.target === e.currentTarget) setIsOpen(false);
           }}
         >
           <div
+            className="modal-dialog-animate"
             style={{
               background: '#ffffff',
-              borderRadius: '20px',
+              borderRadius: '18px',
               width: '100%',
-              maxWidth: '520px',
-              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(0, 0, 0, 0.05)',
+              maxWidth: '500px',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
               border: '1px solid #e2e8f0',
               display: 'flex',
               flexDirection: 'column',
               overflow: 'hidden',
-              transition: 'none',
+              animation: 'adminModalScaleIn 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
             }}
           >
             {/* Header */}
             <div
               style={{
-                padding: '16px 22px',
+                padding: '16px 20px',
                 borderBottom: '1px solid #f1f5f9',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <i className="fa-solid fa-note-sticky" style={{ color: 'var(--color-primary, #b45309)', fontSize: '17px' }}></i>
-                <h2 style={{ fontSize: '17px', fontWeight: '800', color: '#0f172a', margin: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '9px' }}>
+                <i className="fa-solid fa-note-sticky" style={{ color: 'var(--color-primary, #b45309)', fontSize: '16px' }}></i>
+                <h2 style={{ fontSize: '16px', fontWeight: '800', color: '#0f172a', margin: 0 }}>
                   Shop Notes & Checklist
                 </h2>
                 {isSyncing && (
@@ -312,18 +314,23 @@ export default function AdminNotepad() {
               </div>
 
               <button
+                type="button"
                 onClick={() => setIsOpen(false)}
                 style={{
                   border: 'none',
                   background: 'none',
                   color: '#64748b',
-                  fontSize: '18px',
+                  fontSize: '16px',
                   cursor: 'pointer',
                   padding: '4px',
                   display: 'inline-flex',
                   alignItems: 'center',
                   justifyContent: 'center',
+                  borderRadius: '6px',
+                  transition: 'color 0.15s ease',
                 }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = '#0F172A')}
+                onMouseLeave={(e) => (e.currentTarget.style.color = '#64748b')}
               >
                 <i className="fa-solid fa-xmark"></i>
               </button>
@@ -333,10 +340,10 @@ export default function AdminNotepad() {
             <form
               onSubmit={handleAdd}
               style={{
-                padding: '14px 22px',
+                padding: '12px 18px',
                 borderBottom: '1px solid #f1f5f9',
                 display: 'flex',
-                gap: '10px',
+                gap: '8px',
                 background: '#FAF6F0',
               }}
             >
@@ -348,26 +355,38 @@ export default function AdminNotepad() {
                 onChange={(e) => setInputVal(e.target.value)}
                 style={{
                   flex: 1,
-                  padding: '10px 14px',
+                  padding: '9px 13px',
                   borderRadius: '10px',
                   border: '1.5px solid #e2e8f0',
-                  fontSize: '13.5px',
+                  fontSize: '13px',
                   outline: 'none',
                   background: '#ffffff',
                   color: '#0f172a',
+                  transition: 'border-color 0.15s ease',
                 }}
+                onFocus={(e) => (e.currentTarget.style.borderColor = 'var(--color-primary, #b45309)')}
+                onBlur={(e) => (e.currentTarget.style.borderColor = '#e2e8f0')}
               />
               <button
                 type="submit"
                 disabled={!inputVal.trim()}
-                className="btn btn-primary btn-sm"
                 style={{
-                  padding: '0 18px',
+                  padding: '0 16px',
                   borderRadius: '10px',
                   fontSize: '13px',
                   fontWeight: '700',
-                  opacity: !inputVal.trim() ? 0.6 : 1,
+                  background: 'var(--color-primary, #b45309)',
+                  border: 'none',
+                  color: '#FFFFFF',
+                  opacity: !inputVal.trim() ? 0.5 : 1,
                   cursor: !inputVal.trim() ? 'not-allowed' : 'pointer',
+                  transition: 'all 0.15s ease',
+                }}
+                onMouseEnter={(e) => {
+                  if (inputVal.trim()) e.currentTarget.style.opacity = '0.9';
+                }}
+                onMouseLeave={(e) => {
+                  if (inputVal.trim()) e.currentTarget.style.opacity = '1';
                 }}
               >
                 Add
@@ -377,9 +396,9 @@ export default function AdminNotepad() {
             {/* Checklist items */}
             <div
               style={{
-                padding: '14px 22px',
-                maxHeight: '300px',
-                minHeight: '140px',
+                padding: '12px 18px',
+                maxHeight: '320px',
+                minHeight: '130px',
                 overflowY: 'auto',
                 overflowX: 'hidden',
                 display: 'flex',
@@ -389,105 +408,124 @@ export default function AdminNotepad() {
             >
               {items.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '36px 0', color: '#94a3b8' }}>
-                  <i className="fa-solid fa-clipboard-check" style={{ fontSize: '26px', opacity: 0.5, marginBottom: '8px', display: 'block' }}></i>
-                  <p style={{ fontSize: '13.5px', margin: 0, fontWeight: '600' }}>No notes or tasks</p>
+                  <i className="fa-solid fa-clipboard-check" style={{ fontSize: '24px', opacity: 0.5, marginBottom: '8px', display: 'block' }}></i>
+                  <p style={{ fontSize: '13px', margin: 0, fontWeight: '600' }}>No notes or tasks</p>
                 </div>
               ) : (
-                items.map((it) => (
-                  <div
-                    key={it.id}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      gap: '12px',
-                      padding: '10px 12px',
-                      borderRadius: '10px',
-                      background: it.completed ? '#f8fafc' : '#ffffff',
-                      border: it.completed ? '1px dashed #e2e8f0' : '1px solid #f1f5f9',
-                      transition: 'all 0.12s ease',
-                      width: '100%',
-                      boxSizing: 'border-box',
-                    }}
-                  >
+                [...items]
+                  .sort((a, b) => (a.completed === b.completed ? 0 : a.completed ? 1 : -1))
+                  .map((it) => (
                     <div
-                      onClick={() => toggleItem(it.id)}
+                      key={it.id}
                       style={{
                         display: 'flex',
                         alignItems: 'center',
+                        justifyContent: 'space-between',
                         gap: '12px',
-                        flex: 1,
-                        minWidth: 0,
-                        cursor: 'pointer',
+                        padding: '9px 12px',
+                        borderRadius: '10px',
+                        background: it.completed ? '#F8FAFC' : '#FFFFFF',
+                        border: it.completed ? '1px dashed #E2E8F0' : '1px solid #E2E8F0',
+                        transition: 'all 0.15s ease',
+                        width: '100%',
+                        boxSizing: 'border-box',
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!it.completed) {
+                          e.currentTarget.style.background = '#FAF8F5';
+                          e.currentTarget.style.borderColor = '#CBD5E1';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!it.completed) {
+                          e.currentTarget.style.background = '#FFFFFF';
+                          e.currentTarget.style.borderColor = '#E2E8F0';
+                        }
                       }}
                     >
                       <div
+                        onClick={() => toggleItem(it.id)}
                         style={{
-                          width: '20px',
-                          height: '20px',
-                          borderRadius: '6px',
-                          border: it.completed ? '1.5px solid #16A34A' : '1.5px solid #cbd5e1',
-                          background: it.completed ? '#16A34A' : 'transparent',
                           display: 'flex',
                           alignItems: 'center',
-                          justifyContent: 'center',
-                          color: '#ffffff',
-                          fontSize: '11px',
+                          gap: '10px',
+                          flex: 1,
+                          minWidth: 0,
+                          cursor: 'pointer',
+                          userSelect: 'none',
+                        }}
+                      >
+                        <div
+                          style={{
+                            width: '19px',
+                            height: '19px',
+                            borderRadius: '6px',
+                            border: it.completed ? '1.5px solid #16A34A' : '1.5px solid #94A3B8',
+                            background: it.completed ? '#16A34A' : 'transparent',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            color: '#ffffff',
+                            fontSize: '10px',
+                            flexShrink: 0,
+                            transition: 'all 0.15s ease',
+                            transform: it.completed ? 'scale(1.05)' : 'scale(1)',
+                          }}
+                        >
+                          {it.completed && <i className="fa-solid fa-check"></i>}
+                        </div>
+                        <span
+                          style={{
+                            fontSize: '13px',
+                            color: it.completed ? '#94a3b8' : '#1e293b',
+                            textDecoration: it.completed ? 'line-through' : 'none',
+                            fontWeight: it.completed ? '500' : '600',
+                            lineHeight: 1.4,
+                            wordBreak: 'break-word',
+                            overflowWrap: 'anywhere',
+                            minWidth: 0,
+                            transition: 'all 0.15s ease',
+                          }}
+                        >
+                          {it.text}
+                        </span>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => deleteItem(it.id)}
+                        style={{
+                          border: 'none',
+                          background: 'none',
+                          color: '#94a3b8',
+                          cursor: 'pointer',
+                          padding: '5px 7px',
+                          fontSize: '12px',
                           flexShrink: 0,
+                          borderRadius: '6px',
                           transition: 'all 0.15s ease',
                         }}
-                      >
-                        {it.completed && <i className="fa-solid fa-check"></i>}
-                      </div>
-                      <span
-                        style={{
-                          fontSize: '13.5px',
-                          color: it.completed ? '#94a3b8' : '#1e293b',
-                          textDecoration: it.completed ? 'line-through' : 'none',
-                          fontWeight: it.completed ? '500' : '600',
-                          lineHeight: 1.4,
-                          wordBreak: 'break-word',
-                          overflowWrap: 'anywhere',
-                          minWidth: 0,
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.color = '#DC2626';
+                          e.currentTarget.style.background = '#FEE2E2';
                         }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.color = '#94a3b8';
+                          e.currentTarget.style.background = 'transparent';
+                        }}
+                        title="Delete task"
                       >
-                        {it.text}
-                      </span>
+                        <i className="fa-solid fa-trash-can"></i>
+                      </button>
                     </div>
-
-                    <button
-                      onClick={() => deleteItem(it.id)}
-                      style={{
-                        border: 'none',
-                        background: 'none',
-                        color: '#94a3b8',
-                        cursor: 'pointer',
-                        padding: '6px',
-                        fontSize: '13px',
-                        flexShrink: 0,
-                        borderRadius: '6px',
-                        transition: 'all 0.12s ease',
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.color = '#DC2626';
-                        e.currentTarget.style.background = '#FEF2F2';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.color = '#94a3b8';
-                        e.currentTarget.style.background = 'transparent';
-                      }}
-                    >
-                      <i className="fa-solid fa-trash-can"></i>
-                    </button>
-                  </div>
-                ))
+                  ))
               )}
             </div>
 
             {/* Balanced Footer */}
             <div
               style={{
-                padding: '12px 22px',
+                padding: '12px 18px',
                 borderTop: '1px solid #f1f5f9',
                 background: '#FAF6F0',
                 display: 'flex',
@@ -495,11 +533,12 @@ export default function AdminNotepad() {
                 alignItems: 'center',
               }}
             >
-              <span style={{ fontSize: '12px', fontWeight: '600', color: '#64748b' }}>
+              <span style={{ fontSize: '12px', fontWeight: '700', color: '#64748b' }}>
                 {pendingCount === 0 ? 'All tasks done 🎉' : `${pendingCount} ${pendingCount === 1 ? 'item' : 'items'} pending`}
               </span>
               {items.some((it) => it.completed) && (
                 <button
+                  type="button"
                   onClick={clearDone}
                   style={{
                     border: 'none',

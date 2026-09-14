@@ -36,7 +36,7 @@ function formatDisplayDate(dateStr) {
 }
 
 // Helper: Relative day badge ("Tomorrow", "In 3 days", etc.)
-function getRelativeDayLabel(dateStr) {
+export function getRelativeDayLabel(dateStr) {
   const d = parseDateString(dateStr);
   if (!d) return null;
   
@@ -57,6 +57,21 @@ function getRelativeDayLabel(dateStr) {
   return null;
 }
 
+// Helper: Detect if date is within 24-48 hours (Today or Tomorrow)
+export function isRushDate(dateStr) {
+  const d = parseDateString(dateStr);
+  if (!d) return false;
+  
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  const target = new Date(d);
+  target.setHours(0, 0, 0, 0);
+  
+  const diffDays = Math.round((target - today) / (1000 * 60 * 60 * 24));
+  return diffDays === 0 || diffDays === 1;
+}
+
 export default function PremiumDatePicker({
   id = 'premium-date-picker',
   name = 'preferredDate',
@@ -66,7 +81,8 @@ export default function PremiumDatePicker({
   required = false,
   label = 'Date Needed',
   placeholder = 'Select date needed...',
-  className = ''
+  className = '',
+  error = null,
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef(null);
@@ -109,24 +125,8 @@ export default function PremiumDatePicker({
     };
   }, [isOpen]);
 
-  // Compute Quick Shortcuts inside popover
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-
-  const tomorrow = new Date(today);
-  tomorrow.setDate(today.getDate() + 1);
-
-  const inThreeDays = new Date(today);
-  inThreeDays.setDate(today.getDate() + 3);
-
-  const inOneWeek = new Date(today);
-  inOneWeek.setDate(today.getDate() + 7);
-
-  const quickOptions = [
-    { label: 'Tomorrow', date: tomorrow },
-    { label: 'In 3 Days', date: inThreeDays },
-    { label: 'In 1 Week', date: inOneWeek }
-  ];
 
   const handleSelectDate = (date) => {
     const formatted = toDateInputValue(date);
@@ -173,7 +173,7 @@ export default function PremiumDatePicker({
   return (
     <div className={`premium-datepicker-root ${className}`} ref={containerRef}>
       {label && (
-        <label className="input-label" htmlFor={id} onClick={() => setIsOpen(true)}>
+        <label className="input-label" htmlFor={id} onClick={() => setIsOpen(true)} style={{ display: 'block', marginBottom: '6px' }}>
           {label} {required && <span className="required">*</span>}
         </label>
       )}
@@ -186,6 +186,10 @@ export default function PremiumDatePicker({
         aria-haspopup="dialog"
         aria-expanded={isOpen}
         className={`premium-datepicker-compact-trigger ${isOpen ? 'focused' : ''} ${value ? 'has-value' : ''}`}
+        style={{
+          borderColor: error ? '#EF4444' : undefined,
+          boxShadow: error ? '0 0 0 3px rgba(239, 68, 68, 0.14)' : undefined,
+        }}
         onClick={() => setIsOpen((prev) => !prev)}
         onKeyDown={(e) => {
           if (e.key === 'Enter' || e.key === ' ') {
@@ -250,6 +254,13 @@ export default function PremiumDatePicker({
         />
       </div>
 
+      {error && (
+        <p style={{ color: '#EF4444', fontSize: '11px', marginTop: '4px', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <i className="fa-solid fa-circle-exclamation" style={{ fontSize: '10px' }}></i>
+          <span>{error}</span>
+        </p>
+      )}
+
       {/* Floating Compact Calendar Popover with Smooth In/Out Transition */}
       <div
         className={`premium-datepicker-popover ${isOpen ? 'open' : ''}`}
@@ -257,26 +268,8 @@ export default function PremiumDatePicker({
         aria-label="Choose date"
         aria-hidden={!isOpen}
       >
-        {/* Quick Shortcuts inside Popover */}
-          <div className="popover-quick-row">
-            {quickOptions.map((opt) => {
-              const optStr = toDateInputValue(opt.date);
-              const isSelected = value === optStr;
-              return (
-                <button
-                  key={opt.label}
-                  type="button"
-                  className={`popover-quick-chip ${isSelected ? 'active' : ''}`}
-                  onClick={() => handleSelectDate(opt.date)}
-                >
-                  {opt.label}
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Calendar Header Navigation */}
-          <div className="calendar-header">
+        {/* Calendar Header Navigation */}
+        <div className="calendar-header" style={{ marginTop: '2px' }}>
             <button
               type="button"
               className="calendar-nav-btn"

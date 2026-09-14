@@ -7,16 +7,23 @@ let serverSettings = {
   studioName: 'M&M Artsy',
   tagline: 'Handcrafted Everlasting Fuzzy Bouquets & Resin Keepsakes',
   messengerLink: 'https://www.facebook.com/messages/t/61587268312750',
-  contactNumber: '0917 890 1234',
-  gcashName: 'M&M ARTSY CRAFTS',
-  gcashNumber: '0917 890 1234',
+  contactNumber: '09949909686',
+  gcashName: 'M.... J.. F...',
+  gcashNumber: '09949909686',
   deliveryFee: 45,
   deliveryFeeMode: 'auto', // 'auto' (Distance-based GPS) or 'fixed' (Manual flat fee)
   deliveryFeeNear: 20,     // 0-2 km (Barugo Proper / Poblacion)
   deliveryFeeMid: 35,      // 2-5 km (Other Barangays)
-  deliveryFeeFar: 45,      // 5+ km (Carigara & Boundary max)
   studioAddress: 'Poblacion, Barugo, Leyte (Near Town Plaza)',
+  studioLat: 11.3039,
+  studioLng: 124.7350,
   autoConfirm: false,
+  announcementEnabled: true,
+  announcementText: 'I-send ang resibo sa Messenger para masimulan agad ang pag-craft.',
+  announcementBadge: 'Notice',
+  announcementLink: '/shop',
+  rushFeeEnabled: true,
+  rushFeeAmount: 50,
 };
 
 export async function GET() {

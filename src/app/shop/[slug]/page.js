@@ -18,7 +18,7 @@ const getProduct = cache(async (slug) => {
         .select(`
           id, name, slug, base_price, is_on_sale, sale_price, sale_tag, is_sold_out, is_ready_made, ready_made_stock, description, pricing_method,
           category:categories(id, name, slug),
-          product_photos(id, storage_path, is_cover, display_order),
+          product_photos(id, url, storage_path, is_cover, display_order),
           product_options(id, option_name, choices, is_required, display_order)
         `)
         .ilike('slug', cleanSlug)
@@ -32,7 +32,7 @@ const getProduct = cache(async (slug) => {
         .from('products')
         .select(`
           id, name, slug, base_price, description, pricing_method, is_available,
-          product_photos(id, storage_path, is_cover, display_order),
+          product_photos(id, url, storage_path, is_cover, display_order),
           product_options(id, option_name, choices, is_required, display_order)
         `)
         .ilike('slug', cleanSlug)

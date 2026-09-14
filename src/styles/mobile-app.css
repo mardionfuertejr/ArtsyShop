@@ -962,13 +962,30 @@ button:active, .btn:active, .product-card:active, .bottom-nav-item:active, [role
   text-transform: uppercase;
 }
 
-.product-card.is-sold-out .product-card-image {
-  filter: grayscale(40%) contrast(90%);
-  opacity: 0.85;
+.product-card.is-sold-out {
+  opacity: 0.65;
+  background: #F8FAFC !important;
+  border-color: #E2E8F0 !important;
+  transition: opacity 0.2s ease, filter 0.2s ease;
 }
 
-.product-card.is-sold-out .product-card-price {
-  color: var(--color-text-muted);
+.product-card.is-sold-out:hover {
+  opacity: 0.82;
+  transform: translateY(-1px);
+}
+
+.product-card.is-sold-out .product-card-image {
+  filter: grayscale(85%) contrast(85%);
+  opacity: 0.75;
+}
+
+.product-card.is-sold-out .product-card-name {
+  color: #64748B;
+}
+
+.product-card.is-sold-out .product-card-price,
+.product-card.is-sold-out .product-card-price-current {
+  color: #94A3B8 !important;
 }
 
 .ready-made-pill-badge {
@@ -1332,17 +1349,18 @@ button:active, .btn:active, .product-card:active, .bottom-nav-item:active, [role
 }
 
 .category-tab.active {
-  background: var(--color-primary);
-  border-color: var(--color-primary);
-  color: white;
+  background: var(--color-primary) !important;
+  border-color: var(--color-primary) !important;
+  color: #FFFFFF !important;
   box-shadow: 0 3px 10px rgba(194, 94, 56, 0.28);
   font-weight: var(--weight-semibold);
   transform: translateY(-0.5px);
 }
 
 .category-tab.active:hover {
-  background: var(--color-primary-dark);
-  color: white;
+  background: var(--color-primary-dark) !important;
+  border-color: var(--color-primary-dark) !important;
+  color: #FFFFFF !important;
 }
 
 /* ── Showcase Mode Header & Filter Tabs ── */
@@ -3274,6 +3292,18 @@ button:active, .btn:active, .product-card:active, .bottom-nav-item:active, [role
 /* ── Ultra-Sharp High-DPI Map Tile Rendering ────────────── */
 .map-container {
   position: relative;
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+  overflow: hidden !important;
+}
+
+.map-container .leaflet-container {
+  width: 100% !important;
+  max-width: 100% !important;
+  height: 100% !important;
+  box-sizing: border-box !important;
+  overflow: hidden !important;
 }
 
 .map-container .leaflet-tile-container img {

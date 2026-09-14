@@ -50,9 +50,12 @@ export default async function AdminOrdersPage() {
           status: ord.status,
           subtotal: parseFloat(ord.subtotal) || 0,
           delivery_fee: parseFloat(ord.delivery_fee) || 0,
+          rush_fee: parseFloat(ord.rush_fee) || 0,
+          is_rush: Boolean(ord.is_rush),
           total_amount: parseFloat(ord.total_amount) || 0,
           total_cost: parseFloat(ord.total_cost) || 0,
           preferred_date: ord.preferred_date || null,
+          preferred_time: ord.preferred_time || null,
           notes: ord.notes || '',
           created_at: ord.created_at,
           order_items: (ord.order_items || []).map((it) => ({

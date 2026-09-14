@@ -8,7 +8,8 @@ import { createClient } from '@/lib/supabase/client';
 
 export default function AdminLoginPage() {
   const router = useRouter();
-  const [form, setForm] = useState({ email: '', password: '' });
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -20,7 +21,7 @@ export default function AdminLoginPage() {
       const savedRemember = localStorage.getItem('mm_admin_remember');
       const savedEmail = localStorage.getItem('mm_admin_email');
       if (savedRemember === 'true' && savedEmail) {
-        setForm(p => ({ ...p, email: savedEmail }));
+        setEmail(savedEmail);
         setRememberMe(true);
       } else if (savedRemember === 'false') {
         setRememberMe(false);
@@ -35,7 +36,7 @@ export default function AdminLoginPage() {
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    if (!form.email || !form.password) {
+    if (!email || !password) {
       setError('Please enter your email and password.');
       return;
     }
@@ -48,8 +49,8 @@ export default function AdminLoginPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          email: form.email,
-          password: form.password,
+          email: email.trim(),
+          password,
           rememberMe,
         }),
       });
@@ -60,7 +61,7 @@ export default function AdminLoginPage() {
         try {
           if (rememberMe) {
             localStorage.setItem('mm_admin_remember', 'true');
-            localStorage.setItem('mm_admin_email', form.email.trim());
+            localStorage.setItem('mm_admin_email', email.trim());
           } else {
             localStorage.setItem('mm_admin_remember', 'false');
             localStorage.removeItem('mm_admin_email');
@@ -118,24 +119,31 @@ export default function AdminLoginPage() {
                   color: 'var(--color-text-muted)',
                   fontSize: '14px',
                   pointerEvents: 'none',
+                  zIndex: 2,
                 }}
               ></i>
               <input
                 id="email"
+                name="email"
                 className="input"
                 type="email"
-                placeholder="admin@mmartsy.com"
-                value={form.email}
-                onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))}
+                placeholder="name@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 required
                 disabled={loading}
                 autoComplete="email"
+                autoCorrect="off"
+                autoCapitalize="none"
+                spellCheck="false"
                 style={{
                   paddingLeft: '40px',
                   height: '44px',
                   fontSize: '13.5px',
                   opacity: loading ? 0.65 : 1,
                   cursor: loading ? 'not-allowed' : 'text',
+                  position: 'relative',
+                  zIndex: 1,
                 }}
               />
             </div>
@@ -154,18 +162,23 @@ export default function AdminLoginPage() {
                   color: 'var(--color-text-muted)',
                   fontSize: '14px',
                   pointerEvents: 'none',
+                  zIndex: 2,
                 }}
               ></i>
               <input
                 id="password"
+                name="password"
                 className="input"
                 type={showPassword ? 'text' : 'password'}
                 placeholder="Enter your password"
-                value={form.password}
-                onChange={(e) => setForm((p) => ({ ...p, password: e.target.value }))}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
                 required
                 disabled={loading}
                 autoComplete="current-password"
+                autoCorrect="off"
+                autoCapitalize="none"
+                spellCheck="false"
                 style={{
                   paddingLeft: '40px',
                   paddingRight: '40px',
@@ -173,10 +186,13 @@ export default function AdminLoginPage() {
                   fontSize: '13.5px',
                   opacity: loading ? 0.65 : 1,
                   cursor: loading ? 'not-allowed' : 'text',
+                  position: 'relative',
+                  zIndex: 1,
                 }}
               />
               <button
                 type="button"
+                tabIndex="-1"
                 onClick={() => setShowPassword((prev) => !prev)}
                 disabled={loading}
                 aria-label={showPassword ? 'Hide password' : 'Show password'}
@@ -190,6 +206,7 @@ export default function AdminLoginPage() {
                   opacity: loading ? 0.5 : 1,
                   padding: '4px 6px',
                   fontSize: '14px',
+                  zIndex: 2,
                 }}
               >
                 <i className={showPassword ? 'fa-solid fa-eye-slash' : 'fa-solid fa-eye'}></i>
@@ -227,7 +244,7 @@ export default function AdminLoginPage() {
               type="button"
               disabled={loading}
               onClick={() => {
-                setForgotEmail(form.email);
+                setForgotEmail(email);
                 setForgotSubmitted(false);
                 setShowForgotModal(true);
               }}
@@ -405,7 +422,8 @@ export default function AdminLoginPage() {
                     className="input"
                     value={forgotEmail}
                     onChange={(e) => setForgotEmail(e.target.value)}
-                    placeholder="admin@mmartsy.com"
+                    placeholder="name@example.com"
+                    autoComplete="email"
                     required
                     style={{ width: '100%', height: '42px', fontSize: '13px' }}
                   />

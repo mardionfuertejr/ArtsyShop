@@ -19,7 +19,7 @@ async function getProducts() {
           id, name, slug, base_price, description, category_id, is_ready_made, ready_made_stock,
           is_on_sale, sale_price, sale_tag, is_sold_out, is_bestseller,
           category:categories(id, name, slug),
-          product_photos(storage_path, is_cover, display_order)
+          product_photos(id, url, storage_path, is_cover, display_order)
         `)
         .eq('is_available', true)
         .order('display_order', { ascending: true });

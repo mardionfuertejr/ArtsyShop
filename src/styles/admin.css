@@ -18,6 +18,26 @@ button:active, .btn:active, .sidebar-link:active, [role="button"]:active {
   transform: scale(0.97) !important;
 }
 
+@keyframes adminModalFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes adminModalScaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.94) translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
 /* ── Admin Layout ─────────────────────────────────────────── */
 .admin-shell {
   display: flex;
@@ -92,13 +112,20 @@ button:active, .btn:active, .sidebar-link:active, [role="button"]:active {
   font-weight: var(--weight-medium);
   cursor: pointer;
   text-decoration: none;
-  transition: all var(--transition-fast);
+  transition: background-color 0.1s ease, color 0.1s ease, transform 0.05s ease;
   position: relative;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .sidebar-link:hover {
   background: var(--color-background);
   color: var(--color-text);
+}
+
+.sidebar-link:active {
+  transform: scale(0.97);
+  background: var(--color-primary-lighter);
 }
 
 .sidebar-link.active {

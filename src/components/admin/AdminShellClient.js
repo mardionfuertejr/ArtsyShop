@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useTransition } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import BrandLogo from '@/components/common/BrandLogo';
 import NotificationBell from '@/components/admin/NotificationBell';
 
@@ -26,10 +26,14 @@ const BOTTOM_NAV_ITEMS = [
 
 export default function AdminShellClient({ user, children }) {
   const pathname = usePathname();
+  const router = useRouter();
+  const [isPending, startTransition] = useTransition();
+  const [optimisticPath, setOptimisticPath] = useState(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
-  // Close drawer on route change
+  // Clear optimistic state when route transition completes
   useEffect(() => {
+    setOptimisticPath(null);
     setDrawerOpen(false);
   }, [pathname]);
 
@@ -45,17 +49,57 @@ export default function AdminShellClient({ user, children }) {
     };
   }, [drawerOpen]);
 
+  const currentPath = optimisticPath || pathname;
+
   const isActive = (href) => {
-    if (href === '/admin') return pathname === '/admin';
-    return pathname.startsWith(href);
+    if (href === '/admin') return currentPath === '/admin';
+    return currentPath.startsWith(href);
+  };
+
+  const handleNavClick = (href) => {
+    if (href === pathname) return;
+    setOptimisticPath(href);
+    startTransition(() => {
+      router.push(href);
+    });
+  };
+
+  const handlePrefetch = (href) => {
+    try {
+      router.prefetch(href);
+    } catch {}
   };
 
   return (
     <div className="admin-shell">
+      {/* Top Route Transition Progress Bar */}
+      {(isPending || optimisticPath) && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            height: '3px',
+            background: 'linear-gradient(90deg, #EA580C 0%, #F59E0B 50%, #EA580C 100%)',
+            backgroundSize: '200% 100%',
+            animation: 'shimmer 1s infinite linear',
+            zIndex: 9999,
+            boxShadow: '0 0 8px rgba(234, 88, 12, 0.6)',
+          }}
+        />
+      )}
+
       {/* Desktop Sidebar */}
       <aside className="admin-sidebar" aria-label="Admin navigation">
         <div className="sidebar-logo" style={{ padding: '16px 20px', minHeight: '70px' }}>
-          <Link href="/admin" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}>
+          <Link
+            href="/admin"
+            prefetch={true}
+            onClick={() => handleNavClick('/admin')}
+            onMouseEnter={() => handlePrefetch('/admin')}
+            style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}
+          >
             <BrandLogo size="large" />
           </Link>
         </div>
@@ -68,6 +112,12 @@ export default function AdminShellClient({ user, children }) {
                 key={item.href}
                 href={item.href}
                 prefetch={true}
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleNavClick(item.href);
+                }}
+                onMouseEnter={() => handlePrefetch(item.href)}
+                onTouchStart={() => handlePrefetch(item.href)}
                 className={`sidebar-link${active ? ' active' : ''}`}
                 id={`nav-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
               >
@@ -132,8 +182,14 @@ export default function AdminShellClient({ user, children }) {
                 key={item.href}
                 href={item.href}
                 prefetch={true}
+                onClick={(e) => {
+                  e.preventDefault();
+                  setDrawerOpen(false);
+                  handleNavClick(item.href);
+                }}
+                onMouseEnter={() => handlePrefetch(item.href)}
+                onTouchStart={() => handlePrefetch(item.href)}
                 className={`admin-drawer-link${active ? ' active' : ''}`}
-                onClick={() => setDrawerOpen(false)}
               >
                 <span className="admin-drawer-icon">
                   <i className={item.icon}></i>
@@ -221,6 +277,12 @@ export default function AdminShellClient({ user, children }) {
                 key={item.href}
                 href={item.href}
                 prefetch={true}
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleNavClick(item.href);
+                }}
+                onMouseEnter={() => handlePrefetch(item.href)}
+                onTouchStart={() => handlePrefetch(item.href)}
                 className={`admin-bottom-tab${active ? ' active' : ''}`}
               >
                 <i className={item.icon}></i>

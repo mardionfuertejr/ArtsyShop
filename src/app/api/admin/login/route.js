@@ -18,8 +18,8 @@ export async function POST(request) {
     const inputPass = password.trim();
 
     // 1. Check against Server-Side Secret Environment Variables
-    const serverAdminEmail = (process.env.ADMIN_EMAIL || 'mardionjrcordetafuerte@gmail.com').trim().toLowerCase();
-    const serverAdminPass = (process.env.ADMIN_PASSWORD || 'january2026').trim();
+    const serverAdminEmail = (process.env.ADMIN_EMAIL || process.env.NEXT_PUBLIC_ADMIN_EMAIL || 'mardionjrcordetafuerte@gmail.com').trim().toLowerCase();
+    const serverAdminPass = (process.env.ADMIN_PASSWORD || process.env.NEXT_PUBLIC_ADMIN_PASSWORD || 'january2026').trim();
 
     let authenticated = false;
 

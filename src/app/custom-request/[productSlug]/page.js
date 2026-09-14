@@ -1,11 +1,25 @@
 import Link from 'next/link';
 import BottomNav from '@/components/customer/BottomNav';
 import { getMockProductBySlug } from '@/lib/mockData';
+import { createClient } from '@/lib/supabase/server';
 import CustomRequestClient from './CustomRequestClient';
 
 export async function generateMetadata({ params }) {
   const resolvedParams = await params;
-  const product = getMockProductBySlug(resolvedParams?.productSlug);
+  let product = getMockProductBySlug(resolvedParams?.productSlug);
+  if (!product) {
+    try {
+      const supabase = await createClient();
+      if (supabase) {
+        const { data } = await supabase
+          .from('products')
+          .select('name')
+          .eq('slug', resolvedParams?.productSlug)
+          .maybeSingle();
+        if (data) product = data;
+      }
+    } catch {}
+  }
   return {
     title: product ? `Custom Request: ${product.name} | M&M's Artsy` : "Custom Order Request | M&M's Artsy",
   };
@@ -13,7 +27,20 @@ export async function generateMetadata({ params }) {
 
 export default async function RequestSimilarPage({ params }) {
   const resolvedParams = await params;
-  const product = getMockProductBySlug(resolvedParams.productSlug);
+  let product = getMockProductBySlug(resolvedParams.productSlug);
+  if (!product) {
+    try {
+      const supabase = await createClient();
+      if (supabase) {
+        const { data } = await supabase
+          .from('products')
+          .select('*, product_photos(*)')
+          .eq('slug', resolvedParams.productSlug)
+          .maybeSingle();
+        if (data) product = data;
+      }
+    } catch {}
+  }
 
   return (
     <div className="customer-shell">

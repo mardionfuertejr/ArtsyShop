@@ -26,7 +26,7 @@ export default function BrandLogo({ size = 'medium', className = '', dark = fals
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
-        src="/images/logo_m&m_transparent.png"
+        src="/images/logo_m&m_transparent.png?v=2"
         alt="M&M Artsy"
         style={{
           height: `${dimensions.height}px`,

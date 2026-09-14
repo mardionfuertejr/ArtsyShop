@@ -27,10 +27,15 @@ export const metadata = {
   manifest: '/manifest.json',
   icons: {
     icon: [
-      { url: '/images/m&m_favicon.png', type: 'image/png' },
+      { url: '/images/m&m_favicon.png?v=2', type: 'image/png' },
+      { url: '/favicon.ico?v=2', sizes: 'any' },
+      { url: '/icon.png?v=2', type: 'image/png' },
     ],
-    shortcut: '/images/m&m_favicon.png',
-    apple: '/images/m&m_favicon.png',
+    shortcut: '/favicon.ico?v=2',
+    apple: [
+      { url: '/apple-touch-icon.png?v=2', sizes: '180x180', type: 'image/png' },
+      { url: '/images/m&m_favicon.png?v=2' },
+    ],
   },
   appleWebApp: {
     capable: true,
@@ -41,7 +46,7 @@ export const metadata = {
     title: "M&M's Artsy | Handcrafted Flowers & Custom Gifts",
     description: 'Turning sweet thoughts into timeless gifts. Order handcrafted bouquets and handmade artisan products from M&M\'s Artsy.',
     type: 'website',
-    images: ['/images/m&m_favicon.png'],
+    images: ['/images/m&m_favicon.png?v=2'],
   },
 };
 
@@ -49,9 +54,10 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en" data-scroll-behavior="smooth" suppressHydrationWarning>
       <head>
-        <link rel="icon" type="image/png" href="/images/m&m_favicon.png" />
-        <link rel="shortcut icon" href="/images/m&m_favicon.png" />
-        <link rel="apple-touch-icon" href="/images/m&m_favicon.png" />
+        <link rel="icon" type="image/png" href="/images/m&m_favicon.png?v=2" />
+        <link rel="icon" href="/favicon.ico?v=2" sizes="any" />
+        <link rel="shortcut icon" href="/images/m&m_favicon.png?v=2" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=2" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link

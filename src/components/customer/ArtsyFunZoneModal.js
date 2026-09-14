@@ -537,7 +537,7 @@ function PetalRushGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
 
             {/* Start Button */}
             <button
-              onClick={startRush}
+              type="button" onClick={startRush}
               className="arcade-start-btn"
               style={{
                 width: '100%',
@@ -592,10 +592,10 @@ function PetalRushGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
                 </div>
 
                 <div style={{ display: 'flex', gap: '10px', marginTop: '4px' }}>
-                  <button onClick={startRush} style={{ background: '#F1F5F9', color: '#334155', border: '1px solid #E2E8F0', borderRadius: '999px', padding: '10px 20px', fontSize: '0.84rem', fontWeight: 700, cursor: 'pointer' }}>
+                  <button type="button" onClick={startRush} style={{ background: '#F1F5F9', color: '#334155', border: '1px solid #E2E8F0', borderRadius: '999px', padding: '10px 20px', fontSize: '0.84rem', fontWeight: 700, cursor: 'pointer' }}>
                     Play Again
                   </button>
-                  <button onClick={onClose} style={{ background: '#EA580C', color: '#FFF', border: 'none', borderRadius: '999px', padding: '10px 22px', fontSize: '0.84rem', fontWeight: 800, cursor: 'pointer' }}>
+                  <button type="button" onClick={onClose} style={{ background: '#EA580C', color: '#FFF', border: 'none', borderRadius: '999px', padding: '10px 22px', fontSize: '0.84rem', fontWeight: 800, cursor: 'pointer' }}>
                     Shop Now
                   </button>
                 </div>
@@ -622,10 +622,10 @@ function PetalRushGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
                 </div>
 
                 <div style={{ display: 'flex', gap: '10px', marginTop: '6px' }}>
-                  <button onClick={startRush} className="arcade-start-btn" style={{ background: 'linear-gradient(135deg, #FF6B00 0%, #EA580C 100%)', color: '#FFF', border: 'none', borderRadius: '999px', padding: '10px 24px', fontSize: '0.86rem', fontWeight: 800, cursor: 'pointer', boxShadow: '0 4px 12px rgba(234, 88, 12, 0.28)' }}>
+                  <button type="button" onClick={startRush} className="arcade-start-btn" style={{ background: 'linear-gradient(135deg, #FF6B00 0%, #EA580C 100%)', color: '#FFF', border: 'none', borderRadius: '999px', padding: '10px 24px', fontSize: '0.86rem', fontWeight: 800, cursor: 'pointer', boxShadow: '0 4px 12px rgba(234, 88, 12, 0.28)' }}>
                     Play Again
                   </button>
-                  <button onClick={onBackToMenu} style={{ background: '#F1F5F9', color: '#475569', border: '1px solid #E2E8F0', borderRadius: '999px', padding: '10px 20px', fontSize: '0.84rem', fontWeight: 700, cursor: 'pointer' }}>
+                  <button type="button" onClick={onBackToMenu} style={{ background: '#F1F5F9', color: '#475569', border: '1px solid #E2E8F0', borderRadius: '999px', padding: '10px 20px', fontSize: '0.84rem', fontWeight: 700, cursor: 'pointer' }}>
                     Menu
                   </button>
                 </div>
@@ -1075,7 +1075,7 @@ function RibbonNinjaGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
 
             {/* Start Button */}
             <button
-              onClick={startNinja}
+              type="button" onClick={startNinja}
               className="arcade-start-btn"
               style={{
                 width: '100%',
@@ -1133,10 +1133,10 @@ function RibbonNinjaGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
                 </div>
 
                 <div style={{ display: 'flex', gap: '10px', marginTop: '4px' }}>
-                  <button onClick={startNinja} style={{ background: '#F1F5F9', color: '#334155', border: '1px solid #E2E8F0', borderRadius: '999px', padding: '10px 20px', fontSize: '0.84rem', fontWeight: 700, cursor: 'pointer' }}>
+                  <button type="button" onClick={startNinja} style={{ background: '#F1F5F9', color: '#334155', border: '1px solid #E2E8F0', borderRadius: '999px', padding: '10px 20px', fontSize: '0.84rem', fontWeight: 700, cursor: 'pointer' }}>
                     Play Again
                   </button>
-                  <button onClick={onClose} style={{ background: '#E11D48', color: '#FFF', border: 'none', borderRadius: '999px', padding: '10px 22px', fontSize: '0.84rem', fontWeight: 800, cursor: 'pointer' }}>
+                  <button type="button" onClick={onClose} style={{ background: '#E11D48', color: '#FFF', border: 'none', borderRadius: '999px', padding: '10px 22px', fontSize: '0.84rem', fontWeight: 800, cursor: 'pointer' }}>
                     Shop Now
                   </button>
                 </div>
@@ -1163,10 +1163,10 @@ function RibbonNinjaGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
                 </div>
 
                 <div style={{ display: 'flex', gap: '10px', marginTop: '6px' }}>
-                  <button onClick={startNinja} className="arcade-start-btn" style={{ background: 'linear-gradient(135deg, #FB7185 0%, #E11D48 100%)', color: '#FFF', border: 'none', borderRadius: '999px', padding: '10px 24px', fontSize: '0.86rem', fontWeight: 800, cursor: 'pointer', boxShadow: '0 4px 12px rgba(225, 29, 72, 0.28)' }}>
+                  <button type="button" onClick={startNinja} className="arcade-start-btn" style={{ background: 'linear-gradient(135deg, #FB7185 0%, #E11D48 100%)', color: '#FFF', border: 'none', borderRadius: '999px', padding: '10px 24px', fontSize: '0.86rem', fontWeight: 800, cursor: 'pointer', boxShadow: '0 4px 12px rgba(225, 29, 72, 0.28)' }}>
                     Play Again
                   </button>
-                  <button onClick={onBackToMenu} style={{ background: '#F1F5F9', color: '#475569', border: '1px solid #E2E8F0', borderRadius: '999px', padding: '10px 20px', fontSize: '0.84rem', fontWeight: 700, cursor: 'pointer' }}>
+                  <button type="button" onClick={onBackToMenu} style={{ background: '#F1F5F9', color: '#475569', border: '1px solid #E2E8F0', borderRadius: '999px', padding: '10px 20px', fontSize: '0.84rem', fontWeight: 700, cursor: 'pointer' }}>
                     Menu
                   </button>
                 </div>
@@ -1468,7 +1468,7 @@ function BloomStackerGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
 
             {/* Start Button */}
             <button
-              onClick={startStacker}
+              type="button" onClick={startStacker}
               className="arcade-start-btn"
               style={{
                 width: '100%',
@@ -1556,10 +1556,10 @@ function BloomStackerGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
                 </div>
 
                 <div style={{ display: 'flex', gap: '10px', marginTop: '4px' }}>
-                  <button onClick={startStacker} style={{ background: '#F1F5F9', color: '#334155', border: '1px solid #E2E8F0', borderRadius: '999px', padding: '10px 20px', fontSize: '0.84rem', fontWeight: 700, cursor: 'pointer' }}>
+                  <button type="button" onClick={startStacker} style={{ background: '#F1F5F9', color: '#334155', border: '1px solid #E2E8F0', borderRadius: '999px', padding: '10px 20px', fontSize: '0.84rem', fontWeight: 700, cursor: 'pointer' }}>
                     Play Again
                   </button>
-                  <button onClick={onClose} style={{ background: '#7E22CE', color: '#FFF', border: 'none', borderRadius: '999px', padding: '10px 22px', fontSize: '0.84rem', fontWeight: 800, cursor: 'pointer' }}>
+                  <button type="button" onClick={onClose} style={{ background: '#7E22CE', color: '#FFF', border: 'none', borderRadius: '999px', padding: '10px 22px', fontSize: '0.84rem', fontWeight: 800, cursor: 'pointer' }}>
                     Shop Now
                   </button>
                 </div>
@@ -1586,10 +1586,10 @@ function BloomStackerGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
                 </div>
 
                 <div style={{ display: 'flex', gap: '10px', marginTop: '6px' }}>
-                  <button onClick={startStacker} className="arcade-start-btn" style={{ background: 'linear-gradient(135deg, #A855F7 0%, #7E22CE 100%)', color: '#FFF', border: 'none', borderRadius: '999px', padding: '10px 24px', fontSize: '0.86rem', fontWeight: 800, cursor: 'pointer', boxShadow: '0 4px 12px rgba(126, 34, 206, 0.28)' }}>
+                  <button type="button" onClick={startStacker} className="arcade-start-btn" style={{ background: 'linear-gradient(135deg, #A855F7 0%, #7E22CE 100%)', color: '#FFF', border: 'none', borderRadius: '999px', padding: '10px 24px', fontSize: '0.86rem', fontWeight: 800, cursor: 'pointer', boxShadow: '0 4px 12px rgba(126, 34, 206, 0.28)' }}>
                     Play Again
                   </button>
-                  <button onClick={onBackToMenu} style={{ background: '#F1F5F9', color: '#475569', border: '1px solid #E2E8F0', borderRadius: '999px', padding: '10px 20px', fontSize: '0.84rem', fontWeight: 700, cursor: 'pointer' }}>
+                  <button type="button" onClick={onBackToMenu} style={{ background: '#F1F5F9', color: '#475569', border: '1px solid #E2E8F0', borderRadius: '999px', padding: '10px 20px', fontSize: '0.84rem', fontWeight: 700, cursor: 'pointer' }}>
                     Menu
                   </button>
                 </div>
@@ -2086,7 +2086,7 @@ function PetalPopGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
 
             {/* Start Button */}
             <button
-              onClick={startPop}
+              type="button" onClick={startPop}
               className="arcade-start-btn"
               style={{
                 width: '100%',
@@ -2137,10 +2137,10 @@ function PetalPopGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
                 </div>
 
                 <div style={{ display: 'flex', gap: '10px', marginTop: '4px' }}>
-                  <button onClick={startPop} style={{ background: '#F1F5F9', color: '#334155', border: '1px solid #E2E8F0', borderRadius: '999px', padding: '10px 20px', fontSize: '0.84rem', fontWeight: 700, cursor: 'pointer' }}>
+                  <button type="button" onClick={startPop} style={{ background: '#F1F5F9', color: '#334155', border: '1px solid #E2E8F0', borderRadius: '999px', padding: '10px 20px', fontSize: '0.84rem', fontWeight: 700, cursor: 'pointer' }}>
                     Play Again
                   </button>
-                  <button onClick={onClose} style={{ background: '#059669', color: '#FFF', border: 'none', borderRadius: '999px', padding: '10px 22px', fontSize: '0.84rem', fontWeight: 800, cursor: 'pointer' }}>
+                  <button type="button" onClick={onClose} style={{ background: '#059669', color: '#FFF', border: 'none', borderRadius: '999px', padding: '10px 22px', fontSize: '0.84rem', fontWeight: 800, cursor: 'pointer' }}>
                     Shop Now
                   </button>
                 </div>
@@ -2167,10 +2167,10 @@ function PetalPopGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
                 </div>
 
                 <div style={{ display: 'flex', gap: '10px', marginTop: '6px' }}>
-                  <button onClick={startPop} className="arcade-start-btn" style={{ background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)', color: '#FFF', border: 'none', borderRadius: '999px', padding: '10px 24px', fontSize: '0.86rem', fontWeight: 800, cursor: 'pointer', boxShadow: '0 4px 12px rgba(5, 150, 105, 0.28)' }}>
+                  <button type="button" onClick={startPop} className="arcade-start-btn" style={{ background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)', color: '#FFF', border: 'none', borderRadius: '999px', padding: '10px 24px', fontSize: '0.86rem', fontWeight: 800, cursor: 'pointer', boxShadow: '0 4px 12px rgba(5, 150, 105, 0.28)' }}>
                     Play Again
                   </button>
-                  <button onClick={onBackToMenu} style={{ background: '#F1F5F9', color: '#475569', border: '1px solid #E2E8F0', borderRadius: '999px', padding: '10px 20px', fontSize: '0.84rem', fontWeight: 700, cursor: 'pointer' }}>
+                  <button type="button" onClick={onBackToMenu} style={{ background: '#F1F5F9', color: '#475569', border: '1px solid #E2E8F0', borderRadius: '999px', padding: '10px 20px', fontSize: '0.84rem', fontWeight: 700, cursor: 'pointer' }}>
                     Menu
                   </button>
                 </div>
@@ -2293,7 +2293,7 @@ export default function ArtsyFunZoneModal({ isOpen, onClose }) {
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             {activeGameId !== 'menu' && (
               <button
-                onClick={() => setActiveGameId('menu')}
+                type="button" onClick={() => setActiveGameId('menu')}
                 style={{
                   background: '#FFF7ED',
                   border: 'none',
@@ -2318,7 +2318,7 @@ export default function ArtsyFunZoneModal({ isOpen, onClose }) {
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             <button
-              onClick={toggleSound}
+              type="button" onClick={toggleSound}
               style={{
                 background: isMuted ? '#F3F4F6' : '#FFF7ED',
                 border: 'none',
@@ -2336,7 +2336,7 @@ export default function ArtsyFunZoneModal({ isOpen, onClose }) {
               <i className={`fa-solid ${isMuted ? 'fa-volume-xmark' : 'fa-volume-high'}`}></i>
             </button>
             <button
-              onClick={onClose}
+              type="button" onClick={onClose}
               style={{
                 background: '#F3F4F6',
                 border: 'none',

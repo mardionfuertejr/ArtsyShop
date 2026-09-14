@@ -692,14 +692,37 @@ export default function AdminOrdersClient({ initialOrders }) {
           </thead>
           <tbody key={`${statusFilter}-${searchQuery}-${currentPage}`} className="table-fade-enter">
             {!hasLoadedOnce && orders.length === 0 ? (
-              <tr>
-                <td colSpan={6} style={{ textAlign: 'center', padding: '60px 20px', border: 'none' }}>
-                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', color: '#64748B', fontSize: '13px', fontWeight: '700' }}>
-                    <i className="fa-solid fa-spinner fa-spin" style={{ color: 'var(--color-primary, #EA580C)' }}></i>
-                    <span>Loading orders...</span>
-                  </div>
-                </td>
-              </tr>
+              [1, 2, 3, 4, 5].map((i) => (
+                <tr key={`skeleton-${i}`} style={{ borderBottom: '1px solid #F1F5F9' }}>
+                  <td style={{ padding: '16px 18px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      <div style={{ width: '120px', height: '14px', borderRadius: '4px', background: 'linear-gradient(90deg, #F1F5F9 25%, #E2E8F0 50%, #F1F5F9 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.2s infinite ease-in-out' }} />
+                      <div style={{ width: '80px', height: '10px', borderRadius: '4px', background: '#F8FAFC' }} />
+                    </div>
+                  </td>
+                  <td style={{ padding: '16px 18px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      <div style={{ width: '100px', height: '14px', borderRadius: '4px', background: '#F1F5F9' }} />
+                      <div style={{ width: '60px', height: '10px', borderRadius: '4px', background: '#F8FAFC' }} />
+                    </div>
+                  </td>
+                  <td style={{ padding: '16px 18px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <div style={{ width: '32px', height: '32px', borderRadius: '6px', background: '#F1F5F9' }} />
+                      <div style={{ width: '110px', height: '12px', borderRadius: '4px', background: '#F1F5F9' }} />
+                    </div>
+                  </td>
+                  <td style={{ padding: '16px 18px', textAlign: 'right' }}>
+                    <div style={{ width: '70px', height: '14px', borderRadius: '4px', background: '#F1F5F9', marginLeft: 'auto' }} />
+                  </td>
+                  <td style={{ padding: '16px 14px', textAlign: 'center' }}>
+                    <div style={{ width: '80px', height: '22px', borderRadius: '999px', background: '#F1F5F9', margin: '0 auto' }} />
+                  </td>
+                  <td style={{ padding: '16px 14px', textAlign: 'center' }}>
+                    <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: '#F1F5F9', margin: '0 auto' }} />
+                  </td>
+                </tr>
+              ))
             ) : paginatedOrders.length === 0 ? (
               <tr>
                 <td colSpan={6} className="table-empty-cell" style={{ textAlign: 'center', padding: '60px 20px 70px', border: 'none' }}>

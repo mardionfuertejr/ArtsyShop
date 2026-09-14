@@ -81,6 +81,7 @@ export default function CheckoutPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [fieldErrors, setFieldErrors] = useState({});
+  const [showNotes, setShowNotes] = useState(false);
   const [settings, setSettings] = useState({
     pickup_address: '',
     pickup_notes: '',
@@ -835,6 +836,48 @@ export default function CheckoutPage() {
       } : null,
     });
 
+    // Construct full admin-compatible order object
+    const totalCost = checkoutCart.reduce((s, i) => s + (((parseFloat(i.unitPrice) || 0) * 0.4) * (i.quantity || 1)), 0);
+    const fullAdminOrder = {
+      id: `ord-${Date.now()}`,
+      reference_code: referenceCode,
+      customer_name: formData.name,
+      customer_phone: formData.phone,
+      facebook_name: formData.facebookName || '',
+      order_type: orderType,
+      status: 'confirmed',
+      subtotal,
+      delivery_fee: deliveryFee,
+      rush_fee: appliedRushFee,
+      is_rush: isRush,
+      total_amount: totalAmount,
+      total_cost: totalCost,
+      preferred_date: formData.preferredDate || null,
+      preferred_time: formData.preferredTime || null,
+      notes: customerNotes || '',
+      created_at: new Date().toISOString(),
+      order_items: formattedOrderItems.map((item, idx) => ({
+        id: `item-${Date.now()}-${idx}`,
+        product_name: item.product_name,
+        quantity: item.quantity,
+        unit_price: item.unit_price,
+        total_price: item.total_price,
+        unit_cost: item.unit_price * 0.4,
+        total_cost: item.total_price * 0.4,
+        options: (checkoutCart[idx]?.options || []).map(opt => ({
+          option_name: opt.optionName,
+          option_value: opt.optionValue,
+          additional_cost: opt.additionalCost || 0,
+        })),
+      })),
+      delivery_location: deliveryLocation ? {
+        latitude: deliveryLocation.lat,
+        longitude: deliveryLocation.lng,
+        address: deliveryAddress,
+        landmark_notes: customerNotes,
+      } : null,
+    };
+
     // Store in localStorage
     try {
       const orderPayload = {
@@ -863,6 +906,8 @@ export default function CheckoutPage() {
       if (appliedVoucher?.code) {
         markVoucherAsUsed(appliedVoucher.code);
       }
+
+      const existingOrders = JSON.parse(localStorage.getItem('likha_my_orders') || '[]');
       const updatedOrders = [
         {
           referenceCode,
@@ -876,47 +921,6 @@ export default function CheckoutPage() {
         ...existingOrders.filter(o => o.referenceCode !== referenceCode),
       ];
       localStorage.setItem('likha_my_orders', JSON.stringify(updatedOrders.slice(0, 15)));
-
-      // Save full admin-compatible order object for admin panel
-      const fullAdminOrder = {
-        id: `ord-${Date.now()}`,
-        reference_code: referenceCode,
-        customer_name: formData.name,
-        customer_phone: formData.phone,
-        facebook_name: formData.facebookName || '',
-        order_type: orderType,
-        status: 'confirmed',
-        subtotal,
-        delivery_fee: deliveryFee,
-        rush_fee: appliedRushFee,
-        is_rush: isRush,
-        total_amount: totalAmount,
-        total_cost: checkoutCart.reduce((s, i) => s + (((parseFloat(i.unitPrice) || 0) * 0.4) * (i.quantity || 1)), 0),
-        preferred_date: formData.preferredDate || null,
-        preferred_time: formData.preferredTime || null,
-        notes: customerNotes || '',
-        created_at: new Date().toISOString(),
-        order_items: formattedOrderItems.map((item, idx) => ({
-          id: `item-${Date.now()}-${idx}`,
-          product_name: item.product_name,
-          quantity: item.quantity,
-          unit_price: item.unit_price,
-          total_price: item.total_price,
-          unit_cost: item.unit_price * 0.4,
-          total_cost: item.total_price * 0.4,
-          options: (checkoutCart[idx]?.options || []).map(opt => ({
-            option_name: opt.optionName,
-            option_value: opt.optionValue,
-            additional_cost: opt.additionalCost || 0,
-          })),
-        })),
-        delivery_location: deliveryLocation ? {
-          latitude: deliveryLocation.lat,
-          longitude: deliveryLocation.lng,
-          address: deliveryAddress,
-          landmark_notes: customerNotes,
-        } : null,
-      };
 
       const existingAdminOrders = JSON.parse(localStorage.getItem('likha_admin_orders') || '[]');
       const updatedAdminOrders = [
@@ -1256,13 +1260,13 @@ export default function CheckoutPage() {
                       <span>{fieldErrors.landmark}</span>
                     </p>
                   )}
-                  <span style={{ fontSize: '11px', color: 'var(--color-text-muted)', marginTop: '4px', display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    💡 Tip: I-drag ang pin o magdagdag ng landmark (hal. kulay ng gate).
+                  <span style={{ fontSize: '11.5px', color: 'var(--color-text-muted)', marginTop: '5px', display: 'block', lineHeight: 1.35 }}>
+                    💡 <strong>Tip:</strong> I-drag ang pin sa mapa o maglagay ng landmark para mas madaling mahanap ng rider.
                   </span>
                 </div>
 
                 <div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.25fr) minmax(0, 1fr)', gap: '10px', alignItems: 'start' }}>
+                  <div className="checkout-datetime-grid">
                     <PremiumDatePicker
                       id="preferred-date"
                       name="preferredDate"
@@ -1342,7 +1346,7 @@ export default function CheckoutPage() {
                 </div>
 
                 <div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.25fr) minmax(0, 1fr)', gap: '10px', alignItems: 'start' }}>
+                  <div className="checkout-datetime-grid">
                     <PremiumDatePicker
                       id="preferred-date-pickup"
                       name="preferredDate"
@@ -1402,19 +1406,66 @@ export default function CheckoutPage() {
 
           {/* Optional Notes */}
           <div className="section">
-            <div className="input-group">
-              <label className="input-label" htmlFor="notes">
-                Notes
-              </label>
-              <textarea
-                id="notes"
-                className="input"
-                placeholder="Special instructions or notes for your order (optional)..."
-                value={formData.notes}
-                onChange={(e) => setFormData(p => ({ ...p, notes: e.target.value }))}
-                rows={2}
-              />
-            </div>
+            {!showNotes && !formData.notes ? (
+              <button
+                type="button"
+                onClick={() => setShowNotes(true)}
+                style={{
+                  background: 'var(--color-surface, #FFFFFF)',
+                  border: '1px dashed var(--color-border)',
+                  borderRadius: 'var(--radius-lg, 10px)',
+                  padding: '11px 16px',
+                  width: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  color: 'var(--color-text-secondary)',
+                  fontSize: '12.5px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                  boxSizing: 'border-box',
+                }}
+              >
+                <i className="fa-regular fa-comment-dots" style={{ color: 'var(--color-primary)' }}></i>
+                <span>+ Add order notes / special instructions (Optional)</span>
+              </button>
+            ) : (
+              <div className="input-group" style={{ margin: 0 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                  <label className="input-label" htmlFor="notes" style={{ margin: 0 }}>
+                    Notes <span style={{ fontWeight: 'normal', color: 'var(--color-text-muted)' }}>(Optional)</span>
+                  </label>
+                  {!formData.notes && (
+                    <button
+                      type="button"
+                      onClick={() => setShowNotes(false)}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: 'var(--color-text-muted)',
+                        fontSize: '11.5px',
+                        cursor: 'pointer',
+                        fontWeight: '600',
+                      }}
+                    >
+                      Hide
+                    </button>
+                  )}
+                </div>
+                <textarea
+                  id="notes"
+                  className="input"
+                  placeholder="Special instructions or notes for your order..."
+                  value={formData.notes}
+                  onChange={(e) => setFormData(p => ({ ...p, notes: e.target.value }))}
+                  rows={2}
+                  autoFocus={showNotes && !formData.notes}
+                  style={{ width: '100%', boxSizing: 'border-box' }}
+                />
+              </div>
+            )}
           </div>
 
           <hr className="divider" style={{ margin: 0 }} />
@@ -1726,14 +1777,14 @@ export default function CheckoutPage() {
               color: 'var(--color-text-muted)',
               textAlign: 'center',
               marginTop: '10px',
-              lineHeight: 1.3,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: '5px',
+              gap: '6px',
+              lineHeight: 1,
             }}>
-              <i className="fa-solid fa-circle-info" style={{ color: 'var(--color-primary)', fontSize: '12px' }}></i>
-              <span>I-send ang resibo sa Messenger after checkout para ma-confirm.</span>
+              <i className="fa-solid fa-circle-info" style={{ color: 'var(--color-primary)', fontSize: '12px', flexShrink: 0 }}></i>
+              <span>I-send ang resibo sa Messenger para ma-confirm.</span>
             </p>
           </div>
         </form>

@@ -21,6 +21,8 @@ export default function AdminReportsClient({ initialOrders = [], initialProducts
   const [orders, setOrders] = useState(initialOrders);
   const [products, setProducts] = useState(initialProducts);
   const [isLoading, setIsLoading] = useState(false);
+  const [showResetModal, setShowResetModal] = useState(false);
+  const [toastMsg, setToastMsg] = useState('');
 
   const now = new Date();
   const currentYear = now.getFullYear();
@@ -133,7 +135,7 @@ export default function AdminReportsClient({ initialOrders = [], initialProducts
   };
 
   const availableYears = useMemo(() => {
-    const years = new Set([currentYear, currentYear - 1]);
+    const years = new Set([currentYear - 1, currentYear, currentYear + 1, currentYear + 2]);
     orders.forEach(o => {
       if (o.created_at) {
         const y = new Date(o.created_at).getFullYear();
@@ -142,6 +144,35 @@ export default function AdminReportsClient({ initialOrders = [], initialProducts
     });
     return Array.from(years).sort((a, b) => b - a);
   }, [orders, currentYear]);
+
+  const handleResetSalesData = (scope = 'all') => {
+    try {
+      if (scope === 'all') {
+        localStorage.removeItem('likha_admin_orders');
+        localStorage.removeItem('likha_mock_orders');
+        setOrders(prev => prev.filter(o => o.status !== 'completed'));
+      } else if (scope === 'year') {
+        const targetYr = selectedYear === 'all' ? currentYear : parseInt(selectedYear);
+        const local = JSON.parse(localStorage.getItem('likha_admin_orders') || '[]');
+        const filtered = local.filter(o => {
+          if (o.status !== 'completed') return true;
+          const y = new Date(o.created_at || Date.now()).getFullYear();
+          return y !== targetYr;
+        });
+        localStorage.setItem('likha_admin_orders', JSON.stringify(filtered));
+        setOrders(prev => prev.filter(o => {
+          if (o.status !== 'completed') return true;
+          const y = new Date(o.created_at || Date.now()).getFullYear();
+          return y !== targetYr;
+        }));
+      }
+      setShowResetModal(false);
+      setToastMsg('Sales data has been successfully reset! 📊');
+      setTimeout(() => setToastMsg(''), 3000);
+    } catch {
+      setShowResetModal(false);
+    }
+  };
 
   // Strictly completed orders for the selected period
   const completedOrders = useMemo(() => {
@@ -252,31 +283,77 @@ export default function AdminReportsClient({ initialOrders = [], initialProducts
           </span>
         </div>
 
-        <button
-          type="button"
-          onClick={loadData}
-          disabled={isLoading}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <button
+            type="button"
+            onClick={() => setShowResetModal(true)}
+            style={{
+              height: '36px',
+              padding: '0 12px',
+              borderRadius: '9px',
+              border: '1px solid #FECACA',
+              background: '#FFF5F5',
+              color: '#DC2626',
+              fontSize: '12px',
+              fontWeight: '700',
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              boxShadow: '0 1px 2px rgba(220, 38, 38, 0.05)',
+              transition: 'all 0.15s ease',
+            }}
+          >
+            <i className="fa-solid fa-rotate-left" style={{ fontSize: '11px' }}></i>
+            <span>Reset Sales Data</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={loadData}
+            disabled={isLoading}
+            style={{
+              height: '36px',
+              padding: '0 14px',
+              borderRadius: '9px',
+              border: '1px solid #E2E8F0',
+              background: '#FFFFFF',
+              color: '#334155',
+              fontSize: '12px',
+              fontWeight: '700',
+              cursor: isLoading ? 'not-allowed' : 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
+              transition: 'all 0.15s ease',
+            }}
+          >
+            <i className={`fa-solid fa-arrows-rotate ${isLoading ? 'fa-spin' : ''}`} style={{ fontSize: '11px', color: 'var(--color-primary, #EA580C)' }}></i>
+            <span>Refresh</span>
+          </button>
+        </div>
+      </div>
+
+      {toastMsg && (
+        <div
           style={{
-            height: '36px',
-            padding: '0 14px',
-            borderRadius: '9px',
-            border: '1px solid #E2E8F0',
-            background: '#FFFFFF',
-            color: '#334155',
-            fontSize: '12px',
-            fontWeight: '700',
-            cursor: isLoading ? 'not-allowed' : 'pointer',
-            display: 'inline-flex',
+            background: '#0F172A',
+            color: '#FFFFFF',
+            padding: '10px 16px',
+            borderRadius: '10px',
+            fontSize: '12.5px',
+            fontWeight: '600',
+            display: 'flex',
             alignItems: 'center',
-            gap: '6px',
-            boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
-            transition: 'all 0.15s ease',
+            gap: '8px',
+            animation: 'adminModalScaleIn 0.2s ease',
           }}
         >
-          <i className={`fa-solid fa-arrows-rotate ${isLoading ? 'fa-spin' : ''}`} style={{ fontSize: '11px', color: 'var(--color-primary, #EA580C)' }}></i>
-          <span>Refresh</span>
-        </button>
-      </div>
+          <i className="fa-solid fa-circle-check" style={{ color: '#10B981' }}></i>
+          <span>{toastMsg}</span>
+        </div>
+      )}
 
       {/* ── Clean KPI Cards ── */}
       <div
@@ -930,6 +1007,131 @@ export default function AdminReportsClient({ initialOrders = [], initialProducts
           </div>
         )}
       </div>
+
+      {/* ── RESET SALES CONFIRMATION MODAL ── */}
+      {showResetModal && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(15, 23, 42, 0.65)',
+            backdropFilter: 'blur(4px)',
+            zIndex: 9999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '16px',
+            boxSizing: 'border-box',
+          }}
+        >
+          <div
+            style={{
+              background: '#FFFFFF',
+              borderRadius: '16px',
+              maxWidth: '440px',
+              width: '100%',
+              padding: '24px',
+              boxShadow: '0 20px 40px rgba(0,0,0,0.2)',
+              animation: 'adminModalScaleIn 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '14px' }}>
+              <div
+                style={{
+                  width: '42px',
+                  height: '42px',
+                  borderRadius: '12px',
+                  background: '#FEE2E2',
+                  color: '#DC2626',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '18px',
+                  flexShrink: 0,
+                }}
+              >
+                <i className="fa-solid fa-triangle-exclamation"></i>
+              </div>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '800', color: '#0F172A' }}>
+                  Reset Sales & Reports Data
+                </h3>
+                <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#64748B' }}>
+                  Piliin kung paano ire-reset ang mga record ng benta.
+                </p>
+              </div>
+            </div>
+
+            <p style={{ fontSize: '13px', color: '#334155', lineHeight: 1.5, margin: '0 0 20px' }}>
+              Gusto mo bang i-clear ang mga naunang test orders o simulan ang bagong taon para mag-reset sa <strong>₱0.00</strong> ang revenue at units sold?
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <button
+                type="button"
+                onClick={() => handleResetSalesData('all')}
+                style={{
+                  height: '42px',
+                  borderRadius: '10px',
+                  background: '#DC2626',
+                  color: '#FFFFFF',
+                  border: 'none',
+                  fontSize: '13px',
+                  fontWeight: '700',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                }}
+              >
+                <i className="fa-solid fa-trash-can"></i>
+                <span>Reset All Sales Data (Fresh Clean Slate)</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleResetSalesData('year')}
+                style={{
+                  height: '40px',
+                  borderRadius: '10px',
+                  background: '#F1F5F9',
+                  color: '#334155',
+                  border: '1px solid #CBD5E1',
+                  fontSize: '12.5px',
+                  fontWeight: '700',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                }}
+              >
+                <i className="fa-solid fa-calendar-xmark"></i>
+                <span>Reset Current Period Only ({periodLabel})</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowResetModal(false)}
+                style={{
+                  height: '38px',
+                  borderRadius: '10px',
+                  background: 'transparent',
+                  color: '#64748B',
+                  border: 'none',
+                  fontSize: '12.5px',
+                  fontWeight: '600',
+                  cursor: 'pointer',
+                  marginTop: '4px',
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

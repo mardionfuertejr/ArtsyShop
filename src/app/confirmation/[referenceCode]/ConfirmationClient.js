@@ -82,6 +82,12 @@ export default function ConfirmationClient({ order: serverOrder, referenceCode }
   const isRush = Boolean(order.is_rush || order.isRush || isRushDate(order.preferred_date || order.preferredDate));
   const rushFee = parseFloat(order.rush_fee || order.rushFee) || (isRush ? 50 : 0);
 
+  const targetDate = order.preferred_date || order.preferredDate || order.target_date;
+  const targetTime = order.preferred_time || order.preferredTime;
+  const formattedSchedule = targetDate
+    ? `${formatDateShort(targetDate)}${targetTime ? ` · ${formatTime12Hour(targetTime)}` : ''}`
+    : null;
+
   // Standardized, accurate order summary for Messenger & Facebook Chat
   const prefilledMessage = formatOrderSummary(order);
 
@@ -463,9 +469,9 @@ export default function ConfirmationClient({ order: serverOrder, referenceCode }
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
                       }}
-                      title={item.order_item_options.map(o => o.option_value).join(' · ')}
+                      title={item.order_item_options.filter(Boolean).map(o => o?.option_value || o?.optionValue).filter(Boolean).join(' · ')}
                     >
-                      {item.order_item_options.map(o => o.option_value).join(' · ')}
+                      {item.order_item_options.filter(Boolean).map(o => o?.option_value || o?.optionValue).filter(Boolean).join(' · ')}
                     </p>
                   )}
                 </div>

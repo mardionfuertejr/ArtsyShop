@@ -2366,6 +2366,22 @@ button:active, .btn:active, .product-card:active, .bottom-nav-item:active, [role
   box-sizing: border-box;
 }
 
+/* ── Responsive Checkout Date/Time Grid ───────────────────── */
+.checkout-datetime-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+@media (min-width: 480px) {
+  .checkout-datetime-grid {
+    grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+    gap: 12px;
+  }
+}
+
 .section-header {
   display: flex;
   align-items: center;

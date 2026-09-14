@@ -41,7 +41,7 @@ export default function CartPage() {
     } catch {}
   }, [router]);
 
-  // Initialize & sync selected items when cart items change (auto-select all by default)
+  // Initialize & sync selected items when cart items change (auto-select all on initial load)
   useEffect(() => {
     if (!isLoaded) return;
     if (cart.length === 0) {
@@ -53,7 +53,7 @@ export default function CartPage() {
     setSelectedItemIds((prev) => {
       const allCartIds = cart.map((i) => i.cartItemId);
       // Initial load or if previous selection was empty on initial load: select all
-      if (prevCartLengthRef.current === 0 || prev.length === 0) {
+      if (prevCartLengthRef.current === 0) {
         prevCartLengthRef.current = cart.length;
         return allCartIds;
       }
@@ -70,7 +70,7 @@ export default function CartPage() {
       }
 
       prevCartLengthRef.current = cart.length;
-      return stillSelected.length > 0 ? stillSelected : allCartIds;
+      return stillSelected;
     });
   }, [cart, isLoaded]);
 
@@ -531,8 +531,8 @@ export default function CartPage() {
                     <div className="cart-item-info">
                       <p className="cart-item-name" title={item.productName}>{item.productName}</p>
                       {item.options?.length > 0 && (
-                        <p className="cart-item-options" title={item.options.map((o) => o.optionValue).join(' · ')}>
-                          {item.options.map((o) => o.optionValue).join(' · ')}
+                        <p className="cart-item-options" title={item.options.map((o) => o?.optionValue || '').filter(Boolean).join(' · ')}>
+                          {item.options.map((o) => o?.optionValue || '').filter(Boolean).join(' · ')}
                         </p>
                       )}
 
@@ -1089,7 +1089,7 @@ export default function CartPage() {
                 </p>
                 {itemToDelete?.options?.length > 0 && (
                   <p style={{ fontSize: '11px', color: 'var(--color-text-muted)', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {itemToDelete.options.map((o) => o.optionValue).join(' · ')}
+                    {itemToDelete.options.map((o) => o?.optionValue || '').filter(Boolean).join(' · ')}
                   </p>
                 )}
               </div>
@@ -1205,7 +1205,7 @@ export default function CartPage() {
                   </p>
                   {selectedItems[0].options?.length > 0 && (
                     <p style={{ fontSize: '11px', color: 'var(--color-text-muted)', margin: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {selectedItems[0].options.map((o) => o.optionValue).join(' · ')}
+                      {selectedItems[0].options.filter(Boolean).map((o) => o?.optionValue).filter(Boolean).join(' · ')}
                     </p>
                   )}
                 </div>

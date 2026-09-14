@@ -4,14 +4,7 @@
  */
 export const MESSENGER_URL = process.env.NEXT_PUBLIC_MESSENGER_URL || 'https://m.me/61587268312750';
 
-export const CUSTOM_ORDER_TEMPLATE = `Hi M&M's Artsy! Inquire po sana ako for a custom handmade order.
-
-Type: Bouquet / Box / Resin / Keychain
-Occasion: Birthday / Anniversary / Special Gift
-Colors/Theme: 
-Target Date & Time Needed: 
-
-Thank you!`;
+export const CUSTOM_ORDER_TEMPLATE = `Hi M&M's Artsy! Inquire po sana ako for a custom handmade order. 😊`;
 
 export const CUSTOM_ORDER_MESSENGER_URL = `https://m.me/61587268312750?text=${encodeURIComponent(CUSTOM_ORDER_TEMPLATE)}`;
 
@@ -97,13 +90,7 @@ export function getPromptMessengerUrl(prompt) {
 
 export function getProductCustomOrderTemplate(product) {
   const prodName = typeof product === 'string' ? product : (product?.name || 'Handmade Craft');
-  return `Hi M&M's Artsy! Inquire po sana ako for a custom order inspired by "${prodName}".
-
-Peg/Reference Details: 
-Preferred Colors/Theme: 
-Target Date & Time Needed: 
-
-Thank you!`;
+  return `Hi M&M's Artsy! Inquire po sana ako about "${prodName}". 😊`;
 }
 
 export function getProductCustomOrderMessengerUrl(product) {

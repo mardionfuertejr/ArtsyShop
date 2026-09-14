@@ -97,6 +97,7 @@ export default function PhotoCarousel({ photos = [], alt = 'Product photo' }) {
           <div className="photo-carousel-dots" role="tablist" aria-label="Photo navigation">
             {photos.map((_, i) => (
               <button
+                type="button"
                 key={i}
                 className={`photo-carousel-dot${i === current ? ' active' : ''}`}
                 onClick={() => goTo(i)}

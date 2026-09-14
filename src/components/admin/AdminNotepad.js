@@ -217,6 +217,7 @@ export default function AdminNotepad() {
     <>
       {/* Dashboard Top Button */}
       <button
+        type="button"
         onClick={() => {
           setIsOpen(true);
           setTimeout(() => inputRef.current?.focus(), 150);

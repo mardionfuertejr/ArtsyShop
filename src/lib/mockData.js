@@ -804,83 +804,9 @@ export const MOCK_ORDERS = [];
 
 export const MOCK_CUSTOM_REQUESTS = [];
 
-export const MOCK_REVIEWS = [
-  {
-    id: 'rev-001',
-    customer_name: 'Angelica Ramos',
-    rating: 5,
-    comment: 'The colors are so vibrant and lovely! Stems are sturdy and the fuzzy wire craft is very neat and soft.',
-    productSlug: 'fuzzy-customized-bouquet',
-    is_verified_buyer: true,
-    is_approved: true,
-    created_at: new Date(Date.now() - 3600000 * 4).toISOString(), // 4 hrs ago
-  },
-  {
-    id: 'rev-002',
-    customer_name: 'Mark Bautista',
-    rating: 5,
-    comment: 'Bought the customized mini pot as a desk gift for my partner. Loved the flower arrangement and pot finish!',
-    productSlug: 'fuzzy-customized-mini-pot',
-    is_verified_buyer: true,
-    is_approved: true,
-    created_at: new Date(Date.now() - 3600000 * 24).toISOString(), // 1 day ago
-  },
-  {
-    id: 'rev-003',
-    customer_name: 'Patricia Tan',
-    rating: 5,
-    comment: 'Super cute flower charm keychain! Perfect addition to my tote bag, very high quality.',
-    productSlug: 'fuzzy-customized-keychain',
-    is_verified_buyer: true,
-    is_approved: true,
-    created_at: new Date(Date.now() - 3600000 * 48).toISOString(), // 2 days ago
-  },
-  {
-    id: 'rev-004',
-    customer_name: 'Kevin Sy',
-    rating: 4,
-    comment: 'Very nice gift set, beautifully wrapped with ribbon and included message card. Will order again!',
-    productSlug: 'fuzzy-flower-gift-set',
-    is_verified_buyer: true,
-    is_approved: true,
-    created_at: new Date(Date.now() - 3600000 * 72).toISOString(), // 3 days ago
-  },
-];
+export const MOCK_REVIEWS = [];
 
-export const MOCK_FEEDBACKS = [
-  {
-    id: 'fb-001',
-    customer_name: 'Maria Santos',
-    topic: 'Order Experience',
-    rating: 5,
-    message: 'Super ganda po ng Customized Bouquet! Well-packaged and dumating on time for my sister’s graduation. Salamat po!',
-    created_at: new Date(Date.now() - 3600000 * 2).toISOString(), // 2 hrs ago
-  },
-  {
-    id: 'fb-002',
-    customer_name: 'Bea Alonzo',
-    topic: 'Rush Crafting',
-    rating: 5,
-    message: 'Sobrang bilis mag-reply sa custom rush order! Napaka-detailed ng floral arrangement at pulido ang pagkakayari.',
-    created_at: new Date(Date.now() - 3600000 * 18).toISOString(), // 18 hrs ago
-  },
-  {
-    id: 'fb-003',
-    customer_name: 'Joshua Garcia',
-    topic: 'Suggestion',
-    rating: 4,
-    message: 'Gaganda po ng mga keychains and pens! Suggestion lang po na sana may metallic clips option din next time.',
-    created_at: new Date(Date.now() - 3600000 * 36).toISOString(), // 1.5 days ago
-  },
-  {
-    id: 'fb-004',
-    customer_name: 'Chloe Rivera',
-    topic: 'Product Quality',
-    rating: 5,
-    message: 'Handmade with love talaga! Walang gusot ang wrapping paper and makapal ang fuzzy wire material. Very satisfied buyer.',
-    created_at: new Date(Date.now() - 3600000 * 60).toISOString(), // 2.5 days ago
-  },
-];
+export const MOCK_FEEDBACKS = [];
 
 // In-memory storage for active session submissions
 let localReviews = [...MOCK_REVIEWS];

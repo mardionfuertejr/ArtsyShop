@@ -23,6 +23,7 @@ export default function GameFloatingBadge() {
     <>
       <div className="game-floating-badge">
         <button
+          type="button"
           onClick={() => setIsOpen(true)}
           aria-label="Play Games & Win Vouchers"
           className="arcade-launcher-btn"

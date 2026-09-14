@@ -365,6 +365,7 @@ export default function AdminLoginPage() {
             }}
           >
             <button
+              type="button"
               onClick={() => setShowForgotModal(false)}
               style={{
                 position: 'absolute',

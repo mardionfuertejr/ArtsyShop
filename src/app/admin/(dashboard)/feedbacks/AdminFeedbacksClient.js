@@ -51,13 +51,13 @@ export default function AdminFeedbacksClient() {
           ]);
 
           if (isMounted) {
-            if (!fbRes.error && fbRes.data && fbRes.data.length > 0) {
+            if (!fbRes.error && Array.isArray(fbRes.data)) {
               setFeedbacks(fbRes.data);
             } else {
               setFeedbacks(getMockFeedbacks());
             }
 
-            if (!revRes.error && revRes.data && revRes.data.length > 0) {
+            if (!revRes.error && Array.isArray(revRes.data)) {
               setReviews(revRes.data);
             } else {
               setReviews(getAllMockReviews());
@@ -649,7 +649,24 @@ export default function AdminFeedbacksClient() {
                 </tr>
               </thead>
               <tbody>
-                {paginatedItems.length === 0 ? (
+                {loading ? (
+                  [1, 2, 3, 4, 5].map((i) => (
+                    <tr key={`skel-fb-${i}`} style={{ borderBottom: '1px solid #F1F5F9' }}>
+                      <td style={{ padding: '14px 18px' }}>
+                        <div style={{ width: '90px', height: '13px', borderRadius: '4px', background: 'linear-gradient(90deg, #F1F5F9 25%, #E2E8F0 50%, #F1F5F9 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.2s infinite ease-in-out' }} />
+                      </td>
+                      <td style={{ padding: '14px 16px' }}>
+                        <div style={{ width: '130px', height: '13px', borderRadius: '4px', background: '#F1F5F9' }} />
+                      </td>
+                      <td style={{ padding: '14px 16px', textAlign: 'center' }}>
+                        <div style={{ width: '70px', height: '14px', borderRadius: '4px', background: '#F1F5F9', margin: '0 auto' }} />
+                      </td>
+                      <td style={{ padding: '14px 18px' }}>
+                        <div style={{ width: '85%', height: '13px', borderRadius: '4px', background: '#F1F5F9' }} />
+                      </td>
+                    </tr>
+                  ))
+                ) : paginatedItems.length === 0 ? (
                   <tr>
                     <td colSpan={4} style={{ textAlign: 'center', padding: '60px 20px' }}>
                       <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: '#FFF5F2', color: 'var(--color-primary, #EA580C)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', marginBottom: '10px' }}>
@@ -763,7 +780,30 @@ export default function AdminFeedbacksClient() {
                 </tr>
               </thead>
               <tbody>
-                {paginatedItems.length === 0 ? (
+                {loading ? (
+                  [1, 2, 3, 4, 5].map((i) => (
+                    <tr key={`skel-rev-${i}`} style={{ borderBottom: '1px solid #F1F5F9' }}>
+                      <td style={{ padding: '14px 18px' }}>
+                        <div style={{ width: '80px', height: '13px', borderRadius: '4px', background: 'linear-gradient(90deg, #F1F5F9 25%, #E2E8F0 50%, #F1F5F9 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.2s infinite ease-in-out' }} />
+                      </td>
+                      <td style={{ padding: '14px 16px' }}>
+                        <div style={{ width: '110px', height: '13px', borderRadius: '4px', background: '#F1F5F9' }} />
+                      </td>
+                      <td style={{ padding: '14px 16px' }}>
+                        <div style={{ width: '130px', height: '13px', borderRadius: '4px', background: '#F1F5F9' }} />
+                      </td>
+                      <td style={{ padding: '14px 16px', textAlign: 'center' }}>
+                        <div style={{ width: '70px', height: '14px', borderRadius: '4px', background: '#F1F5F9', margin: '0 auto' }} />
+                      </td>
+                      <td style={{ padding: '14px 16px' }}>
+                        <div style={{ width: '80%', height: '13px', borderRadius: '4px', background: '#F1F5F9' }} />
+                      </td>
+                      <td style={{ padding: '14px 18px', textAlign: 'center' }}>
+                        <div style={{ width: '50px', height: '22px', borderRadius: '999px', background: '#F1F5F9', margin: '0 auto' }} />
+                      </td>
+                    </tr>
+                  ))
+                ) : paginatedItems.length === 0 ? (
                   <tr>
                     <td colSpan={6} style={{ textAlign: 'center', padding: '60px 20px' }}>
                       <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: '#EFF6FF', color: '#0EA5E9', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', marginBottom: '10px' }}>

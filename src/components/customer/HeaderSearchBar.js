@@ -343,7 +343,7 @@ export default function HeaderSearchBar() {
                       Walang nahanap para sa &ldquo;{query}&rdquo;
                     </p>
                     <p style={{ fontSize: '12.5px', color: 'var(--color-text-secondary)', margin: 0, lineHeight: 1.45 }}>
-                      Subukang maghanap ng craft name (tulad ng <em>Rose</em>, <em>Crochet</em>), presyo (tulad ng <em>250</em>), o detalye.
+                      Subukang maghanap ng craft name (tulad ng <em>Rose</em>, <em>Bouquet</em>, <em>Tulip</em>), presyo (tulad ng <em>250</em>), o detalye.
                     </p>
                   </div>
                 )}

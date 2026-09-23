@@ -78,160 +78,182 @@ export default function StoreAnnouncementBar({ initialSettings = null }) {
   const isExternalMessenger = settings.announcementLink && (settings.announcementLink.includes('m.me') || settings.announcementLink.includes('facebook.com'));
 
   return (
-    <aside
-      className="store-announcement-bar"
-      aria-label="Store announcement"
-      style={{
-        background: 'linear-gradient(90deg, #FFF7ED 0%, #FEF2F2 50%, #FFF7ED 100%)',
-        borderBottom: '1px solid rgba(254, 215, 170, 0.65)',
-        color: '#9A3412',
-        fontSize: '12px',
-        padding: isClosing ? '0 12px' : '8px 14px',
-        maxHeight: isClosing ? '0px' : '120px',
-        opacity: isClosing ? 0 : 1,
-        overflow: 'hidden',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: '8px',
-        position: 'relative',
-        zIndex: 40,
-        boxShadow: '0 1px 3px rgba(234, 88, 12, 0.03)',
-        transition: 'max-height 0.28s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.22s ease, padding 0.28s cubic-bezier(0.16, 1, 0.3, 1)',
-        boxSizing: 'border-box',
-        width: '100%',
-      }}
-    >
-      <div
+    <>
+      <style>{`
+        @keyframes newsTickerCrawl {
+          0% {
+            transform: translate3d(0, 0, 0);
+          }
+          100% {
+            transform: translate3d(-50%, 0, 0);
+          }
+        }
+        .news-ticker-container {
+          display: flex;
+          align-items: center;
+          width: 100%;
+          overflow: hidden;
+          position: relative;
+          user-select: none;
+        }
+        .news-ticker-track {
+          display: inline-flex;
+          align-items: center;
+          white-space: nowrap;
+          animation: newsTickerCrawl 25s linear infinite;
+          will-change: transform;
+        }
+        .news-ticker-track:hover,
+        .news-ticker-track:active {
+          animation-play-state: paused;
+        }
+        .news-ticker-item {
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          padding: 0 16px;
+          color: #9A3412;
+          font-weight: 600;
+          font-size: 11.5px;
+          letter-spacing: 0.01em;
+        }
+      `}</style>
+
+      <aside
+        className="store-announcement-bar no-print"
+        aria-label="Store announcement"
         style={{
+          background: 'linear-gradient(90deg, #FFFBEB 0%, #FFFDF7 50%, #FFFBEB 100%)',
+          borderBottom: '1px solid rgba(217, 119, 6, 0.12)',
+          color: '#92400E',
+          padding: isClosing ? '0 12px' : '7.5px 12px',
+          maxHeight: isClosing ? '0px' : '46px',
+          opacity: isClosing ? 0 : 1,
+          overflow: 'hidden',
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'center',
-          flexWrap: 'wrap',
-          gap: '6px 8px',
-          flex: 1,
-          maxWidth: '860px',
-          margin: '0 auto',
-          textAlign: 'center',
-          lineHeight: 1.4,
-          paddingRight: '4px',
+          justifyContent: 'space-between',
+          gap: '10px',
+          position: 'relative',
+          zIndex: 40,
+          boxSizing: 'border-box',
+          width: '100%',
+          transition: 'all 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
         }}
       >
+        {/* Left Fixed News Badge */}
         {settings.announcementBadge && (
-          <span
+          <div
             style={{
-              background: '#EA580C',
-              color: '#FFFFFF',
-              fontSize: '10px',
-              fontWeight: '800',
-              padding: '2px 8px',
-              borderRadius: '999px',
-              textTransform: 'uppercase',
-              letterSpacing: '0.04em',
               display: 'inline-flex',
               alignItems: 'center',
-              justifyContent: 'center',
+              gap: '4px',
+              background: 'linear-gradient(135deg, #D97706 0%, #B45309 100%)',
+              color: '#FFFFFF',
+              fontSize: '9.5px',
+              fontWeight: '800',
+              padding: '3px 9px',
+              borderRadius: '999px',
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em',
               flexShrink: 0,
-              boxShadow: '0 2px 6px rgba(234, 88, 12, 0.22)',
+              boxShadow: '0 2px 6px rgba(180, 83, 9, 0.22)',
+              zIndex: 2,
             }}
           >
-            {settings.announcementBadge}
-          </span>
+            <i className="fa-solid fa-bullhorn" style={{ fontSize: '8.5px' }}></i>
+            <span>{settings.announcementBadge}</span>
+          </div>
         )}
 
-        {settings.announcementLink ? (
-          isExternalMessenger ? (
-            <button
-              type="button"
-              onClick={() => openMessengerDirect()}
-              style={{
-                background: 'none',
-                border: 'none',
-                padding: 0,
-                color: '#9A3412',
-                fontWeight: '600',
-                cursor: 'pointer',
-                textAlign: 'center',
-                textDecoration: 'none',
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexWrap: 'wrap',
-                gap: '4px',
-                fontSize: '12px',
-                lineHeight: 1.4,
-                transition: 'color 0.15s ease',
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.color = '#EA580C')}
-              onMouseLeave={(e) => (e.currentTarget.style.color = '#9A3412')}
-            >
-              <span>{settings.announcementText}</span>
-              <i className="fa-solid fa-arrow-right" style={{ fontSize: '9px', marginLeft: '2px', color: '#EA580C' }}></i>
-            </button>
-          ) : (
-            <Link
-              href={settings.announcementLink}
-              style={{
-                color: '#9A3412',
-                fontWeight: '600',
-                textDecoration: 'none',
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexWrap: 'wrap',
-                gap: '4px',
-                fontSize: '12px',
-                lineHeight: 1.4,
-                transition: 'color 0.15s ease',
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.color = '#EA580C')}
-              onMouseLeave={(e) => (e.currentTarget.style.color = '#9A3412')}
-            >
-              <span>{settings.announcementText}</span>
-              <i className="fa-solid fa-arrow-right" style={{ fontSize: '9px', marginLeft: '2px', color: '#EA580C' }}></i>
-            </Link>
-          )
-        ) : (
-          <span style={{ fontWeight: '600', fontSize: '12px', color: '#9A3412' }}>
-            {settings.announcementText}
-          </span>
-        )}
-      </div>
+        {/* Continuous Infinite News Crawl Track */}
+        <div
+          className="news-ticker-container"
+          style={{
+            maskImage: 'linear-gradient(to right, transparent, black 12px, black calc(100% - 12px), transparent)',
+            WebkitMaskImage: 'linear-gradient(to right, transparent, black 12px, black calc(100% - 12px), transparent)',
+          }}
+        >
+          <div className="news-ticker-track">
+            {/* Repeated items to achieve 100% seamless infinite crawl loop */}
+            {[0, 1, 2, 3].map((copyIdx) => (
+              <span key={copyIdx} className="news-ticker-item">
+                {settings.announcementLink ? (
+                  isExternalMessenger ? (
+                    <button
+                      type="button"
+                      onClick={() => openMessengerDirect()}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        padding: 0,
+                        color: '#9A3412',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                        fontSize: '11.5px',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                      }}
+                    >
+                      <span>{settings.announcementText}</span>
+                    </button>
+                  ) : (
+                    <Link
+                      href={settings.announcementLink}
+                      style={{
+                        color: '#9A3412',
+                        fontWeight: '600',
+                        textDecoration: 'none',
+                        fontSize: '11.5px',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                      }}
+                    >
+                      <span>{settings.announcementText}</span>
+                    </Link>
+                  )
+                ) : (
+                  <span>{settings.announcementText}</span>
+                )}
+                <span style={{ color: '#EA580C', opacity: 0.75, fontSize: '10px' }}>✦</span>
+              </span>
+            ))}
+          </div>
+        </div>
 
-      {/* Dismiss Button */}
-      <button
-        type="button"
-        onClick={handleDismiss}
-        aria-label="Dismiss Announcement"
-        title="Dismiss announcement"
-        style={{
-          background: 'none',
-          border: 'none',
-          padding: '4px 6px',
-          color: '#C2410C',
-          cursor: 'pointer',
-          display: 'inline-flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: '13px',
-          opacity: 0.65,
-          transition: 'all 0.18s ease',
-          marginLeft: '2px',
-          flexShrink: 0,
-          borderRadius: 'var(--radius-full)',
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.opacity = '1';
-          e.currentTarget.style.background = 'rgba(234, 88, 12, 0.08)';
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.opacity = '0.65';
-          e.currentTarget.style.background = 'none';
-        }}
-      >
-        <i className="fa-solid fa-xmark"></i>
-      </button>
-    </aside>
+        {/* Right Fixed Dismiss Button */}
+        <button
+          type="button"
+          onClick={handleDismiss}
+          aria-label="Isara ang notice"
+          title="Isara ang notice"
+          style={{
+            background: 'rgba(234, 88, 12, 0.08)',
+            border: 'none',
+            width: '22px',
+            height: '22px',
+            borderRadius: '50%',
+            color: '#C2410C',
+            cursor: 'pointer',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '11px',
+            flexShrink: 0,
+            zIndex: 2,
+            transition: 'background-color 0.15s ease, opacity 0.15s ease',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = 'rgba(234, 88, 12, 0.18)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = 'rgba(234, 88, 12, 0.08)';
+          }}
+        >
+          <i className="fa-solid fa-xmark"></i>
+        </button>
+      </aside>
+    </>
   );
 }
 

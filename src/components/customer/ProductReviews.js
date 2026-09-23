@@ -35,7 +35,7 @@ export default function ProductReviews({ product }) {
   const [mounted, setMounted] = useState(false);
 
   // Form State
-  const [rating, setRating] = useState(5);
+  const [rating, setRating] = useState(0);
   const [customerName, setCustomerName] = useState('');
   const [comment, setComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -116,6 +116,7 @@ export default function ProductReviews({ product }) {
     setSubmitting(true);
     setErrorMsg('');
 
+    const finalRating = rating || 5;
     const finalCustomerName = customerName.trim() || generateAnonymousReviewerName();
     const randomMsg = REVIEW_THANK_YOU_MESSAGES[Math.floor(Math.random() * REVIEW_THANK_YOU_MESSAGES.length)];
     setActiveThankYou(randomMsg);
@@ -123,7 +124,7 @@ export default function ProductReviews({ product }) {
     const newReviewData = {
       product_id: product?.id,
       productSlug: product?.slug,
-      rating,
+      rating: finalRating,
       customer_name: finalCustomerName,
       comment: comment.trim(),
       is_verified_buyer: true,
@@ -140,7 +141,7 @@ export default function ProductReviews({ product }) {
           .insert([
             {
               product_id: product.id,
-              rating,
+              rating: finalRating,
               customer_name: finalCustomerName,
               comment: comment.trim(),
               is_verified_buyer: true,
@@ -169,7 +170,7 @@ export default function ProductReviews({ product }) {
       setIsModalOpen(false);
       setComment('');
       setCustomerName('');
-      setRating(5);
+      setRating(0);
     }, 2200);
   };
 
@@ -216,7 +217,7 @@ export default function ProductReviews({ product }) {
             type="button"
             className="btn btn-primary empty-reviews-cta ripple"
             onClick={() => {
-              setRating(5);
+              setRating(0);
               setIsModalOpen(true);
             }}
           >
@@ -248,7 +249,10 @@ export default function ProductReviews({ product }) {
             <button
               type="button"
               className="btn btn-secondary write-review-action-btn ripple"
-              onClick={() => setIsModalOpen(true)}
+              onClick={() => {
+                setRating(0);
+                setIsModalOpen(true);
+              }}
             >
               <i className="fa-solid fa-pen-nib" style={{ fontSize: '11px' }}></i>
               <span>Write a Review</span>
@@ -361,171 +365,237 @@ export default function ProductReviews({ product }) {
 
       {/* Write a Review Modal */}
       {isModalOpen && mounted && createPortal(
-        <div className="modal-overlay" onClick={() => !submitting && setIsModalOpen(false)}>
-          <div className="modal review-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" style={{ maxWidth: '440px', borderRadius: '24px' }}>
-            <div className="modal-header" style={{ padding: '16px 20px', borderBottom: '1px solid var(--color-border-light)' }}>
-              <h3 className="modal-title" style={{ fontSize: '1.1rem', fontWeight: '800', color: 'var(--color-text)', margin: 0 }}>
-                Write a Review
-              </h3>
+        <div className="modal-overlay" onClick={() => !submitting && setIsModalOpen(false)} style={{ padding: '16px' }}>
+          <div
+            className="modal review-modal"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            style={{
+              maxWidth: '400px',
+              borderRadius: '24px',
+              padding: '24px 20px',
+              textAlign: 'left',
+              boxShadow: '0 20px 50px rgba(0, 0, 0, 0.2)',
+            }}
+          >
+            {/* Modal Header */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div
+                  style={{
+                    width: '36px',
+                    height: '36px',
+                    borderRadius: '12px',
+                    background: 'var(--color-primary-lighter, #FFF5F2)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: 'var(--color-primary, #EA580C)',
+                    fontSize: '16px',
+                  }}
+                >
+                  <i className="fa-solid fa-pen-nib"></i>
+                </div>
+                <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '800', color: 'var(--color-text)' }}>
+                  Write a Review
+                </h3>
+              </div>
               <button
                 type="button"
-                className="modal-close"
-                onClick={() => setIsModalOpen(false)}
-                disabled={submitting}
-                aria-label="Close"
+                onClick={() => !submitting && setIsModalOpen(false)}
+                aria-label="Close modal"
+                style={{
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '50%',
+                  background: 'var(--color-surface-warm, #F1F5F9)',
+                  border: 'none',
+                  fontSize: '14px',
+                  color: 'var(--color-text-secondary, #64748B)',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'all 0.15s ease',
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = '#E2E8F0')}
+                onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--color-surface-warm, #F1F5F9)')}
               >
-                ✕
+                <i className="fa-solid fa-xmark"></i>
               </button>
             </div>
 
             {successMsg ? (
-              <div className="modal-body review-success-state" style={{ padding: '36px 20px', textAlign: 'center' }}>
-                <h4 style={{ fontSize: '1.25rem', fontWeight: '800', color: 'var(--color-primary)', margin: 0 }}>
+              <div style={{ textAlign: 'center', padding: '24px 8px' }} className="fade-in">
+                <div
+                  style={{
+                    width: '64px',
+                    height: '64px',
+                    borderRadius: '50%',
+                    background: 'var(--color-primary-lighter, #FFF5F2)',
+                    color: 'var(--color-primary, #EA580C)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '28px',
+                    margin: '0 auto 16px',
+                  }}
+                >
+                  <i className="fa-solid fa-wand-magic-sparkles"></i>
+                </div>
+                <h4 style={{ margin: '0 0 6px', fontSize: '17px', fontWeight: '800', color: 'var(--color-primary, #EA580C)' }}>
                   {activeThankYou?.title}
                 </h4>
-                <p style={{ fontSize: '13.5px', color: 'var(--color-text-secondary)', marginTop: '8px', lineHeight: 1.5 }}>
+                <p style={{ margin: 0, fontSize: '13px', color: 'var(--color-text-secondary)', lineHeight: '1.5' }}>
                   {activeThankYou?.subtitle}
                 </p>
               </div>
             ) : (
-              <div className="modal-body" style={{ padding: '20px' }}>
-                <form onSubmit={handleSubmit} className="review-form" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                  <div style={{ background: 'var(--color-surface-warm, #FAF8F5)', padding: '10px 14px', borderRadius: 'var(--radius-lg)', border: '1px solid var(--color-border-light)' }}>
-                    <p style={{ fontSize: '12.5px', color: 'var(--color-text-secondary)', margin: 0 }}>
-                      Product: <strong style={{ color: 'var(--color-text)' }}>{product?.name}</strong>
-                    </p>
-                  </div>
+              <form onSubmit={handleSubmit} className="review-form" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                {/* Product badge */}
+                <div style={{ background: 'var(--color-surface-warm, #FAF8F5)', padding: '9px 12px', borderRadius: '12px', border: '1px solid var(--color-border-light, #E2E8F0)', fontSize: '12.5px', color: 'var(--color-text-secondary)' }}>
+                  Reviewing: <strong style={{ color: 'var(--color-text)' }}>{product?.name}</strong>
+                </div>
 
-                  {/* Rating Reaction Cards Selection (Touch-friendly & prominent) */}
-                  <div className="form-group" style={{ margin: 0 }}>
-                    <label className="form-label" style={{ fontSize: '12.5px', fontWeight: '700', color: 'var(--color-text)', marginBottom: '8px', display: 'block' }}>
-                      How is your experience with this craft? <span style={{ color: 'var(--color-primary)' }}>*</span>
-                    </label>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
-                      {[
-                        { val: 5, emoji: '😍', label: 'Love it!' },
-                        { val: 4, emoji: '😊', label: 'Good' },
-                        { val: 3, emoji: '😐', label: 'Okay' },
-                        { val: 2, emoji: '🙁', label: 'Needs Work' },
-                      ].map((item) => {
-                        const isSelected = rating === item.val;
-                        return (
-                          <button
-                            type="button"
-                            key={item.val}
-                            onClick={() => setRating(item.val)}
-                            style={{
-                              display: 'flex',
-                              flexDirection: 'column',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              padding: '10px 4px',
-                              borderRadius: 'var(--radius-lg, 12px)',
-                              border: isSelected ? '2px solid var(--color-primary)' : '1px solid var(--color-border-light, #E5E7EB)',
-                              background: isSelected ? 'var(--color-primary-lighter, #FFF5EE)' : '#FFFFFF',
-                              color: isSelected ? 'var(--color-primary)' : 'var(--color-text-secondary)',
-                              cursor: 'pointer',
-                              transition: 'all 0.15s ease',
-                              minHeight: '70px',
-                            }}
-                            aria-label={`${item.label} (${item.val} stars)`}
-                          >
-                            <span style={{ fontSize: '26px', lineHeight: 1, marginBottom: '6px', transform: isSelected ? 'scale(1.15)' : 'scale(1)', transition: 'transform 0.15s ease' }}>
-                              {item.emoji}
-                            </span>
-                            <span style={{ fontSize: '11px', fontWeight: isSelected ? '700' : '600', textAlign: 'center', whiteSpace: 'nowrap' }}>
-                              {item.label}
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
+                {/* 5-Star Clean Interactive Rating */}
+                <div
+                  style={{
+                    background: 'var(--color-surface-warm, #F8FAFC)',
+                    border: '1px solid var(--color-border-light, #E2E8F0)',
+                    borderRadius: '16px',
+                    padding: '14px 12px',
+                    textAlign: 'center',
+                  }}
+                >
+                  <span style={{ display: 'block', fontSize: '12.5px', fontWeight: '700', color: 'var(--color-text-secondary, #64748B)', marginBottom: '8px' }}>
+                    How was your experience?
+                  </span>
+                  
+                  <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px' }}>
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button
+                        key={star}
+                        type="button"
+                        onClick={() => setRating(star)}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          padding: '4px',
+                          cursor: 'pointer',
+                          fontSize: '32px',
+                          lineHeight: 1,
+                          color: rating > 0 && star <= rating ? '#F59E0B' : '#CBD5E1',
+                          transform: rating > 0 && star <= rating ? 'scale(1.1)' : 'scale(1)',
+                          transition: 'transform 0.15s ease, color 0.15s ease',
+                          outline: 'none',
+                        }}
+                        aria-label={`Rate ${star} star`}
+                      >
+                        ★
+                      </button>
+                    ))}
                   </div>
+                </div>
 
-                  {/* Customer Name */}
-                  <div className="form-group" style={{ margin: 0 }}>
-                    <label className="form-label" style={{ fontSize: '12.5px', fontWeight: '700', color: 'var(--color-text)', marginBottom: '6px', display: 'block' }}>
-                      Your Name (Optional)
-                    </label>
-                    <input
-                      className="input"
-                      type="text"
-                      placeholder="e.g. Maria S. (Leave blank for anonymous)"
-                      value={customerName}
-                      onChange={(e) => setCustomerName(e.target.value)}
-                      style={{
-                        width: '100%',
-                        borderRadius: 'var(--radius-lg)',
-                        border: '1.5px solid var(--color-border)',
-                        padding: '10px 14px',
-                        fontSize: '13px',
-                      }}
-                    />
-                  </div>
+                {/* Customer Name */}
+                <div>
+                  <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '700', color: 'var(--color-text)', marginBottom: '5px' }}>
+                    Your Name <span style={{ fontSize: '11px', fontWeight: '400', color: 'var(--color-text-muted)' }}>(Optional)</span>
+                  </label>
+                  <input
+                    className="input"
+                    type="text"
+                    placeholder="e.g. Maria (or leave blank for Anonymous)"
+                    value={customerName}
+                    onChange={(e) => setCustomerName(e.target.value)}
+                    style={{
+                      width: '100%',
+                      borderRadius: '12px',
+                      border: '1.5px solid var(--color-border-light, #E2E8F0)',
+                      padding: '10px 12px',
+                      fontSize: '13px',
+                      boxSizing: 'border-box',
+                    }}
+                  />
+                </div>
 
-                  {/* Review Textarea */}
-                  <div className="form-group" style={{ margin: 0 }}>
-                    <label className="form-label" style={{ fontSize: '12.5px', fontWeight: '700', color: 'var(--color-text)', marginBottom: '6px', display: 'block' }}>
-                      Your Feedback & Experience <span style={{ color: 'var(--color-danger, #E11D48)' }}>*</span>
-                    </label>
-                    <textarea
-                      className="form-textarea"
-                      rows={4}
-                      placeholder="Tell us about the craft quality, packaging, and experience..."
-                      value={comment}
-                      onChange={(e) => setComment(e.target.value)}
-                      style={{
-                        width: '100%',
-                        borderRadius: 'var(--radius-lg)',
-                        border: '1.5px solid var(--color-border)',
-                        padding: '12px 14px',
-                        fontSize: '13px',
-                        lineHeight: 1.45,
-                        fontFamily: 'var(--font-body)',
-                        boxSizing: 'border-box',
-                        resize: 'vertical',
-                      }}
-                      required
-                    />
-                  </div>
+                {/* Review Textarea */}
+                <div>
+                  <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '700', color: 'var(--color-text)', marginBottom: '5px' }}>
+                    Your Review <span style={{ color: 'var(--color-primary, #EA580C)' }}>*</span>
+                  </label>
+                  <textarea
+                    rows={3}
+                    placeholder="Tell us about the craft quality, flowers, or packaging..."
+                    value={comment}
+                    onChange={(e) => setComment(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      borderRadius: '12px',
+                      border: '1.5px solid var(--color-border-light, #E2E8F0)',
+                      background: '#FFFFFF',
+                      fontSize: '13px',
+                      color: 'var(--color-text)',
+                      fontFamily: 'inherit',
+                      resize: 'none',
+                      boxSizing: 'border-box',
+                      outline: 'none',
+                      lineHeight: '1.45',
+                    }}
+                    required
+                  />
+                </div>
 
-                  {errorMsg && (
-                    <p style={{ fontSize: '12px', color: 'var(--color-danger, #E11D48)', margin: 0 }}>
-                      {errorMsg}
-                    </p>
-                  )}
+                {errorMsg && (
+                  <p style={{ fontSize: '12px', color: 'var(--color-danger, #E11D48)', margin: 0 }}>
+                    {errorMsg}
+                  </p>
+                )}
 
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.3fr', gap: '10px', marginTop: '4px' }}>
-                    <button
-                      type="button"
-                      className="btn btn-secondary"
-                      onClick={() => setIsModalOpen(false)}
-                      disabled={submitting}
-                      style={{
-                        minHeight: '44px',
-                        fontSize: '13px',
-                        fontWeight: '700',
-                        borderRadius: 'var(--radius-lg)',
-                      }}
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      className="btn btn-primary ripple"
-                      disabled={submitting}
-                      style={{
-                        minHeight: '44px',
-                        fontSize: '13px',
-                        fontWeight: '700',
-                        borderRadius: 'var(--radius-lg)',
-                      }}
-                    >
-                      {submitting ? 'Submitting...' : 'Post Review'}
-                    </button>
-                  </div>
-                </form>
-              </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.4fr', gap: '10px', marginTop: '4px' }}>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => setIsModalOpen(false)}
+                    disabled={submitting}
+                    style={{
+                      borderRadius: '12px',
+                      padding: '11px',
+                      fontSize: '13px',
+                      fontWeight: '700',
+                    }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={submitting || !comment.trim()}
+                    className="btn ripple"
+                    style={{
+                      borderRadius: '12px',
+                      padding: '11px',
+                      fontWeight: '700',
+                      fontSize: '13.5px',
+                      background: (!comment.trim() || submitting)
+                        ? 'var(--color-border, #E2E8F0)'
+                        : 'linear-gradient(135deg, #EA580C 0%, #D94A1E 100%)',
+                      color: (!comment.trim() || submitting) ? 'var(--color-text-muted, #94A3B8)' : '#FFFFFF',
+                      border: 'none',
+                      cursor: (!comment.trim() || submitting) ? 'not-allowed' : 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px',
+                      boxShadow: (!comment.trim() || submitting) ? 'none' : '0 4px 14px rgba(234, 88, 12, 0.25)',
+                    }}
+                  >
+                    <i className={submitting ? 'fa-solid fa-spinner fa-spin' : 'fa-solid fa-paper-plane'}></i>
+                    <span>{submitting ? 'Submitting...' : 'Post Review'}</span>
+                  </button>
+                </div>
+              </form>
             )}
           </div>
         </div>,

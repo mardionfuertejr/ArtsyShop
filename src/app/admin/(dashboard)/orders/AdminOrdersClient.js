@@ -42,6 +42,7 @@ export default function AdminOrdersClient({ initialOrders }) {
   const [activeMenuOrderId, setActiveMenuOrderId] = useState(null);
   const [orderToDelete, setOrderToDelete] = useState(null);
   const [orderToCancel, setOrderToCancel] = useState(null);
+  const [previewReceipt, setPreviewReceipt] = useState(null);
   const filterRef = useRef(null);
   const actionMenuRef = useRef(null);
   const searchInputRef = useRef(null);
@@ -135,42 +136,65 @@ export default function AdminOrdersClient({ initialOrders }) {
               .order('created_at', { ascending: false });
 
             if (!error && dbOrders && dbOrders.length > 0) {
-              const formatted = dbOrders.map((ord) => ({
-                id: ord.id,
-                reference_code: ord.reference_code,
-                customer_name: ord.customer_name,
-                customer_phone: ord.customer_phone || '',
-                facebook_name: ord.facebook_name || '',
-                order_type: ord.order_type,
-                status: ord.status,
-                subtotal: parseFloat(ord.subtotal) || 0,
-                delivery_fee: parseFloat(ord.delivery_fee) || 0,
-                rush_fee: parseFloat(ord.rush_fee) || 0,
-                is_rush: Boolean(ord.is_rush),
-                total_amount: parseFloat(ord.total_amount) || 0,
-                total_cost: parseFloat(ord.total_cost) || 0,
-                preferred_date: ord.preferred_date || null,
-                preferred_time: ord.preferred_time || null,
-                notes: ord.notes || '',
-                messenger_opened_at: ord.messenger_opened_at || ord.messengerOpenedAt || null,
-                sent_to_messenger: Boolean(ord.sent_to_messenger || ord.sentToMessenger || ord.messenger_opened_at),
-                created_at: ord.created_at,
-                order_items: (ord.order_items || []).map((it) => ({
-                  id: it.id,
-                  product_name: it.product_name,
-                  quantity: it.quantity,
-                  unit_price: parseFloat(it.unit_price) || 0,
-                  total_price: parseFloat(it.total_price) || 0,
-                  unit_cost: parseFloat(it.unit_cost) || 0,
-                  total_cost: parseFloat(it.total_cost) || 0,
-                  options: (it.order_item_options || []).map((opt) => ({
-                    option_name: opt.option_name,
-                    option_value: opt.option_value,
-                    additional_cost: parseFloat(opt.additional_cost) || 0,
+              const formatted = dbOrders.map((ord) => {
+                let payment_method = ord.payment_method || ord.paymentMethod || 'pickup';
+                let payment_proof_url = ord.payment_proof_url || ord.paymentProofUrl || null;
+                let gcash_reference_no = ord.gcash_reference_no || ord.gcashRefNo || null;
+                let cleanNotes = ord.notes || '';
+
+                if (cleanNotes.includes('[PAYMENT_META:')) {
+                  try {
+                    const match = cleanNotes.match(/\[PAYMENT_META:(.*?)\]/);
+                    if (match) {
+                      const parsed = JSON.parse(match[1]);
+                      if (parsed.payment_method) payment_method = parsed.payment_method;
+                      if (parsed.payment_proof_url) payment_proof_url = parsed.payment_proof_url;
+                      if (parsed.gcash_reference_no) gcash_reference_no = parsed.gcash_reference_no;
+                      cleanNotes = cleanNotes.replace(/\[PAYMENT_META:.*?\]\s*/, '');
+                    }
+                  } catch {}
+                }
+
+                return {
+                  id: ord.id,
+                  reference_code: ord.reference_code,
+                  customer_name: ord.customer_name,
+                  customer_phone: ord.customer_phone || '',
+                  facebook_name: ord.facebook_name || '',
+                  order_type: ord.order_type,
+                  status: ord.status,
+                  payment_method,
+                  payment_proof_url,
+                  gcash_reference_no,
+                  subtotal: parseFloat(ord.subtotal) || 0,
+                  delivery_fee: parseFloat(ord.delivery_fee) || 0,
+                  rush_fee: parseFloat(ord.rush_fee) || 0,
+                  is_rush: Boolean(ord.is_rush),
+                  total_amount: parseFloat(ord.total_amount) || 0,
+                  total_cost: parseFloat(ord.total_cost) || 0,
+                  preferred_date: ord.preferred_date || null,
+                  preferred_time: ord.preferred_time || null,
+                  notes: cleanNotes,
+                  messenger_opened_at: ord.messenger_opened_at || ord.messengerOpenedAt || null,
+                  sent_to_messenger: Boolean(ord.sent_to_messenger || ord.sentToMessenger || ord.messenger_opened_at),
+                  created_at: ord.created_at,
+                  order_items: (ord.order_items || []).map((it) => ({
+                    id: it.id,
+                    product_name: it.product_name,
+                    quantity: it.quantity,
+                    unit_price: parseFloat(it.unit_price) || 0,
+                    total_price: parseFloat(it.total_price) || 0,
+                    unit_cost: parseFloat(it.unit_cost) || 0,
+                    total_cost: parseFloat(it.total_cost) || 0,
+                    options: (it.order_item_options || []).map((opt) => ({
+                      option_name: opt.option_name,
+                      option_value: opt.option_value,
+                      additional_cost: parseFloat(opt.additional_cost) || 0,
+                    })),
                   })),
-                })),
-                delivery_location: ord.delivery_locations?.[0] || null,
-              }));
+                  delivery_location: ord.delivery_locations?.[0] || null,
+                };
+              });
 
               const dbRefs = new Set(formatted.map(o => o.reference_code));
               combined = [...formatted, ...combined.filter(o => !dbRefs.has(o.reference_code))];
@@ -418,6 +442,51 @@ export default function AdminOrdersClient({ initialOrders }) {
         <span>Needed: {formatDateShort(ord.preferred_date)}{timeLabel}</span>
       </span>
     );
+  };
+
+  const formatOptionTag = (opt) => {
+    const val = typeof opt === 'string' ? opt : (opt.option_value || opt.optionValue || '');
+    const name = typeof opt === 'object' ? (opt.option_name || opt.optionName || '') : '';
+    if (!val) return null;
+
+    const cleanName = name.trim().toLowerCase();
+    if (cleanName.includes('color') || cleanName.includes('theme') || cleanName.includes('option') || cleanName.includes('sample') || cleanName.includes('peg')) {
+      return val;
+    }
+    if (cleanName.includes('add-on') || cleanName.includes('addon') || cleanName.includes('led') || cleanName.includes('light')) {
+      return `+ ${val}`;
+    }
+    return name ? `${name}: ${val}` : val;
+  };
+
+  const consolidateOrderItems = (rawItems = []) => {
+    if (!Array.isArray(rawItems)) return [];
+    const map = new Map();
+    for (const it of rawItems) {
+      if (!it) continue;
+      const optList = it.options || it.order_item_options || [];
+      const optSignature = optList
+        .map((o) => {
+          if (typeof o === 'string') return o.trim().toLowerCase();
+          const n = (o.option_name || o.optionName || '').trim().toLowerCase();
+          const v = (o.option_value || o.optionValue || '').trim().toLowerCase();
+          return `${n}:${v}`;
+        })
+        .sort()
+        .join('|');
+      const key = `${(it.product_name || '').trim().toLowerCase()}__${optSignature}`;
+      if (map.has(key)) {
+        const existing = map.get(key);
+        existing.quantity += Number(it.quantity || 1);
+      } else {
+        map.set(key, {
+          ...it,
+          quantity: Number(it.quantity || 1),
+          options: optList,
+        });
+      }
+    }
+    return Array.from(map.values());
   };
 
   const isRushOrder = (ord) => {
@@ -751,155 +820,236 @@ export default function AdminOrdersClient({ initialOrders }) {
                 const badge = statusBadgeConfig[ord.status] || statusBadgeConfig.confirmed;
                 const rowKey = `${ord.id || ord.reference_code}-${idx}`;
                 const isRush = Boolean(ord.is_rush || (ord.preferred_date && isRushDate(ord.preferred_date)));
+                const displayItems = consolidateOrderItems(ord.order_items);
 
                 return (
                   <tr
                     key={rowKey}
                     style={{
-                      background: isRush ? '#FFF7ED' : 'transparent',
-                      borderLeft: isRush ? '4px solid #EA580C' : '4px solid transparent',
                       borderBottom: '1px solid #E2E8F0',
                       transition: 'background 0.12s ease',
                     }}
                   >
-                    <td style={{ padding: '10px 18px', verticalAlign: 'middle', borderBottom: '1px solid #E2E8F0' }}>
-                      <Link href={`/admin/orders/${ord.id}`} style={{ display: 'block', marginBottom: '2px', fontWeight: '800', fontSize: '13px', color: '#0f172a', textDecoration: 'none' }}>
-                        {ord.reference_code}
-                      </Link>
-                      {renderNeededDate(ord)}
-                    </td>
-                    <td style={{ padding: '10px 18px', verticalAlign: 'middle', borderBottom: '1px solid #E2E8F0', maxWidth: '200px' }}>
-                      <p
-                        style={{
-                          fontWeight: '700',
-                          color: '#0f172a',
-                          margin: '0 0 3px',
-                          fontSize: '13.5px',
-                          whiteSpace: 'nowrap',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                        }}
-                        title={ord.customer_name}
-                      >
-                        {ord.customer_name}
-                      </p>
-                      {ord.order_type === 'delivery' && (
-                        <span style={{
-                          fontSize: '11px',
-                          color: 'var(--color-primary, #b45309)',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '4px',
-                          fontWeight: '600',
-                        }}>
-                          <i className="fa-solid fa-motorcycle" style={{ fontSize: '10px' }}></i>
-                          <span>Delivery</span>
-                        </span>
-                      )}
-                    </td>
-                    <td style={{ padding: '10px 18px', verticalAlign: 'middle', textAlign: 'left', borderBottom: '1px solid #E2E8F0' }}>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'flex-start' }}>
-                        {ord.order_items && ord.order_items.length > 0 ? (
-                          ord.order_items.map((it, itemIdx) => (
-                            <div
-                              key={itemIdx}
-                              style={{
+                        <td style={{ padding: '14px 18px', verticalAlign: 'top', borderBottom: '1px solid #E2E8F0' }}>
+                          <Link href={`/admin/orders/${ord.id}`} style={{ display: 'block', marginBottom: '3px', fontWeight: '800', fontSize: '13px', color: '#0f172a', textDecoration: 'none' }}>
+                            {ord.reference_code}
+                          </Link>
+                          {renderNeededDate(ord)}
+                        </td>
+                        <td style={{ padding: '14px 18px', verticalAlign: 'top', borderBottom: '1px solid #E2E8F0', maxWidth: '200px' }}>
+                          <p
+                            style={{
+                              fontWeight: '700',
+                              color: '#0f172a',
+                              margin: '0 0 3px',
+                              fontSize: '13.5px',
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                            }}
+                            title={ord.customer_name}
+                          >
+                            {ord.customer_name}
+                          </p>
+                          {ord.order_type === 'delivery' && (
+                            <span style={{
+                              fontSize: '11px',
+                              color: 'var(--color-primary, #b45309)',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              fontWeight: '600',
+                            }}>
+                              <i className="fa-solid fa-motorcycle" style={{ fontSize: '10px' }}></i>
+                              <span>Delivery</span>
+                            </span>
+                          )}
+                        </td>
+                        <td style={{ padding: '14px 18px', verticalAlign: 'top', textAlign: 'left', borderBottom: '1px solid #E2E8F0' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-start' }}>
+                            {displayItems && displayItems.length > 0 ? (
+                              displayItems.map((it, itemIdx) => {
+                                const optList = it.options || it.order_item_options || [];
+                                return (
+                                  <div key={itemIdx} style={{ display: 'flex', flexDirection: 'column', gap: '3px', alignItems: 'flex-start' }}>
+                                    <div
+                                      style={{
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '6px',
+                                        fontSize: '12.5px',
+                                      }}
+                                    >
+                                      <span
+                                        style={{
+                                          background: '#f1f5f9',
+                                          color: '#334155',
+                                          fontWeight: '700',
+                                          fontSize: '10.5px',
+                                          padding: '1px 5px',
+                                          borderRadius: '4px',
+                                          lineHeight: 1.2,
+                                          flexShrink: 0,
+                                        }}
+                                      >
+                                        {it.quantity}×
+                                      </span>
+                                      <span
+                                        style={{
+                                          color: '#1e293b',
+                                          fontWeight: '600',
+                                          whiteSpace: 'nowrap',
+                                          overflow: 'hidden',
+                                          textOverflow: 'ellipsis',
+                                        }}
+                                        title={it.product_name}
+                                      >
+                                        {it.product_name}
+                                      </span>
+                                    </div>
+                                    {optList.length > 0 && (
+                                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginLeft: '24px' }}>
+                                        {optList.map((opt, oIdx) => {
+                                          const label = formatOptionTag(opt);
+                                          if (!label) return null;
+                                          return (
+                                            <span
+                                              key={oIdx}
+                                              style={{
+                                                fontSize: '10px',
+                                                fontWeight: '600',
+                                                background: '#f8fafc',
+                                                color: '#475569',
+                                                padding: '1px 6px',
+                                                borderRadius: '4px',
+                                                border: '1px solid #e2e8f0',
+                                                lineHeight: 1.3,
+                                              }}
+                                            >
+                                              {label}
+                                            </span>
+                                          );
+                                        })}
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })
+                            ) : (
+                              <span style={{ fontSize: '12px', color: '#94a3b8', fontStyle: 'italic' }}>No items</span>
+                            )}
+                          </div>
+                        </td>
+                        <td style={{ padding: '14px 18px', verticalAlign: 'top', textAlign: 'right', borderBottom: '1px solid #E2E8F0', whiteSpace: 'nowrap' }}>
+                          <div style={{ fontWeight: '800', fontSize: '13.5px', color: '#0f172a' }}>
+                            {formatCurrency(ord.total_amount || 0)}
+                          </div>
+                          {(ord.payment_method === 'gcash' || ord.paymentMethod === 'gcash') ? (
+                            <div style={{ marginTop: '4px', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '3px' }}>
+                              <span style={{
+                                fontSize: '10px',
+                                background: '#EFF6FF',
+                                color: '#1D4ED8',
+                                border: '1px solid #BFDBFE',
+                                padding: '1px 5px',
+                                borderRadius: '4px',
+                                fontWeight: '700',
                                 display: 'inline-flex',
                                 alignItems: 'center',
-                                gap: '6px',
-                                fontSize: '12px',
-                              }}
-                            >
-                              <span
-                                style={{
-                                  background: '#f1f5f9',
-                                  color: '#334155',
-                                  fontWeight: '700',
-                                  fontSize: '10.5px',
-                                  padding: '1px 5px',
-                                  borderRadius: '4px',
-                                  lineHeight: 1.2,
-                                  flexShrink: 0,
-                                }}
-                              >
-                                {it.quantity}×
+                                gap: '3px',
+                              }}>
+                                <i className="fa-solid fa-wallet" style={{ fontSize: '8.5px' }}></i> GCash
                               </span>
-                              <span
-                                style={{
-                                  color: '#1e293b',
-                                  fontWeight: '500',
-                                  whiteSpace: 'nowrap',
-                                  overflow: 'hidden',
-                                  textOverflow: 'ellipsis',
-                                }}
-                                title={it.product_name}
-                              >
-                                {it.product_name}
+                              {(ord.gcash_reference_no || ord.gcashRefNo) && (
+                                <span style={{ fontSize: '9.5px', color: '#475569', fontFamily: 'monospace', fontWeight: '600' }} title="GCash Reference No.">
+                                  Ref: {ord.gcash_reference_no || ord.gcashRefNo}
+                                </span>
+                              )}
+                              {(ord.payment_proof_url || ord.paymentProofUrl) && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setPreviewReceipt({
+                                      url: ord.payment_proof_url || ord.paymentProofUrl,
+                                      refCode: ord.reference_code,
+                                      refNo: ord.gcash_reference_no || ord.gcashRefNo,
+                                      customerName: ord.customer_name,
+                                    });
+                                  }}
+                                  style={{
+                                    background: '#ECFDF5',
+                                    border: '1px solid #A7F3D0',
+                                    color: '#047857',
+                                    fontSize: '9.5px',
+                                    fontWeight: '700',
+                                    padding: '1px 5px',
+                                    borderRadius: '4px',
+                                    cursor: 'pointer',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '3px',
+                                    marginTop: '1px',
+                                  }}
+                                  title="Click to view full receipt"
+                                >
+                                  <i className="fa-solid fa-receipt" style={{ fontSize: '8.5px' }}></i> View Receipt
+                                </button>
+                              )}
+                            </div>
+                          ) : (
+                            <div style={{ fontSize: '10px', color: '#16A34A', marginTop: '2px', fontWeight: '600' }}>
+                              {ord.order_type === 'delivery' ? 'COD' : 'Cash (Pickup)'}
+                            </div>
+                          )}
+                        </td>
+                        <td style={{ padding: '14px 14px', verticalAlign: 'top', textAlign: 'center', whiteSpace: 'nowrap', borderBottom: '1px solid #E2E8F0' }}>
+                          <span style={{
+                            background: badge.bg,
+                            color: badge.color,
+                            fontSize: '11px',
+                            fontWeight: '800',
+                            letterSpacing: '0.04em',
+                            padding: '0 8px',
+                            height: '24px',
+                            borderRadius: '9999px',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            width: '96px',
+                            boxSizing: 'border-box',
+                            textAlign: 'center',
+                          }}>
+                            {badge.label}
+                          </span>
+                          {ord.status === 'pending' && (
+                            <div style={{
+                              marginTop: '4px',
+                              fontSize: '10px',
+                              fontWeight: '600',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '4px',
+                              color: (ord.messenger_opened_at || ord.sent_to_messenger) ? '#16A34A' : '#64748B',
+                            }}>
+                              <span style={{
+                                width: '5px',
+                                height: '5px',
+                                borderRadius: '50%',
+                                background: (ord.messenger_opened_at || ord.sent_to_messenger) ? '#16A34A' : '#CBD5E1',
+                                display: 'inline-block',
+                              }}></span>
+                              <span>
+                                {(ord.messenger_opened_at || ord.sent_to_messenger) ? 'Chat Opened' : 'Awaiting Chat'}
                               </span>
                             </div>
-                          ))
-                        ) : (
-                          <span style={{ fontSize: '12px', color: '#94a3b8', fontStyle: 'italic' }}>No items</span>
-                        )}
-                      </div>
-                    </td>
-                    <td style={{ padding: '10px 18px', verticalAlign: 'middle', textAlign: 'right', borderBottom: '1px solid #E2E8F0', whiteSpace: 'nowrap' }}>
-                      <div style={{ fontWeight: '800', fontSize: '13.5px', color: '#0f172a' }}>
-                        {formatCurrency(ord.total_amount || 0)}
-                      </div>
-                      {ord.payment_method === 'gcash' && (
-                        <div style={{ fontSize: '10.5px', color: '#0284c7', marginTop: '2px', fontWeight: '700' }}>
-                          GCash
-                        </div>
-                      )}
-                    </td>
-                    <td style={{ padding: '10px 14px', verticalAlign: 'middle', textAlign: 'center', whiteSpace: 'nowrap', borderBottom: '1px solid #E2E8F0' }}>
-                      <span style={{
-                        background: badge.bg,
-                        color: badge.color,
-                        fontSize: '11px',
-                        fontWeight: '800',
-                        letterSpacing: '0.04em',
-                        padding: '0 8px',
-                        height: '24px',
-                        borderRadius: '9999px',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        width: '96px',
-                        boxSizing: 'border-box',
-                        textAlign: 'center',
-                      }}>
-                        {badge.label}
-                      </span>
-                      {ord.status === 'pending' && (
-                        <div style={{
-                          marginTop: '4px',
-                          fontSize: '10px',
-                          fontWeight: '600',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          gap: '4px',
-                          color: (ord.messenger_opened_at || ord.sent_to_messenger) ? '#16A34A' : '#64748B',
-                        }}>
-                          <span style={{
-                            width: '5px',
-                            height: '5px',
-                            borderRadius: '50%',
-                            background: (ord.messenger_opened_at || ord.sent_to_messenger) ? '#16A34A' : '#CBD5E1',
-                            display: 'inline-block',
-                          }}></span>
-                          <span>
-                            {(ord.messenger_opened_at || ord.sent_to_messenger) ? 'Chat Opened' : 'Awaiting Chat'}
-                          </span>
-                        </div>
-                      )}
-                    </td>
-                    <td style={{ padding: '10px 16px', verticalAlign: 'middle', textAlign: 'center', whiteSpace: 'nowrap' }}>
-                      <div className="action-menu-dropdown-container" style={{ position: 'relative', display: 'inline-block' }}>
-                        <button
-                          type="button"
+                          )}
+                        </td>
+                        <td style={{ padding: '14px 16px', verticalAlign: 'top', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                          <div className="action-menu-dropdown-container" style={{ position: 'relative', display: 'inline-block' }}>
+                            <button
+                              type="button"
                           onClick={(e) => {
                             e.stopPropagation();
                             setActiveMenuOrderId(activeMenuOrderId === rowKey ? null : rowKey);
@@ -1425,6 +1575,150 @@ export default function AdminOrdersClient({ initialOrders }) {
               >
                 Yes, Delete
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* GCash Receipt Preview Modal */}
+      {previewReceipt && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(15, 23, 42, 0.75)',
+            backdropFilter: 'blur(4px)',
+            zIndex: 99999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '20px',
+            animation: 'fadeIn 0.15s ease',
+          }}
+          onClick={() => setPreviewReceipt(null)}
+        >
+          <div
+            style={{
+              background: '#FFFFFF',
+              borderRadius: '16px',
+              padding: '20px',
+              maxWidth: '440px',
+              width: '100%',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+              position: 'relative',
+              animation: 'scaleUp 0.15s ease',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '14px' }}>
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ fontSize: '11px', fontWeight: '800', background: '#007DFE', color: '#FFF', padding: '2px 7px', borderRadius: '4px' }}>GCash</span>
+                  <span style={{ fontSize: '13.5px', fontWeight: '800', color: '#0F172A' }}>Proof of Payment</span>
+                </div>
+                <div style={{ fontSize: '11.5px', color: '#64748B', marginTop: '3px' }}>
+                  Order: <strong style={{ color: '#0F172A' }}>{previewReceipt.refCode}</strong> · {previewReceipt.customerName}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPreviewReceipt(null)}
+                style={{
+                  background: '#F1F5F9',
+                  border: 'none',
+                  borderRadius: '50%',
+                  width: '28px',
+                  height: '28px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  color: '#64748B',
+                  fontSize: '13px',
+                }}
+              >
+                <i className="fa-solid fa-xmark"></i>
+              </button>
+            </div>
+
+            {/* Receipt Image */}
+            <div style={{
+              background: '#F8FAFC',
+              borderRadius: '12px',
+              border: '1px solid #E2E8F0',
+              padding: '10px',
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              maxHeight: '55vh',
+              overflow: 'auto',
+            }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={previewReceipt.url}
+                alt="Receipt"
+                style={{
+                  maxWidth: '100%',
+                  maxHeight: '52vh',
+                  objectFit: 'contain',
+                  borderRadius: '8px',
+                  display: 'block',
+                }}
+              />
+            </div>
+
+            {/* Ref Number & Actions Footer */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '14px', flexWrap: 'wrap', gap: '8px' }}>
+              <div style={{ fontSize: '12px', color: '#64748B' }}>
+                {previewReceipt.refNo ? (
+                  <span>Ref: <strong style={{ color: '#007DFE', fontFamily: 'monospace' }}>{previewReceipt.refNo}</strong></span>
+                ) : (
+                  <span style={{ fontStyle: 'italic', color: '#94A3B8' }}>No Ref No. specified</span>
+                )}
+              </div>
+
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <a
+                  href={previewReceipt.url}
+                  download={`Receipt_${previewReceipt.refCode}.png`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    height: '34px',
+                    padding: '0 12px',
+                    background: '#007DFE',
+                    color: '#FFF',
+                    borderRadius: '8px',
+                    fontSize: '12px',
+                    fontWeight: '700',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '5px',
+                    textDecoration: 'none',
+                  }}
+                >
+                  <i className="fa-solid fa-download" style={{ fontSize: '11px' }}></i> Download
+                </a>
+                <button
+                  type="button"
+                  onClick={() => setPreviewReceipt(null)}
+                  style={{
+                    height: '34px',
+                    padding: '0 12px',
+                    background: '#F1F5F9',
+                    border: '1px solid #CBD5E1',
+                    borderRadius: '8px',
+                    fontSize: '12px',
+                    fontWeight: '700',
+                    color: '#334155',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Close
+                </button>
+              </div>
             </div>
           </div>
         </div>

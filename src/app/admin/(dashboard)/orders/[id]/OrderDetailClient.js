@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client';
 import { getAllMockOrders } from '@/lib/mockData';
 import { formatCurrency } from '@/lib/utils/formatCurrency';
 import { formatDate, formatRelative, formatTime12Hour } from '@/lib/utils/formatDate';
+import { formatOrderSummary } from '@/lib/utils/formatOrderSummary';
 
 export default function OrderDetailClient({ order: initialOrder }) {
   const [order, setOrder] = useState(initialOrder);
@@ -17,10 +18,35 @@ export default function OrderDetailClient({ order: initialOrder }) {
 
   const [status, setStatus] = useState(initialStatus);
   const [updating, setUpdating] = useState(false);
+  const [copiedReceipt, setCopiedReceipt] = useState(false);
+  const [showReceiptModal, setShowReceiptModal] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef(null);
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
+
+  const handleCopyOrderReceipt = () => {
+    if (!order) return;
+    const text = formatOrderSummary(order);
+    try {
+      if (typeof navigator !== 'undefined' && navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(text);
+      } else if (typeof document !== 'undefined') {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.top = '-9999px';
+        textarea.style.left = '-9999px';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+      }
+      setCopiedReceipt(true);
+      setTimeout(() => setCopiedReceipt(false), 2500);
+    } catch {}
+  };
 
   // Initialize Leaflet Map preview for order location
   useEffect(() => {
@@ -77,7 +103,7 @@ export default function OrderDetailClient({ order: initialOrder }) {
         const marker = L.marker(coords, { icon: customIcon }).addTo(map);
         const popupText = isDelivery
           ? (order.delivery_location?.address || `${order.customer_name}'s Delivery Location`)
-          : 'M&M Artsy Crafts Store (Pickup)';
+          : 'M&M Artsy (Pickup Location)';
         marker.bindPopup(`<div style="font-size: 12px; font-weight: 700; color: #0f172a; padding: 2px;">${popupText}</div>`);
 
         mapInstanceRef.current = map;
@@ -183,6 +209,24 @@ export default function OrderDetailClient({ order: initialOrder }) {
                 : await query.or(`id.eq.${initialOrder.id},reference_code.eq.${initialOrder.id},reference_code.eq.${initialOrder.reference_code}`).maybeSingle();
 
               if (dbOrder) {
+                let payment_method = dbOrder.payment_method || dbOrder.paymentMethod || 'pickup';
+                let payment_proof_url = dbOrder.payment_proof_url || dbOrder.paymentProofUrl || null;
+                let gcash_reference_no = dbOrder.gcash_reference_no || dbOrder.gcashRefNo || null;
+                let cleanNotes = dbOrder.notes || '';
+
+                if (cleanNotes.includes('[PAYMENT_META:')) {
+                  try {
+                    const match = cleanNotes.match(/\[PAYMENT_META:(.*?)\]/);
+                    if (match) {
+                      const parsed = JSON.parse(match[1]);
+                      if (parsed.payment_method) payment_method = parsed.payment_method;
+                      if (parsed.payment_proof_url) payment_proof_url = parsed.payment_proof_url;
+                      if (parsed.gcash_reference_no) gcash_reference_no = parsed.gcash_reference_no;
+                      cleanNotes = cleanNotes.replace(/\[PAYMENT_META:.*?\]\s*/, '');
+                    }
+                  } catch {}
+                }
+
                 found = {
                   id: dbOrder.id,
                   reference_code: dbOrder.reference_code,
@@ -191,6 +235,9 @@ export default function OrderDetailClient({ order: initialOrder }) {
                   facebook_name: dbOrder.facebook_name || '',
                   order_type: dbOrder.order_type,
                   status: dbOrder.status,
+                  payment_method,
+                  payment_proof_url,
+                  gcash_reference_no,
                   subtotal: parseFloat(dbOrder.subtotal) || 0,
                   delivery_fee: parseFloat(dbOrder.delivery_fee) || 0,
                   rush_fee: parseFloat(dbOrder.rush_fee) || 0,
@@ -199,7 +246,7 @@ export default function OrderDetailClient({ order: initialOrder }) {
                   total_cost: parseFloat(dbOrder.total_cost) || 0,
                   preferred_date: dbOrder.preferred_date || null,
                   preferred_time: dbOrder.preferred_time || null,
-                  notes: dbOrder.notes || '',
+                  notes: cleanNotes,
                   messenger_opened_at: dbOrder.messenger_opened_at || dbOrder.messengerOpenedAt || null,
                   sent_to_messenger: Boolean(dbOrder.sent_to_messenger || dbOrder.sentToMessenger || dbOrder.messenger_opened_at),
                   created_at: dbOrder.created_at,
@@ -396,69 +443,88 @@ export default function OrderDetailClient({ order: initialOrder }) {
               {/* Primary Action Progression Button */}
               {status === 'confirmed' && (
                 <button
-                  className="btn btn-primary"
+                  type="button"
                   onClick={() => handleUpdateStatus('preparing')}
                   disabled={updating}
                   style={{
                     display: 'inline-flex',
                     alignItems: 'center',
+                    justifyContent: 'center',
                     gap: '6px',
                     height: '34px',
-                    padding: '0 14px',
+                    padding: '0 13px',
                     fontSize: '12px',
                     fontWeight: '700',
                     borderRadius: '8px',
-                    boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+                    border: 'none',
+                    background: '#EA580C',
+                    color: '#FFFFFF',
+                    boxShadow: '0 1px 3px rgba(234, 88, 12, 0.25)',
                     whiteSpace: 'nowrap',
+                    cursor: updating ? 'not-allowed' : 'pointer',
+                    boxSizing: 'border-box',
+                    transition: 'all 0.15s ease',
                   }}
                 >
-                  <i className="fa-solid fa-wand-magic-sparkles" style={{ fontSize: '11px' }}></i>
+                  <i className="fa-solid fa-wand-magic-sparkles" style={{ fontSize: '11.5px' }}></i>
                   <span>Start Handcrafting</span>
                 </button>
               )}
               {status === 'preparing' && (
                 <button
-                  className="btn btn-primary"
+                  type="button"
                   onClick={() => handleUpdateStatus('ready')}
                   disabled={updating}
                   style={{
                     display: 'inline-flex',
                     alignItems: 'center',
+                    justifyContent: 'center',
                     gap: '6px',
                     height: '34px',
-                    padding: '0 14px',
+                    padding: '0 13px',
                     fontSize: '12px',
                     fontWeight: '700',
                     borderRadius: '8px',
-                    boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+                    border: 'none',
+                    background: '#D97706',
+                    color: '#FFFFFF',
+                    boxShadow: '0 1px 3px rgba(217, 119, 6, 0.25)',
                     whiteSpace: 'nowrap',
+                    cursor: updating ? 'not-allowed' : 'pointer',
+                    boxSizing: 'border-box',
+                    transition: 'all 0.15s ease',
                   }}
                 >
-                  <i className="fa-solid fa-box" style={{ fontSize: '11px' }}></i>
+                  <i className="fa-solid fa-box" style={{ fontSize: '11.5px' }}></i>
                   <span>Mark as Ready</span>
                 </button>
               )}
               {status === 'ready' && (
                 <button
-                  className="btn btn-primary"
+                  type="button"
                   style={{
                     background: '#16A34A',
-                    borderColor: '#16A34A',
+                    color: '#FFFFFF',
+                    border: 'none',
                     display: 'inline-flex',
                     alignItems: 'center',
+                    justifyContent: 'center',
                     gap: '6px',
                     height: '34px',
-                    padding: '0 14px',
+                    padding: '0 13px',
                     fontSize: '12px',
                     fontWeight: '700',
                     borderRadius: '8px',
-                    boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+                    boxShadow: '0 1px 3px rgba(22, 163, 74, 0.25)',
                     whiteSpace: 'nowrap',
+                    cursor: updating ? 'not-allowed' : 'pointer',
+                    boxSizing: 'border-box',
+                    transition: 'all 0.15s ease',
                   }}
                   onClick={() => handleUpdateStatus('completed')}
                   disabled={updating}
                 >
-                  <i className="fa-solid fa-circle-check" style={{ fontSize: '11px' }}></i>
+                  <i className="fa-solid fa-circle-check" style={{ fontSize: '11.5px' }}></i>
                   <span>Complete Order</span>
                 </button>
               )}
@@ -466,7 +532,8 @@ export default function OrderDetailClient({ order: initialOrder }) {
                 <span style={{
                   background: '#DCFCE7',
                   color: '#166534',
-                  padding: '6px 12px',
+                  height: '34px',
+                  padding: '0 12px',
                   borderRadius: '8px',
                   fontSize: '12px',
                   fontWeight: '700',
@@ -474,8 +541,9 @@ export default function OrderDetailClient({ order: initialOrder }) {
                   alignItems: 'center',
                   gap: '6px',
                   border: '1px solid #BBF7D0',
+                  boxSizing: 'border-box',
                 }}>
-                  <i className="fa-solid fa-circle-check" style={{ fontSize: '11px' }}></i>
+                  <i className="fa-solid fa-circle-check" style={{ fontSize: '11.5px' }}></i>
                   <span>Order Completed</span>
                 </span>
               )}
@@ -483,7 +551,8 @@ export default function OrderDetailClient({ order: initialOrder }) {
                 <span style={{
                   background: '#FEE2E2',
                   color: '#991B1B',
-                  padding: '6px 12px',
+                  height: '34px',
+                  padding: '0 12px',
                   borderRadius: '8px',
                   fontSize: '12px',
                   fontWeight: '700',
@@ -491,15 +560,46 @@ export default function OrderDetailClient({ order: initialOrder }) {
                   alignItems: 'center',
                   gap: '6px',
                   border: '1px solid #FECACA',
+                  boxSizing: 'border-box',
                 }}>
-                  <i className="fa-solid fa-circle-xmark" style={{ fontSize: '11px' }}></i>
+                  <i className="fa-solid fa-circle-xmark" style={{ fontSize: '11.5px' }}></i>
                   <span>Order Cancelled</span>
                 </span>
               )}
 
+              {/* 1-Tap Copy Order Receipt */}
+              <button
+                type="button"
+                onClick={handleCopyOrderReceipt}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  height: '34px',
+                  padding: '0 13px',
+                  borderRadius: '8px',
+                  border: copiedReceipt ? '1px solid #10B981' : '1px solid #CBD5E1',
+                  background: copiedReceipt ? '#ECFDF5' : '#ffffff',
+                  color: copiedReceipt ? '#059669' : '#334155',
+                  fontSize: '12px',
+                  fontWeight: '700',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
+                  whiteSpace: 'nowrap',
+                  boxSizing: 'border-box',
+                }}
+                title="Copy formatted order receipt to clipboard"
+              >
+                <i className={copiedReceipt ? 'fa-solid fa-check' : 'fa-regular fa-copy'} style={{ fontSize: '12px' }}></i>
+                <span>{copiedReceipt ? 'Receipt Copied!' : 'Copy Receipt'}</span>
+              </button>
+
               {/* Three Dots Menu Container */}
               <div ref={menuRef} style={{ position: 'relative' }}>
                 <button
+                  type="button"
                   onClick={() => setIsMenuOpen(!isMenuOpen)}
                   title="More Options"
                   style={{
@@ -509,11 +609,13 @@ export default function OrderDetailClient({ order: initialOrder }) {
                     width: '34px',
                     height: '34px',
                     borderRadius: '8px',
-                    border: '1px solid var(--color-border)',
+                    border: '1px solid #CBD5E1',
                     background: isMenuOpen ? '#f1f5f9' : '#ffffff',
                     color: '#334155',
                     cursor: 'pointer',
                     transition: 'all 0.15s ease',
+                    boxSizing: 'border-box',
+                    boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
                   }}
                 >
                   <i className="fa-solid fa-ellipsis" style={{ fontSize: '13px' }}></i>
@@ -526,36 +628,41 @@ export default function OrderDetailClient({ order: initialOrder }) {
                     top: 'calc(100% + 6px)',
                     right: 0,
                     background: '#ffffff',
-                    borderRadius: '12px',
+                    borderRadius: '10px',
                     border: '1px solid #e2e8f0',
-                    boxShadow: '0 12px 32px -4px rgba(0, 0, 0, 0.12), 0 4px 10px -2px rgba(0, 0, 0, 0.05)',
+                    boxShadow: '0 10px 28px -4px rgba(0, 0, 0, 0.12), 0 4px 10px -2px rgba(0, 0, 0, 0.05)',
                     minWidth: '175px',
-                    padding: '6px',
+                    padding: '5px',
                     zIndex: 9999,
                     display: 'flex',
                     flexDirection: 'column',
                     gap: '2px',
+                    boxSizing: 'border-box',
                   }}>
-                    <div style={{ padding: '4px 8px 2px', fontSize: '9.5px', fontWeight: '800', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                    <div style={{ padding: '5px 8px 3px', fontSize: '10px', fontWeight: '800', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                       Set Status
                     </div>
 
                     <button
+                      type="button"
                       onClick={() => handleUpdateStatus('confirmed')}
                       style={{
                         width: '100%',
+                        height: '32px',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'space-between',
-                        padding: '7px 9px',
-                        borderRadius: '7px',
+                        padding: '0 8px',
+                        borderRadius: '6px',
                         border: 'none',
                         background: status === 'confirmed' ? 'rgba(79, 70, 229, 0.08)' : 'transparent',
-                        color: status === 'confirmed' ? '#4338CA' : 'var(--color-text)',
+                        color: status === 'confirmed' ? '#4338CA' : '#1e293b',
                         fontSize: '12px',
                         fontWeight: status === 'confirmed' ? '700' : '500',
                         cursor: 'pointer',
                         textAlign: 'left',
+                        boxSizing: 'border-box',
+                        transition: 'background 0.12s ease',
                       }}
                     >
                       <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
@@ -566,21 +673,25 @@ export default function OrderDetailClient({ order: initialOrder }) {
                     </button>
 
                     <button
+                      type="button"
                       onClick={() => handleUpdateStatus('preparing')}
                       style={{
                         width: '100%',
+                        height: '32px',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'space-between',
-                        padding: '7px 9px',
-                        borderRadius: '7px',
+                        padding: '0 8px',
+                        borderRadius: '6px',
                         border: 'none',
                         background: status === 'preparing' ? 'rgba(219, 39, 119, 0.08)' : 'transparent',
-                        color: status === 'preparing' ? '#BE185D' : 'var(--color-text)',
+                        color: status === 'preparing' ? '#BE185D' : '#1e293b',
                         fontSize: '12px',
                         fontWeight: status === 'preparing' ? '700' : '500',
                         cursor: 'pointer',
                         textAlign: 'left',
+                        boxSizing: 'border-box',
+                        transition: 'background 0.12s ease',
                       }}
                     >
                       <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
@@ -591,21 +702,25 @@ export default function OrderDetailClient({ order: initialOrder }) {
                     </button>
 
                     <button
+                      type="button"
                       onClick={() => handleUpdateStatus('ready')}
                       style={{
                         width: '100%',
+                        height: '32px',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'space-between',
-                        padding: '7px 9px',
-                        borderRadius: '7px',
+                        padding: '0 8px',
+                        borderRadius: '6px',
                         border: 'none',
                         background: status === 'ready' ? 'rgba(22, 163, 74, 0.08)' : 'transparent',
-                        color: status === 'ready' ? '#15803D' : 'var(--color-text)',
+                        color: status === 'ready' ? '#15803D' : '#1e293b',
                         fontSize: '12px',
                         fontWeight: status === 'ready' ? '700' : '500',
                         cursor: 'pointer',
                         textAlign: 'left',
+                        boxSizing: 'border-box',
+                        transition: 'background 0.12s ease',
                       }}
                     >
                       <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
@@ -616,21 +731,25 @@ export default function OrderDetailClient({ order: initialOrder }) {
                     </button>
 
                     <button
+                      type="button"
                       onClick={() => handleUpdateStatus('completed')}
                       style={{
                         width: '100%',
+                        height: '32px',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'space-between',
-                        padding: '7px 9px',
-                        borderRadius: '7px',
+                        padding: '0 8px',
+                        borderRadius: '6px',
                         border: 'none',
                         background: status === 'completed' ? 'rgba(5, 150, 105, 0.08)' : 'transparent',
-                        color: status === 'completed' ? '#047857' : 'var(--color-text)',
+                        color: status === 'completed' ? '#047857' : '#1e293b',
                         fontSize: '12px',
                         fontWeight: status === 'completed' ? '700' : '500',
                         cursor: 'pointer',
                         textAlign: 'left',
+                        boxSizing: 'border-box',
+                        transition: 'background 0.12s ease',
                       }}
                     >
                       <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
@@ -641,18 +760,20 @@ export default function OrderDetailClient({ order: initialOrder }) {
                     </button>
 
                     {/* Divider */}
-                    <div style={{ height: '1px', background: 'var(--color-border-light)', margin: '4px 6px' }} />
+                    <div style={{ height: '1px', background: '#f1f5f9', margin: '3px 4px' }} />
 
                     {status === 'cancelled' ? (
                       <button
+                        type="button"
                         onClick={() => handleUpdateStatus('confirmed')}
                         style={{
                           width: '100%',
+                          height: '32px',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'space-between',
-                          padding: '7px 9px',
-                          borderRadius: '7px',
+                          padding: '0 8px',
+                          borderRadius: '6px',
                           border: 'none',
                           background: 'transparent',
                           color: '#4F46E5',
@@ -660,6 +781,8 @@ export default function OrderDetailClient({ order: initialOrder }) {
                           fontWeight: '600',
                           cursor: 'pointer',
                           textAlign: 'left',
+                          boxSizing: 'border-box',
+                          transition: 'background 0.12s ease',
                         }}
                       >
                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
@@ -669,14 +792,16 @@ export default function OrderDetailClient({ order: initialOrder }) {
                       </button>
                     ) : (
                       <button
+                        type="button"
                         onClick={() => handleUpdateStatus('cancelled')}
                         style={{
                           width: '100%',
+                          height: '32px',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'space-between',
-                          padding: '7px 9px',
-                          borderRadius: '7px',
+                          padding: '0 8px',
+                          borderRadius: '6px',
                           border: 'none',
                           background: 'transparent',
                           color: '#DC2626',
@@ -684,6 +809,8 @@ export default function OrderDetailClient({ order: initialOrder }) {
                           fontWeight: '600',
                           cursor: 'pointer',
                           textAlign: 'left',
+                          boxSizing: 'border-box',
+                          transition: 'background 0.12s ease',
                         }}
                       >
                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
@@ -793,7 +920,7 @@ export default function OrderDetailClient({ order: initialOrder }) {
                                 borderRadius: '4px',
                                 border: '1px solid rgba(234, 88, 12, 0.14)',
                               }}>
-                                {opt.option_name}: {opt.option_value}
+                                {opt.option_name ? `${opt.option_name}: ${opt.option_value}` : opt.option_value}
                               </span>
                             ))}
                           </div>
@@ -1001,6 +1128,101 @@ export default function OrderDetailClient({ order: initialOrder }) {
               )}
             </div>
 
+            {/* Payment Method & Proof of Payment Card */}
+            {(() => {
+              const isGcash = order.payment_method === 'gcash' || order.paymentMethod === 'gcash';
+              const proofUrl = order.payment_proof_url || order.paymentProofUrl;
+              const refNo = order.gcash_reference_no || order.gcashRefNo;
+
+              return (
+                <div style={{
+                  background: isGcash ? '#EFF6FF' : '#F0FDF4',
+                  border: `1px solid ${isGcash ? '#BFDBFE' : '#BBF7D0'}`,
+                  borderRadius: '10px',
+                  padding: '10px 12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '10px',
+                  flexWrap: 'wrap',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flex: 1 }}>
+                    <div style={{
+                      width: '32px',
+                      height: '32px',
+                      borderRadius: '8px',
+                      background: isGcash ? '#007DFE' : '#16A34A',
+                      color: '#FFFFFF',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '13px',
+                      flexShrink: 0,
+                    }}>
+                      <i className={isGcash ? 'fa-solid fa-wallet' : 'fa-solid fa-money-bill-wave'}></i>
+                    </div>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: '12.5px', fontWeight: '800', color: isGcash ? '#1E40AF' : '#166534' }}>
+                          {isGcash ? 'GCash Transfer' : (order.order_type === 'delivery' ? 'Cash on Delivery (COD)' : 'Cash upon Pickup')}
+                        </span>
+                        {refNo && (
+                          <span style={{ fontSize: '11px', fontWeight: '700', color: '#1E40AF', background: '#DBEAFE', padding: '1px 6px', borderRadius: '4px', fontFamily: 'monospace' }}>
+                            Ref: {refNo}
+                          </span>
+                        )}
+                      </div>
+                      <span style={{ fontSize: '11px', color: isGcash ? '#3B82F6' : '#15803D' }}>
+                        {isGcash
+                          ? (proofUrl ? 'Proof of payment attached' : 'Direct mobile / QR payment')
+                          : (order.order_type === 'delivery' ? 'Collect cash from customer upon delivery' : 'Collect cash upon customer pickup')}
+                      </span>
+                    </div>
+                  </div>
+
+                  {proofUrl && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={proofUrl}
+                        alt="Receipt"
+                        style={{
+                          width: '34px',
+                          height: '34px',
+                          objectFit: 'cover',
+                          borderRadius: '6px',
+                          border: '1px solid #93C5FD',
+                          cursor: 'pointer',
+                        }}
+                        onClick={() => setShowReceiptModal(true)}
+                        title="Click to view full receipt"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowReceiptModal(true)}
+                        style={{
+                          background: '#FFFFFF',
+                          border: '1px solid #93C5FD',
+                          color: '#1D4ED8',
+                          fontSize: '11px',
+                          fontWeight: '700',
+                          padding: '4px 8px',
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                        }}
+                      >
+                        <i className="fa-solid fa-receipt"></i>
+                        <span>View Receipt</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
             {/* Interactive Satellite Map & Navigation Container (Flex-growing & Auto-adjusting) */}
             <div style={{
               display: 'flex',
@@ -1041,13 +1263,13 @@ export default function OrderDetailClient({ order: initialOrder }) {
                   <div style={{ display: 'flex', alignItems: 'center', gap: '5px', marginBottom: '2px' }}>
                     <i className={order.order_type === 'delivery' ? 'fa-solid fa-location-dot' : 'fa-solid fa-store'} style={{ color: 'var(--color-primary)', fontSize: '10.5px' }}></i>
                     <span style={{ fontSize: '9.5px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.04em', color: '#64748B' }}>
-                      {order.order_type === 'delivery' ? 'Delivery Address' : 'Store Pickup Station'}
+                      {order.order_type === 'delivery' ? 'Delivery Address' : 'Pickup Location'}
                     </span>
                   </div>
                   <p style={{ fontSize: '12px', fontWeight: '700', color: '#0F172A', margin: 0, lineHeight: 1.3, wordBreak: 'break-word' }}>
                     {order.order_type === 'delivery'
                       ? (order.delivery_location?.address || 'Poblacion, Barugo, Leyte')
-                      : 'M&M Artsy Crafts Shop • Barugo, Leyte'}
+                      : 'M&M Artsy • Barugo, Leyte'}
                   </p>
                   {order.order_type === 'delivery' && order.delivery_location?.landmark_notes && order.delivery_location.landmark_notes.trim() !== (order.delivery_location.address || '').trim() && (
                     <p style={{ fontSize: '10.5px', color: '#64748B', margin: '2px 0 0', wordBreak: 'break-word' }}>
@@ -1099,6 +1321,157 @@ export default function OrderDetailClient({ order: initialOrder }) {
             </div>
           </div>
         </div>
+
+        {/* Payment Proof Receipt Zoom Modal */}
+        {showReceiptModal && (order.payment_proof_url || order.paymentProofUrl) && (
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(15, 23, 42, 0.8)',
+              backdropFilter: 'blur(5px)',
+              zIndex: 99999,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '20px',
+            }}
+            onClick={() => setShowReceiptModal(false)}
+          >
+            <div
+              style={{
+                background: '#FFFFFF',
+                borderRadius: '16px',
+                padding: '20px',
+                maxWidth: '460px',
+                width: '100%',
+                maxHeight: '90vh',
+                display: 'flex',
+                flexDirection: 'column',
+                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+                position: 'relative',
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div style={{
+                    width: '28px',
+                    height: '28px',
+                    borderRadius: '8px',
+                    background: '#EFF6FF',
+                    color: '#2563EB',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '12px',
+                  }}>
+                    <i className="fa-solid fa-receipt"></i>
+                  </div>
+                  <div>
+                    <h3 style={{ fontSize: '14px', fontWeight: '800', color: '#0F172A', margin: 0 }}>
+                      Payment Proof / Receipt
+                    </h3>
+                    <span style={{ fontSize: '11px', color: '#64748B' }}>
+                      Order #{order.reference_code}
+                    </span>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setShowReceiptModal(false)}
+                  style={{
+                    background: '#F1F5F9',
+                    border: 'none',
+                    borderRadius: '50%',
+                    width: '30px',
+                    height: '30px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    color: '#64748B',
+                  }}
+                >
+                  <i className="fa-solid fa-xmark"></i>
+                </button>
+              </div>
+
+              {/* Receipt Image Container */}
+              <div style={{
+                flex: 1,
+                overflowY: 'auto',
+                background: '#F8FAFC',
+                borderRadius: '12px',
+                border: '1px solid #E2E8F0',
+                padding: '12px',
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+              }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={order.payment_proof_url || order.paymentProofUrl}
+                  alt="Customer Payment Receipt"
+                  style={{ maxWidth: '100%', maxHeight: '60vh', objectFit: 'contain', borderRadius: '8px' }}
+                />
+              </div>
+
+              {/* Details & Actions Footer */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '14px', gap: '8px' }}>
+                <div style={{ fontSize: '12px', color: '#64748B' }}>
+                  {(order.gcash_reference_no || order.gcashRefNo) && (
+                    <span>Ref: <strong style={{ color: '#0F172A', fontFamily: 'monospace' }}>{order.gcash_reference_no || order.gcashRefNo}</strong></span>
+                  )}
+                </div>
+
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <a
+                    href={order.payment_proof_url || order.paymentProofUrl}
+                    download={`Receipt_${order.reference_code}.png`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      height: '34px',
+                      padding: '0 12px',
+                      background: '#007DFE',
+                      color: '#FFFFFF',
+                      borderRadius: '8px',
+                      fontSize: '12px',
+                      fontWeight: '700',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px',
+                      textDecoration: 'none',
+                    }}
+                  >
+                    <i className="fa-solid fa-arrow-down-to-bracket"></i>
+                    <span>Download</span>
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => setShowReceiptModal(false)}
+                    style={{
+                      height: '34px',
+                      padding: '0 12px',
+                      background: '#F1F5F9',
+                      color: '#334155',
+                      border: '1px solid #CBD5E1',
+                      borderRadius: '8px',
+                      fontSize: '12px',
+                      fontWeight: '700',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

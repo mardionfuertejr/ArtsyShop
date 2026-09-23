@@ -85,7 +85,7 @@ function saveVoucherWallet(wallet) {
   } catch {}
 }
 
-// Issue a voucher to customer's wallet (Single Voucher Issuance, 1 win per day)
+// Issue a voucher to customer's wallet (Unlocks tier + all lower tiers so players are never blocked by high cart requirements)
 export function issueVoucherForTier(tierKey) {
   const tier = VOUCHER_TIERS[tierKey];
   if (!tier) return null;
@@ -100,29 +100,46 @@ export function issueVoucherForTier(tierKey) {
     const now = new Date();
     const expiresAt = new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString(); // 24 hours
 
-    const newVoucher = {
-      code: generateRandomVoucherCode(tier.discount),
-      tierKey: tierKey,
-      tierName: tier.name,
-      discount: tier.discount,
-      minSpend: tier.minSpend,
-      badge: tier.badge,
-      color: tier.color,
-      label: `₱${tier.discount} OFF (Min. spend ₱${tier.minSpend})`,
-      createdAt: now.toISOString(),
-      expiresAt,
-      used: false,
+    // Create main won voucher
+    const createVoucherObj = (tKey) => {
+      const t = VOUCHER_TIERS[tKey];
+      return {
+        code: generateRandomVoucherCode(t.discount),
+        tierKey: tKey,
+        tierName: t.name,
+        discount: t.discount,
+        minSpend: t.minSpend,
+        badge: t.badge,
+        color: t.color,
+        label: `₱${t.discount} OFF (Min. spend ₱${t.minSpend})`,
+        createdAt: now.toISOString(),
+        expiresAt,
+        used: false,
+      };
     };
+
+    const newVoucher = createVoucherObj(tierKey);
+
+    // If won higher tier, also grant lower tiers so small-cart orders (e.g. ₱150) can still use rewards
+    const tiersToGrant = [tierKey];
+    if (tierKey === 'DIAMOND') {
+      tiersToGrant.push('GOLD', 'SILVER');
+    } else if (tierKey === 'GOLD') {
+      tiersToGrant.push('SILVER');
+    }
 
     const currentWallet = getVoucherWallet();
     let updatedWallet = [...currentWallet];
 
-    const existingIdx = updatedWallet.findIndex((v) => v.tierKey === newVoucher.tierKey);
-    if (existingIdx >= 0) {
-      updatedWallet[existingIdx] = newVoucher;
-    } else {
-      updatedWallet.push(newVoucher);
-    }
+    tiersToGrant.forEach((tK) => {
+      const vObj = tK === tierKey ? newVoucher : createVoucherObj(tK);
+      const existingIdx = updatedWallet.findIndex((v) => v.tierKey === tK);
+      if (existingIdx >= 0) {
+        updatedWallet[existingIdx] = vObj;
+      } else {
+        updatedWallet.push(vObj);
+      }
+    });
 
     saveVoucherWallet(updatedWallet);
     localStorage.setItem('mm_active_voucher', JSON.stringify(newVoucher));

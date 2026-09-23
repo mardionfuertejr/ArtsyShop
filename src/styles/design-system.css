@@ -3,7 +3,7 @@
    Tokens: Colors, Typography, Spacing, Radii, Shadows, Z-Index
    ============================================================ */
 
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Alex+Brush&family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600&display=swap');
 
 /* ── Color Palette: Calming Artisan Terracotta, Soft Oat Milk & Warm Charcoal ── */
 :root {
@@ -999,3 +999,41 @@ div[data-nextjs-route-announcer],
   opacity: 0 !important;
   pointer-events: none !important;
 }
+
+/* ── Print Media Styles (Clean Invoicing & Receipts) ── */
+@media print {
+  body {
+    background: #FFFFFF !important;
+    color: #000000 !important;
+    font-size: 12pt !important;
+  }
+
+  .no-print,
+  .top-bar,
+  .bottom-nav,
+  .mobile-nav,
+  .floating-menu-container,
+  .game-floating-badge,
+  .store-announcement-bar,
+  #game-floating-btn,
+  .fly-item {
+    display: none !important;
+    visibility: hidden !important;
+  }
+
+  .customer-shell,
+  .page-content {
+    max-width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+  }
+
+  .card,
+  [style*="background: var(--color-surface)"],
+  [style*="border: 1px solid"] {
+    border: 1px solid #CCCCCC !important;
+    box-shadow: none !important;
+  }
+}
+

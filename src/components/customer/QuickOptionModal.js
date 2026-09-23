@@ -9,6 +9,79 @@ import { useCart } from '@/lib/hooks/useCart';
 import { formatCurrency } from '@/lib/utils/formatCurrency';
 import { triggerToast } from '@/components/common/GlobalToast';
 
+// Smart category-based default options when product has no explicit options in DB
+const CATEGORY_DEFAULT_OPTIONS = {
+  bouquets: [
+    {
+      id: 'default-opt-color',
+      option_name: 'Color / Theme',
+      is_required: true,
+      choices: [
+        { label: 'Pastel Blush Pink', extra_cost: 0 },
+        { label: 'Crimson Velvet Red', extra_cost: 0 },
+        { label: 'Lilac Lavender', extra_cost: 0 },
+        { label: 'Sunflower Warm Yellow', extra_cost: 0 },
+        { label: 'White Elegance', extra_cost: 0 },
+        { label: 'Mixed Colors', extra_cost: 0 },
+      ],
+    },
+    {
+      id: 'default-opt-addons',
+      option_name: 'Add-ons',
+      is_required: false,
+      choices: [
+        { label: 'Message Card', extra_cost: 15 },
+        { label: 'Ribbon', extra_cost: 15 },
+        { label: 'Fairy LED Light', extra_cost: 35 },
+        { label: 'Gift Packaging', extra_cost: 30 },
+      ],
+    },
+  ],
+  'fuzzy-crafts': [
+    {
+      id: 'default-opt-color',
+      option_name: 'Color / Theme',
+      is_required: true,
+      choices: [
+        { label: 'Pastel Pink', extra_cost: 0 },
+        { label: 'Baby Blue', extra_cost: 0 },
+        { label: 'Cream White', extra_cost: 0 },
+        { label: 'Lavender', extra_cost: 0 },
+        { label: 'Sage Green', extra_cost: 0 },
+      ],
+    },
+  ],
+  'resin-art': [
+    {
+      id: 'default-opt-style',
+      option_name: 'Color / Style',
+      is_required: true,
+      choices: [
+        { label: 'Ocean Blue', extra_cost: 0 },
+        { label: 'Rose Gold', extra_cost: 0 },
+        { label: 'Crystal Clear', extra_cost: 0 },
+        { label: 'Galaxy Purple', extra_cost: 0 },
+        { label: 'Emerald Green', extra_cost: 0 },
+      ],
+    },
+  ],
+  'custom-gifts': [
+    {
+      id: 'default-opt-color',
+      option_name: 'Color Theme',
+      is_required: true,
+      choices: [
+        { label: 'Pink', extra_cost: 0 },
+        { label: 'Red', extra_cost: 0 },
+        { label: 'White', extra_cost: 0 },
+        { label: 'Purple', extra_cost: 0 },
+        { label: 'Mixed Colors', extra_cost: 0 },
+      ],
+    },
+  ],
+};
+
+// Fallback if product has no category match
 const DEFAULT_HANDMADE_OPTIONS = [
   {
     id: 'default-opt-color',
@@ -22,6 +95,25 @@ const DEFAULT_HANDMADE_OPTIONS = [
     ],
   },
 ];
+
+function getDefaultOptionsForProduct(product) {
+  const catSlug = product?.category?.slug || '';
+  const catName = (product?.category?.name || '').toLowerCase();
+
+  // Match by slug first
+  if (CATEGORY_DEFAULT_OPTIONS[catSlug]) {
+    return CATEGORY_DEFAULT_OPTIONS[catSlug];
+  }
+
+  // Match by name keyword
+  for (const [key, opts] of Object.entries(CATEGORY_DEFAULT_OPTIONS)) {
+    if (catName.includes(key.replace('-', ' ')) || catName.includes(key.split('-')[0])) {
+      return opts;
+    }
+  }
+
+  return DEFAULT_HANDMADE_OPTIONS;
+}
 
 export default function QuickOptionModal() {
   const [product, setProduct] = useState(null);
@@ -102,7 +194,7 @@ export default function QuickOptionModal() {
 
   const options = (product.product_options && product.product_options.length > 0)
     ? product.product_options
-    : DEFAULT_HANDMADE_OPTIONS;
+    : getDefaultOptionsForProduct(product);
 
   const isOnSale = Boolean(product.is_on_sale && product.sale_price && Number(product.base_price) > Number(product.sale_price));
   const originalBasePrice = parseFloat(product.base_price || 0);
@@ -195,8 +287,7 @@ export default function QuickOptionModal() {
       .join(', ');
 
     triggerToast({
-      title: 'Added to Cart! ✨',
-      message: `${product.name}${selectedLabels ? ` (${selectedLabels})` : ''}`,
+      message: `${product.name}${selectedLabels ? ` (${selectedLabels})` : ''} added to cart`,
       photo: resolvedPhoto,
       type: 'cart',
       quantity,

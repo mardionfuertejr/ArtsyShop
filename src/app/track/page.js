@@ -75,7 +75,7 @@ function getStatusHero(status, isDelivery) {
         title: isDelivery ? 'Out for Delivery' : 'Ready for Pickup',
         subtitle: isDelivery
           ? 'Your order is packed and dispatched for delivery.'
-          : 'Your order is ready for pickup at our Barugo store.',
+          : 'Your order is ready for pickup.',
       };
     case 'completed':
       return {
@@ -240,8 +240,7 @@ function TrackContent() {
           .from('orders')
           .select(`
             reference_code, customer_name, status, order_type,
-            total_amount, subtotal, delivery_fee, preferred_date, created_at,
-            delivery_address, landmark,
+            total_amount, subtotal, delivery_fee, preferred_date, preferred_time, notes, created_at,
             order_items(product_name, quantity, total_price,
               order_item_options(option_value)
             )
@@ -250,7 +249,29 @@ function TrackContent() {
           .single();
 
         if (!err && data) {
-          foundOrder = data;
+          let parsedNotes = data.notes || '';
+          let paymentMethod = 'cod';
+          let gcashRefNo = '';
+          let paymentProofUrl = '';
+          if (parsedNotes.includes('[PAYMENT_META:')) {
+            try {
+              const metaMatch = parsedNotes.match(/\[PAYMENT_META:([\s\S]*?)\]/);
+              if (metaMatch && metaMatch[1]) {
+                const parsed = JSON.parse(metaMatch[1]);
+                paymentMethod = parsed.payment_method || paymentMethod;
+                gcashRefNo = parsed.gcash_reference_no || '';
+                paymentProofUrl = parsed.payment_proof_url || '';
+              }
+              parsedNotes = parsedNotes.replace(/\[PAYMENT_META:[\s\S]*?\]/, '').trim();
+            } catch {}
+          }
+          foundOrder = {
+            ...data,
+            notes: parsedNotes,
+            payment_method: paymentMethod,
+            gcash_reference_no: gcashRefNo,
+            payment_proof_url: paymentProofUrl,
+          };
         } else {
           // Check custom_requests table
           const { data: crData } = await supabase
@@ -1242,14 +1263,14 @@ function TrackContent() {
                             ? `${formatDateShort(order.target_date || order.preferred_date || order.preferredDate)}${order.preferred_time || order.preferredTime ? ` · ${formatTime12Hour(order.preferred_time || order.preferredTime)}` : ''}`
                             : isDelivery
                             ? 'Standard Delivery'
-                            : 'Barugo Store'
+                            : 'Pickup (Barugo)'
                         }
                       >
                         {(order.target_date || order.preferred_date || order.preferredDate)
                           ? `${formatDateShort(order.target_date || order.preferred_date || order.preferredDate)}${order.preferred_time || order.preferredTime ? ` · ${formatTime12Hour(order.preferred_time || order.preferredTime)}` : ''}`
                           : isDelivery
                           ? 'Standard Delivery'
-                          : 'Barugo Store'}
+                          : 'Pickup (Barugo)'}
                       </span>
                     </div>
                   </div>

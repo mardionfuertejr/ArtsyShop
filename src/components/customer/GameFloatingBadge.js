@@ -8,12 +8,8 @@ export default function GameFloatingBadge() {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
 
-  // Show ONLY on customer browsing/shopping pages (Home, Shop, and Product Details)
-  // Hide on checkout, cart, tracking, custom requests, confirmation, and admin
-  const isAllowedPage =
-    pathname === '/' ||
-    pathname === '/shop' ||
-    (pathname?.startsWith('/shop/') && !pathname?.startsWith('/shop/custom'));
+  // Show ONLY on customer Home page to keep product and checkout clean and distraction-free
+  const isAllowedPage = pathname === '/';
 
   if (!isAllowedPage) {
     return null;

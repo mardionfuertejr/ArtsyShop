@@ -40,42 +40,65 @@ export async function GET() {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    const formatted = (dbOrders || []).map((ord) => ({
-      id: ord.id,
-      reference_code: ord.reference_code,
-      customer_name: ord.customer_name,
-      customer_phone: ord.customer_phone || '',
-      facebook_name: ord.facebook_name || '',
-      order_type: ord.order_type,
-      status: ord.status,
-      subtotal: parseFloat(ord.subtotal) || 0,
-      delivery_fee: parseFloat(ord.delivery_fee) || 0,
-      rush_fee: parseFloat(ord.rush_fee) || 0,
-      is_rush: Boolean(ord.is_rush),
-      total_amount: parseFloat(ord.total_amount) || 0,
-      total_cost: parseFloat(ord.total_cost) || 0,
-      preferred_date: ord.preferred_date || null,
-      preferred_time: ord.preferred_time || null,
-      notes: ord.notes || '',
-      messenger_opened_at: ord.messenger_opened_at || null,
-      sent_to_messenger: Boolean(ord.sent_to_messenger),
-      created_at: ord.created_at,
-      order_items: (ord.order_items || []).map((it) => ({
-        id: it.id,
-        product_name: it.product_name,
-        quantity: it.quantity,
-        unit_price: parseFloat(it.unit_price) || 0,
-        total_price: parseFloat(it.total_price) || 0,
-        unit_cost: parseFloat(it.unit_cost) || 0,
-        total_cost: parseFloat(it.total_cost) || 0,
-        options: (it.order_item_options || []).map((opt) => ({
-          option_name: opt.option_name,
-          option_value: opt.option_value,
-          additional_cost: parseFloat(opt.additional_cost) || 0,
+    const formatted = (dbOrders || []).map((ord) => {
+      let payment_method = ord.payment_method || 'pickup';
+      let payment_proof_url = ord.payment_proof_url || null;
+      let gcash_reference_no = ord.gcash_reference_no || null;
+      let cleanNotes = ord.notes || '';
+
+      if (cleanNotes.includes('[PAYMENT_META:')) {
+        try {
+          const match = cleanNotes.match(/\[PAYMENT_META:(.*?)\]/);
+          if (match) {
+            const parsed = JSON.parse(match[1]);
+            if (parsed.payment_method) payment_method = parsed.payment_method;
+            if (parsed.payment_proof_url) payment_proof_url = parsed.payment_proof_url;
+            if (parsed.gcash_reference_no) gcash_reference_no = parsed.gcash_reference_no;
+            cleanNotes = cleanNotes.replace(/\[PAYMENT_META:.*?\]\s*/, '');
+          }
+        } catch {}
+      }
+
+      return {
+        id: ord.id,
+        reference_code: ord.reference_code,
+        customer_name: ord.customer_name,
+        customer_phone: ord.customer_phone || '',
+        facebook_name: ord.facebook_name || '',
+        order_type: ord.order_type,
+        status: ord.status,
+        payment_method,
+        payment_proof_url,
+        gcash_reference_no,
+        subtotal: parseFloat(ord.subtotal) || 0,
+        delivery_fee: parseFloat(ord.delivery_fee) || 0,
+        rush_fee: parseFloat(ord.rush_fee) || 0,
+        is_rush: Boolean(ord.is_rush),
+        total_amount: parseFloat(ord.total_amount) || 0,
+        total_cost: parseFloat(ord.total_cost) || 0,
+        preferred_date: ord.preferred_date || null,
+        preferred_time: ord.preferred_time || null,
+        notes: cleanNotes,
+        messenger_opened_at: ord.messenger_opened_at || null,
+        sent_to_messenger: Boolean(ord.sent_to_messenger),
+        created_at: ord.created_at,
+        order_items: (ord.order_items || []).map((it) => ({
+          id: it.id,
+          product_name: it.product_name,
+          quantity: it.quantity,
+          unit_price: parseFloat(it.unit_price) || 0,
+          total_price: parseFloat(it.total_price) || 0,
+          unit_cost: parseFloat(it.unit_cost) || 0,
+          total_cost: parseFloat(it.total_cost) || 0,
+          options: (it.order_item_options || []).map((opt) => ({
+            option_name: opt.option_name,
+            option_value: opt.option_value,
+            additional_cost: parseFloat(opt.additional_cost) || 0,
+          })),
         })),
-      })),
-      delivery_location: ord.delivery_locations?.[0] || null,
-    }));
+        delivery_location: ord.delivery_locations?.[0] || null,
+      };
+    });
 
     return NextResponse.json({ success: true, orders: formatted });
   } catch (err) {
@@ -93,6 +116,9 @@ export async function POST(request) {
       facebook_name,
       order_type,
       status = 'confirmed',
+      payment_method = 'pickup',
+      payment_proof_url = null,
+      gcash_reference_no = null,
       subtotal = 0,
       delivery_fee = 0,
       rush_fee = 0,
@@ -115,6 +141,14 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Supabase server client not available' }, { status: 500 });
     }
 
+    // Embed payment metadata safely in notes so it persists across DB without requiring schema column changes
+    const paymentMeta = (payment_method || payment_proof_url || gcash_reference_no) ? JSON.stringify({
+      payment_method,
+      payment_proof_url,
+      gcash_reference_no,
+    }) : null;
+    const finalNotesForDb = paymentMeta ? `[PAYMENT_META:${paymentMeta}] ${notes || ''}`.trim() : (notes || '');
+
     // Upsert order
     const { data: order, error: orderErr } = await supabase
       .from('orders')
@@ -133,7 +167,7 @@ export async function POST(request) {
         total_cost: parseFloat(total_cost) || 0,
         preferred_date: preferred_date || null,
         preferred_time: preferred_time || null,
-        notes: notes || '',
+        notes: finalNotesForDb,
       }, { onConflict: 'reference_code' })
       .select()
       .single();
@@ -198,7 +232,15 @@ export async function POST(request) {
       });
     }
 
-    return NextResponse.json({ success: true, order });
+    return NextResponse.json({
+      success: true,
+      order: {
+        ...order,
+        payment_method,
+        payment_proof_url,
+        gcash_reference_no,
+      },
+    });
   } catch (err) {
     console.error('[API /api/orders] Unexpected error:', err);
     return NextResponse.json({ error: err.message }, { status: 500 });

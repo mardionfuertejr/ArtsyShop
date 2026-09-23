@@ -46,6 +46,24 @@ export default async function AdminOrderDetailPage({ params }) {
         : await query.or(`id.eq.${orderId},reference_code.eq.${orderId}`).maybeSingle();
 
       if (dbOrder) {
+        let payment_method = dbOrder.payment_method || dbOrder.paymentMethod || 'pickup';
+        let payment_proof_url = dbOrder.payment_proof_url || dbOrder.paymentProofUrl || null;
+        let gcash_reference_no = dbOrder.gcash_reference_no || dbOrder.gcashRefNo || null;
+        let cleanNotes = dbOrder.notes || '';
+
+        if (cleanNotes.includes('[PAYMENT_META:')) {
+          try {
+            const match = cleanNotes.match(/\[PAYMENT_META:(.*?)\]/);
+            if (match) {
+              const parsed = JSON.parse(match[1]);
+              if (parsed.payment_method) payment_method = parsed.payment_method;
+              if (parsed.payment_proof_url) payment_proof_url = parsed.payment_proof_url;
+              if (parsed.gcash_reference_no) gcash_reference_no = parsed.gcash_reference_no;
+              cleanNotes = cleanNotes.replace(/\[PAYMENT_META:.*?\]\s*/, '');
+            }
+          } catch {}
+        }
+
         order = {
           id: dbOrder.id,
           reference_code: dbOrder.reference_code,
@@ -54,6 +72,9 @@ export default async function AdminOrderDetailPage({ params }) {
           facebook_name: dbOrder.facebook_name || '',
           order_type: dbOrder.order_type,
           status: dbOrder.status,
+          payment_method,
+          payment_proof_url,
+          gcash_reference_no,
           subtotal: parseFloat(dbOrder.subtotal) || 0,
           delivery_fee: parseFloat(dbOrder.delivery_fee) || 0,
           rush_fee: parseFloat(dbOrder.rush_fee) || 0,
@@ -62,7 +83,7 @@ export default async function AdminOrderDetailPage({ params }) {
           total_cost: parseFloat(dbOrder.total_cost) || 0,
           preferred_date: dbOrder.preferred_date || null,
           preferred_time: dbOrder.preferred_time || null,
-          notes: dbOrder.notes || '',
+          notes: cleanNotes,
           created_at: dbOrder.created_at,
           order_items: (dbOrder.order_items || []).map((it) => ({
             id: it.id,

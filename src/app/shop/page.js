@@ -6,7 +6,7 @@ export const revalidate = 30;
 
 export const metadata = {
   title: 'Collection & Catalog',
-  description: 'Browse all handmade bouquets, crochet art, and custom gifts available from M&M\'s Artsy.',
+  description: 'Browse all handmade bouquets, fuzzy wire crafts, and custom gifts available from M&M\'s Artsy.',
 };
 
 async function getProducts() {
@@ -19,7 +19,8 @@ async function getProducts() {
           id, name, slug, base_price, description, category_id, is_ready_made, ready_made_stock,
           is_on_sale, sale_price, sale_tag, is_sold_out, is_bestseller,
           category:categories(id, name, slug),
-          product_photos(id, url, storage_path, is_cover, display_order)
+          product_photos(id, url, storage_path, is_cover, display_order),
+          product_options(id, option_name, choices, is_required, display_order)
         `)
         .eq('is_available', true)
         .order('display_order', { ascending: true });

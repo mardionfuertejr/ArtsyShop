@@ -81,7 +81,13 @@ export default function CheckoutPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [fieldErrors, setFieldErrors] = useState({});
+  const [paymentMethod, setPaymentMethod] = useState('gcash'); // 'gcash' | 'cod'
+  const [paymentProofUrl, setPaymentProofUrl] = useState('');
+  const [gcashRefNo, setGcashRefNo] = useState('');
+  const [copiedGcash, setCopiedGcash] = useState(false);
+  const [showQrModal, setShowQrModal] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
+
   const [settings, setSettings] = useState({
     pickup_address: '',
     pickup_notes: '',
@@ -92,6 +98,9 @@ export default function CheckoutPage() {
     delivery_fee_far: 45,
     rush_fee_enabled: true,
     rush_fee_amount: 50,
+    gcash_name: '',
+    gcash_number: '',
+    gcash_qr_url: '',
   });
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
@@ -210,12 +219,12 @@ export default function CheckoutPage() {
       return;
     }
 
-    // Check standard promo codes
+    // Check standard promo codes & game voucher patterns
     let newVoucher = null;
-    if (cleanCode === 'ARTSYWINNER' || cleanCode.endsWith('-25') || cleanCode === 'MMARTSY25') {
-      if (subtotal < 850) {
-        const lacking = (850 - subtotal);
-        const errMsg = `Min. spend ₱850 · Add ₱${lacking % 1 === 0 ? lacking.toFixed(0) : lacking.toFixed(2)} more`;
+    if (cleanCode.endsWith('-50') || cleanCode === 'MMARTSY50' || cleanCode === 'ARTSYWINNER') {
+      if (subtotal < 1200) {
+        const lacking = (1200 - subtotal);
+        const errMsg = `Min. spend ₱1,200 · Add ₱${lacking % 1 === 0 ? lacking.toFixed(0) : lacking.toFixed(2)} more`;
         setVoucherError(errMsg);
         if (typeof window !== 'undefined') {
           try {
@@ -226,9 +235,27 @@ export default function CheckoutPage() {
       }
       newVoucher = {
         code: cleanCode,
-        discount: 25,
-        minSpend: 850,
-        label: '₱25 OFF Masterpiece Artisan Voucher',
+        discount: 50,
+        minSpend: 1200,
+        label: '₱50 OFF Diamond Tier Voucher',
+      };
+    } else if (cleanCode.endsWith('-30') || cleanCode === 'MMARTSY30') {
+      if (subtotal < 800) {
+        const lacking = (800 - subtotal);
+        const errMsg = `Min. spend ₱800 · Add ₱${lacking % 1 === 0 ? lacking.toFixed(0) : lacking.toFixed(2)} more`;
+        setVoucherError(errMsg);
+        if (typeof window !== 'undefined') {
+          try {
+            window.dispatchEvent(new CustomEvent('likha_toast', { detail: { type: 'error', title: 'Min. Spend Required ⚠️', message: errMsg, duration: 3500 } }));
+          } catch {}
+        }
+        return;
+      }
+      newVoucher = {
+        code: cleanCode,
+        discount: 30,
+        minSpend: 800,
+        label: '₱30 OFF Masterpiece Voucher',
       };
     } else if (cleanCode === 'MMARTSY20' || cleanCode.endsWith('-20')) {
       if (subtotal < 600) {
@@ -246,30 +273,12 @@ export default function CheckoutPage() {
         code: cleanCode,
         discount: 20,
         minSpend: 600,
-        label: '₱20 OFF Diamond Tier Voucher',
-      };
-    } else if (cleanCode === 'MMARTSY15' || cleanCode.endsWith('-15')) {
-      if (subtotal < 450) {
-        const lacking = (450 - subtotal);
-        const errMsg = `Min. spend ₱450 · Add ₱${lacking % 1 === 0 ? lacking.toFixed(0) : lacking.toFixed(2)} more`;
-        setVoucherError(errMsg);
-        if (typeof window !== 'undefined') {
-          try {
-            window.dispatchEvent(new CustomEvent('likha_toast', { detail: { type: 'error', title: 'Min. Spend Required ⚠️', message: errMsg, duration: 3500 } }));
-          } catch {}
-        }
-        return;
-      }
-      newVoucher = {
-        code: cleanCode,
-        discount: 15,
-        minSpend: 450,
-        label: '₱15 OFF Gold Tier Voucher',
+        label: '₱20 OFF Gold Tier Voucher',
       };
     } else if (cleanCode === 'MMARTSY10' || cleanCode.endsWith('-10')) {
-      if (subtotal < 250) {
-        const lacking = (250 - subtotal);
-        const errMsg = `Min. spend ₱250 · Add ₱${lacking % 1 === 0 ? lacking.toFixed(0) : lacking.toFixed(2)} more`;
+      if (subtotal < 350) {
+        const lacking = (350 - subtotal);
+        const errMsg = `Min. spend ₱350 · Add ₱${lacking % 1 === 0 ? lacking.toFixed(0) : lacking.toFixed(2)} more`;
         setVoucherError(errMsg);
         if (typeof window !== 'undefined') {
           try {
@@ -281,13 +290,13 @@ export default function CheckoutPage() {
       newVoucher = {
         code: cleanCode,
         discount: 10,
-        minSpend: 250,
+        minSpend: 350,
         label: '₱10 OFF Silver Tier Voucher',
       };
     } else if (cleanCode === 'MMARTSY5' || cleanCode.endsWith('-5') || cleanCode === 'ARTSYLOVE5') {
-      if (subtotal < 120) {
-        const lacking = (120 - subtotal);
-        const errMsg = `Min. spend ₱120 · Add ₱${lacking % 1 === 0 ? lacking.toFixed(0) : lacking.toFixed(2)} more`;
+      if (subtotal < 200) {
+        const lacking = (200 - subtotal);
+        const errMsg = `Min. spend ₱200 · Add ₱${lacking % 1 === 0 ? lacking.toFixed(0) : lacking.toFixed(2)} more`;
         setVoucherError(errMsg);
         if (typeof window !== 'undefined') {
           try {
@@ -299,7 +308,7 @@ export default function CheckoutPage() {
       newVoucher = {
         code: cleanCode,
         discount: 5,
-        minSpend: 120,
+        minSpend: 200,
         label: '₱5 OFF Starter Voucher',
       };
     } else {
@@ -403,8 +412,9 @@ export default function CheckoutPage() {
             delivery_fee_far: parseFloat(data.settings.deliveryFeeFar) || 45,
             rush_fee_enabled: data.settings.rushFeeEnabled !== undefined ? data.settings.rushFeeEnabled : true,
             rush_fee_amount: data.settings.rushFeeAmount !== undefined ? parseFloat(data.settings.rushFeeAmount) : 50,
-            gcash_name: data.settings.gcashName,
-            gcash_number: data.settings.gcashNumber,
+            gcash_name: data.settings.gcashName || data.settings.gcash_name || '',
+            gcash_number: data.settings.gcashNumber || data.settings.gcash_number || '',
+            gcash_qr_url: data.settings.gcashQrUrl || data.settings.gcash_qr_url || '',
             studio_name: data.settings.studioName,
           });
           return;
@@ -427,8 +437,9 @@ export default function CheckoutPage() {
             delivery_fee_far: parseFloat(parsed.deliveryFeeFar) || 45,
             rush_fee_enabled: parsed.rushFeeEnabled !== undefined ? parsed.rushFeeEnabled : true,
             rush_fee_amount: parsed.rushFeeAmount !== undefined ? parseFloat(parsed.rushFeeAmount) : 50,
-            gcash_name: parsed.gcashName,
-            gcash_number: parsed.gcashNumber,
+            gcash_name: parsed.gcashName || parsed.gcash_name || '',
+            gcash_number: parsed.gcashNumber || parsed.gcash_number || '',
+            gcash_qr_url: parsed.gcashQrUrl || parsed.gcash_qr_url || '',
             studio_name: parsed.studioName,
           });
           return;
@@ -440,7 +451,13 @@ export default function CheckoutPage() {
         if (supabase) {
           const { data } = await supabase.from('business_settings').select('*').single();
           if (data) {
-            setSettings(prev => ({ ...prev, ...data }));
+            setSettings(prev => ({
+              ...prev,
+              ...data,
+              gcash_name: data.gcash_name || data.gcashName || prev.gcash_name,
+              gcash_number: data.gcash_number || data.gcashNumber || prev.gcash_number,
+              gcash_qr_url: data.gcash_qr_url || data.gcashQrUrl || prev.gcash_qr_url,
+            }));
           }
 
           // Check if authenticated with Google / Supabase
@@ -745,13 +762,24 @@ export default function CheckoutPage() {
     if (!formData.preferredTime) {
       newErrors.preferredTime = 'Paki-pili ang target time needed.';
     }
+    if (paymentMethod === 'gcash') {
+      const cleanRef = (gcashRefNo || '').trim().replace(/[\s-]/g, '');
+      const hasReceipt = Boolean(paymentProofUrl);
+      const hasRef = Boolean(cleanRef);
+
+      if (!hasReceipt && !hasRef) {
+        newErrors.gcashProof = 'Kailangan mag-upload ng GCash receipt o maglagay ng Ref No.';
+      } else if (hasRef && !/^\d{9,13}$/.test(cleanRef)) {
+        newErrors.gcashProof = 'Invalid GCash Ref No. (Dapat 9-13 digits, hal. 1001 2345 67890)';
+      }
+    }
 
     if (Object.keys(newErrors).length > 0) {
       setFieldErrors(newErrors);
       setError('May mga kulang na impormasyon. Paki-kumpleto ang mga naka-highlight na field.');
 
       setTimeout(() => {
-        const order = ['name', 'mapPin', 'landmark', 'preferredDate', 'preferredTime'];
+        const order = ['name', 'mapPin', 'landmark', 'preferredDate', 'preferredTime', 'gcashProof'];
         for (const k of order) {
           if (newErrors[k]) {
             let elId = '';
@@ -760,6 +788,7 @@ export default function CheckoutPage() {
             else if (k === 'landmark') elId = 'landmark';
             else if (k === 'preferredDate') elId = orderType === 'delivery' ? 'preferred-date' : 'preferred-date-pickup';
             else if (k === 'preferredTime') elId = orderType === 'delivery' ? 'preferred-time' : 'preferred-time-pickup';
+            else if (k === 'gcashProof') elId = 'gcash-proof-section';
 
             const el = document.getElementById(elId);
             if (el) {
@@ -818,6 +847,9 @@ export default function CheckoutPage() {
       customer_phone: formData.phone,
       order_type: orderType,
       status: 'pending',
+      payment_method: paymentMethod,
+      payment_proof_url: paymentProofUrl || null,
+      gcash_reference_no: gcashRefNo || null,
       subtotal,
       delivery_fee: deliveryFee,
       rush_fee: appliedRushFee,
@@ -846,6 +878,9 @@ export default function CheckoutPage() {
       facebook_name: formData.facebookName || '',
       order_type: orderType,
       status: 'confirmed',
+      payment_method: paymentMethod,
+      payment_proof_url: paymentProofUrl || null,
+      gcash_reference_no: gcashRefNo || null,
       subtotal,
       delivery_fee: deliveryFee,
       rush_fee: appliedRushFee,
@@ -886,6 +921,9 @@ export default function CheckoutPage() {
         customerPhone: formData.phone,
         facebookName: formData.facebookName,
         orderType,
+        paymentMethod,
+        paymentProofUrl: paymentProofUrl || null,
+        gcashRefNo: gcashRefNo || null,
         deliveryAddress: deliveryAddress || '',
         subtotal,
         deliveryFee,
@@ -913,6 +951,7 @@ export default function CheckoutPage() {
           referenceCode,
           customerName: formData.name,
           orderType,
+          paymentMethod,
           totalAmount,
           itemsSummary: checkoutCart.map(i => `${i.productName} ×${i.quantity}`).join(', '),
           createdAt: new Date().toISOString(),
@@ -949,6 +988,15 @@ export default function CheckoutPage() {
     try {
       const supabase = createClient();
       if (supabase) {
+        const paymentMeta = (paymentMethod || paymentProofUrl || gcashRefNo) ? JSON.stringify({
+          payment_method: paymentMethod,
+          payment_proof_url: paymentProofUrl || null,
+          gcash_reference_no: gcashRefNo || null,
+        }) : null;
+        const notesWithPaymentMeta = paymentMeta
+          ? `[PAYMENT_META:${paymentMeta}] ${customerNotes || ''}`.trim()
+          : (customerNotes || '');
+
         const { data: order, error: orderErr } = await supabase
           .from('orders')
           .upsert({
@@ -964,7 +1012,7 @@ export default function CheckoutPage() {
             is_rush: Boolean(isRush),
             total_amount: totalAmount,
             total_cost: fullAdminOrder.total_cost || 0,
-            notes: customerNotes || '',
+            notes: notesWithPaymentMeta,
             preferred_date: formData.preferredDate || null,
             preferred_time: formData.preferredTime || null,
           }, { onConflict: 'reference_code' })
@@ -1085,26 +1133,10 @@ export default function CheckoutPage() {
         <form onSubmit={handleSubmit} style={{ width: '100%', maxWidth: '640px', margin: '0 auto', boxSizing: 'border-box', overflowX: 'hidden' }}>
           {/* Customer Details */}
           <div className="section" style={{ paddingTop: 'var(--space-2)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 'var(--space-3)' }}>
+            <div style={{ marginBottom: 'var(--space-3)' }}>
               <h2 className="section-title" style={{ fontSize: 'var(--text-base)', margin: 0 }}>
                 Customer Details
               </h2>
-              {formData.name && (
-                <span style={{
-                  fontSize: '11px',
-                  color: 'var(--color-success)',
-                  fontWeight: 600,
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  background: 'var(--color-success-bg, #F0FDF4)',
-                  padding: '2px 8px',
-                  borderRadius: '9999px',
-                  border: '1px solid rgba(21, 128, 61, 0.15)'
-                }}>
-                  <i className="fa-solid fa-bolt" style={{ fontSize: '10px' }}></i> Auto-filled
-                </span>
-              )}
             </div>
 
             <div className="input-group">
@@ -1260,8 +1292,8 @@ export default function CheckoutPage() {
                       <span>{fieldErrors.landmark}</span>
                     </p>
                   )}
-                  <span style={{ fontSize: '11.5px', color: 'var(--color-text-muted)', marginTop: '5px', display: 'block', lineHeight: 1.35 }}>
-                    💡 <strong>Tip:</strong> I-drag ang pin sa mapa o maglagay ng landmark para mas madaling mahanap ng rider.
+                  <span style={{ fontSize: '11px', color: 'var(--color-text-muted)', marginTop: '4px', display: 'block', lineHeight: 1.3 }}>
+                    💡 <strong>Tip:</strong> Maglagay ng landmark para mas madaling maihatid ni seller.
                   </span>
                 </div>
 
@@ -1383,21 +1415,6 @@ export default function CheckoutPage() {
                     </div>
                   )}
                 </div>
-
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  fontSize: '11.5px',
-                  color: 'var(--color-text-muted)',
-                  background: 'var(--color-surface-warm)',
-                  padding: '9px 12px',
-                  borderRadius: 'var(--radius-md)',
-                  border: '1px solid var(--color-border-light)'
-                }}>
-                  <i className="fa-regular fa-clock" style={{ fontSize: '12px', color: 'var(--color-primary)', flexShrink: 0 }}></i>
-                  <span>Exact pickup time on your chosen date will be coordinated via Messenger.</span>
-                </div>
               </div>
             )}
           </div>
@@ -1469,6 +1486,378 @@ export default function CheckoutPage() {
           </div>
 
           <hr className="divider" style={{ margin: 0 }} />
+
+          {/* Payment Method Section */}
+          <div className="section" id="payment-section" style={{ padding: '0 var(--space-4)' }}>
+            <div style={{ background: '#FFFFFF', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-xl, 16px)', padding: '14px 16px', boxShadow: '0 1px 3px rgba(0,0,0,0.02)' }}>
+              {/* Header */}
+              <h2 style={{ fontSize: '13.5px', fontWeight: '800', color: 'var(--color-text)', margin: '0 0 10px', display: 'flex', alignItems: 'center', gap: '7px' }}>
+                <i className="fa-solid fa-wallet" style={{ color: '#2563EB', fontSize: '13px' }}></i>
+                Payment Method
+              </h2>
+
+              {/* 2 Radio Cards */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '10px' }}>
+                <button type="button" onClick={() => setPaymentMethod('gcash')} style={{
+                  display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 12px', borderRadius: '10px',
+                  border: paymentMethod === 'gcash' ? '2px solid #007DFE' : '1.5px solid #E2E8F0',
+                  background: paymentMethod === 'gcash' ? '#F0F7FF' : '#FFF', cursor: 'pointer', textAlign: 'left',
+                }}>
+                  <span style={{ width: '16px', height: '16px', borderRadius: '50%', flexShrink: 0, boxSizing: 'border-box', border: paymentMethod === 'gcash' ? '5px solid #007DFE' : '2px solid #CBD5E1', background: '#FFF' }}></span>
+                  <div>
+                    <span style={{ display: 'block', fontSize: '12.5px', fontWeight: '700', color: paymentMethod === 'gcash' ? '#007DFE' : '#1E293B', lineHeight: 1.2 }}>GCash</span>
+                    <span style={{ display: 'block', fontSize: '10.5px', color: '#64748B', lineHeight: 1.2, marginTop: '1px' }}>QR / Mobile No.</span>
+                  </div>
+                </button>
+                <button type="button" onClick={() => setPaymentMethod('cod')} style={{
+                  display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 12px', borderRadius: '10px',
+                  border: paymentMethod === 'cod' ? '2px solid #16A34A' : '1.5px solid #E2E8F0',
+                  background: paymentMethod === 'cod' ? '#F0FDF4' : '#FFF', cursor: 'pointer', textAlign: 'left',
+                }}>
+                  <span style={{ width: '16px', height: '16px', borderRadius: '50%', flexShrink: 0, boxSizing: 'border-box', border: paymentMethod === 'cod' ? '5px solid #16A34A' : '2px solid #CBD5E1', background: '#FFF' }}></span>
+                  <div>
+                    <span style={{ display: 'block', fontSize: '12.5px', fontWeight: '700', color: paymentMethod === 'cod' ? '#15803D' : '#1E293B', lineHeight: 1.2 }}>{orderType === 'delivery' ? 'Cash on Delivery' : 'Cash on Pickup'}</span>
+                    <span style={{ display: 'block', fontSize: '10.5px', color: '#64748B', lineHeight: 1.2, marginTop: '1px' }}>{orderType === 'delivery' ? 'Pay upon delivery' : 'Pay at studio'}</span>
+                  </div>
+                </button>
+              </div>
+
+              {/* GCash Details */}
+              {paymentMethod === 'gcash' && (
+                <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '10px', padding: '12px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {/* GCash Account Card */}
+                  <div style={{ background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: '8px', padding: '10px 12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+                      {/* Left: Account Info */}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <span style={{ fontSize: '9.5px', fontWeight: '700', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>GCash Account</span>
+                        <div style={{ fontSize: '13.5px', fontWeight: '800', color: '#0F172A', marginTop: '3px', lineHeight: 1.3 }}>
+                          {settings.gcash_name || 'M&M Artsy'}
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px' }}>
+                          <span style={{ fontSize: '13.5px', fontWeight: '700', color: '#007DFE', fontFamily: 'monospace', letterSpacing: '0.03em' }}>
+                            {settings.gcash_number || '0905 607 7921'}
+                          </span>
+                          <button type="button" onClick={() => {
+                            const num = (settings.gcash_number || '09056077921').replace(/\s+/g, '');
+                            if (typeof navigator !== 'undefined' && navigator.clipboard) navigator.clipboard.writeText(num);
+                            setCopiedGcash(true); setTimeout(() => setCopiedGcash(false), 2000);
+                          }} style={{
+                            background: copiedGcash ? '#ECFDF5' : '#EFF6FF',
+                            border: copiedGcash ? '1px solid #10B981' : '1px solid #BFDBFE',
+                            color: copiedGcash ? '#059669' : '#1D4ED8',
+                            fontSize: '10.5px', fontWeight: '700', borderRadius: '5px', padding: '2px 7px',
+                            cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '3px',
+                          }}>
+                            <i className={copiedGcash ? 'fa-solid fa-check' : 'fa-regular fa-copy'} style={{ fontSize: '9px' }}></i>
+                            {copiedGcash ? 'Copied!' : 'Copy'}
+                          </button>
+                        </div>
+                      </div>
+                      {/* Right: QR Code */}
+                      {settings.gcash_qr_url ? (
+                        <button type="button" onClick={() => setShowQrModal(true)} style={{
+                          background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: '8px', padding: '4px',
+                          cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px', flexShrink: 0,
+                        }} title="Tap to zoom QR Code">
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={settings.gcash_qr_url} alt="QR" style={{ width: '44px', height: '44px', objectFit: 'contain', borderRadius: '4px' }} />
+                          <span style={{ fontSize: '8.5px', fontWeight: '700', color: '#007DFE' }}>
+                            <i className="fa-solid fa-expand" style={{ marginRight: '2px', fontSize: '7px' }}></i>View QR
+                          </span>
+                        </button>
+                      ) : (
+                        <div style={{
+                          width: '44px', height: '44px', borderRadius: '8px', background: '#EFF6FF', border: '1px solid #DBEAFE',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#007DFE', fontSize: '18px', flexShrink: 0,
+                        }}>
+                          <i className="fa-solid fa-qrcode"></i>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Proof of Payment Section */}
+                  <div
+                    id="gcash-proof-section"
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '8px',
+                      padding: fieldErrors.gcashProof ? '10px' : '0',
+                      background: fieldErrors.gcashProof ? '#FEF2F2' : 'transparent',
+                      border: fieldErrors.gcashProof ? '1.5px solid #FCA5A5' : 'none',
+                      borderRadius: '8px',
+                      transition: 'all 0.2s ease',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '4px' }}>
+                      <span style={{ fontSize: '11px', fontWeight: '700', color: fieldErrors.gcashProof ? '#DC2626' : '#334155', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        Proof of Payment <span style={{ color: '#DC2626', fontWeight: '800' }}>*</span>
+                      </span>
+                      <span style={{ fontSize: '10px', color: '#64748B', fontWeight: '500' }}>
+                        (Upload Receipt o Ref No.)
+                      </span>
+                    </div>
+
+                    {paymentProofUrl ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#FFF', border: '1px solid #BBF7D0', borderRadius: '8px', padding: '6px 8px' }}>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={paymentProofUrl} alt="Receipt" style={{ width: '36px', height: '36px', objectFit: 'cover', borderRadius: '5px', border: '1px solid #E2E8F0' }} />
+                        <span style={{ flex: 1, fontSize: '11.5px', fontWeight: '700', color: '#16A34A', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                          <i className="fa-solid fa-circle-check" style={{ fontSize: '10px' }}></i> Receipt Attached
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setPaymentProofUrl('')}
+                          style={{ background: '#FEE2E2', border: '1px solid #FECACA', color: '#DC2626', fontSize: '10.5px', fontWeight: '700', borderRadius: '5px', padding: '2px 6px', cursor: 'pointer' }}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ) : (
+                      <label style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px',
+                        background: '#FFF',
+                        border: fieldErrors.gcashProof ? '1.5px dashed #EF4444' : '1.5px dashed #CBD5E1',
+                        borderRadius: '8px',
+                        padding: '9px 12px',
+                        cursor: 'pointer',
+                        color: fieldErrors.gcashProof ? '#DC2626' : '#475569',
+                        fontSize: '11.5px',
+                        fontWeight: '600',
+                        transition: 'border-color 0.15s',
+                      }}>
+                        <i className="fa-solid fa-arrow-up-from-bracket" style={{ color: fieldErrors.gcashProof ? '#DC2626' : '#007DFE', fontSize: '11px' }}></i>
+                        Upload GCash Receipt Screenshot
+                        <input
+                          type="file"
+                          accept="image/*"
+                          style={{ display: 'none' }}
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              const reader = new FileReader();
+                              reader.onload = (ev) => {
+                                setPaymentProofUrl(ev.target?.result || '');
+                                if (fieldErrors.gcashProof) {
+                                  setFieldErrors((prev) => {
+                                    const copy = { ...prev };
+                                    delete copy.gcashProof;
+                                    return copy;
+                                  });
+                                }
+                              };
+                              reader.readAsDataURL(file);
+                            }
+                          }}
+                        />
+                      </label>
+                    )}
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <input
+                        type="text"
+                        placeholder="GCash Reference No. (hal. 1001 2345 67890)"
+                        value={gcashRefNo}
+                        onChange={(e) => {
+                          setGcashRefNo(e.target.value);
+                          if (fieldErrors.gcashProof) {
+                            setFieldErrors((prev) => {
+                              const copy = { ...prev };
+                              delete copy.gcashProof;
+                              return copy;
+                            });
+                          }
+                        }}
+                        style={{
+                          width: '100%',
+                          height: '34px',
+                          borderRadius: '7px',
+                          border: fieldErrors.gcashProof ? '1.5px solid #EF4444' : '1px solid #CBD5E1',
+                          padding: '0 10px',
+                          fontSize: '12px',
+                          fontFamily: 'monospace',
+                          background: '#FFF',
+                          boxSizing: 'border-box',
+                        }}
+                      />
+                    </div>
+
+                    {fieldErrors.gcashProof && (
+                      <p style={{ color: '#DC2626', fontSize: '11px', margin: '2px 0 0', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <i className="fa-solid fa-circle-exclamation" style={{ fontSize: '10px', flexShrink: 0 }}></i>
+                        <span>{fieldErrors.gcashProof}</span>
+                      </p>
+                    )}
+
+                    <p style={{ fontSize: '10.5px', color: '#64748B', margin: '0', lineHeight: 1.3 }}>
+                      <i className="fa-solid fa-shield-halved" style={{ marginRight: '4px', fontSize: '10px', color: '#007DFE' }}></i>
+                      Kinukumpirma ang reference number o receipt bago i-process ang order.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* COD Notice */}
+              {paymentMethod === 'cod' && (
+                <div style={{ background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: '8px', padding: '8px 10px', fontSize: '11.5px', color: '#166534', display: 'flex', alignItems: 'center', gap: '7px' }}>
+                  <i className="fa-solid fa-circle-check" style={{ color: '#16A34A', flexShrink: 0, fontSize: '12px' }}></i>
+                  <span style={{ fontWeight: '600' }}>{orderType === 'delivery' ? 'Ihanda ang eksaktong halaga sa pagdating ng delivery.' : 'Magbayad ng cash sa studio pag-claim ng order.'}</span>
+                </div>
+              )}
+            </div>
+          </div>
+          <hr className="divider" style={{ margin: 0 }} />
+
+          {/* QR Code Zoom Modal */}
+          {showQrModal && settings.gcash_qr_url && (
+            <div
+              style={{
+                position: 'fixed',
+                inset: 0,
+                background: 'rgba(15, 23, 42, 0.7)',
+                backdropFilter: 'blur(4px)',
+                zIndex: 99999,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '20px',
+              }}
+              onClick={() => setShowQrModal(false)}
+            >
+              <div
+                style={{
+                  background: '#FFFFFF',
+                  borderRadius: '16px',
+                  padding: '18px',
+                  maxWidth: '320px',
+                  width: '100%',
+                  boxShadow: '0 20px 25px -5px rgba(0,0,0,0.2)',
+                  position: 'relative',
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                {/* Header Row */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span style={{ fontSize: '11px', fontWeight: '800', background: '#007DFE', color: '#FFF', padding: '2px 7px', borderRadius: '4px' }}>GCash</span>
+                    <span style={{ fontSize: '13px', fontWeight: '700', color: '#1E293B' }}>Scan to Pay</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowQrModal(false)}
+                    style={{
+                      background: '#F1F5F9',
+                      border: 'none',
+                      borderRadius: '50%',
+                      width: '28px',
+                      height: '28px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                      color: '#64748B',
+                      fontSize: '13px',
+                    }}
+                    aria-label="Close"
+                  >
+                    <i className="fa-solid fa-xmark"></i>
+                  </button>
+                </div>
+
+                {/* QR Image Container */}
+                <div style={{
+                  background: '#F8FAFC',
+                  borderRadius: '12px',
+                  border: '1px solid #E2E8F0',
+                  padding: '12px',
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={settings.gcash_qr_url}
+                    alt="GCash QR"
+                    style={{
+                      width: '100%',
+                      maxWidth: '220px',
+                      height: 'auto',
+                      borderRadius: '8px',
+                      display: 'block',
+                      objectFit: 'contain',
+                    }}
+                  />
+                </div>
+
+                {/* Account Details - Cleanly Aligned & Stacked */}
+                <div style={{ textAlign: 'center', marginTop: '14px', marginBottom: '16px' }}>
+                  <div style={{ fontSize: '14px', fontWeight: '800', color: '#0F172A', letterSpacing: '-0.01em' }}>
+                    {settings.gcash_name || 'M&M Artsy'}
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', marginTop: '4px' }}>
+                    <span style={{ fontSize: '13px', fontWeight: '700', color: '#007DFE', fontFamily: 'monospace', letterSpacing: '0.04em' }}>
+                      {settings.gcash_number || '0905 607 7921'}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const num = (settings.gcash_number || '09056077921').replace(/\s+/g, '');
+                        if (typeof navigator !== 'undefined' && navigator.clipboard) navigator.clipboard.writeText(num);
+                        setCopiedGcash(true);
+                        setTimeout(() => setCopiedGcash(false), 2000);
+                      }}
+                      style={{
+                        background: copiedGcash ? '#ECFDF5' : '#EFF6FF',
+                        border: copiedGcash ? '1px solid #10B981' : '1px solid #BFDBFE',
+                        color: copiedGcash ? '#059669' : '#1D4ED8',
+                        fontSize: '10px',
+                        fontWeight: '700',
+                        borderRadius: '4px',
+                        padding: '2px 6px',
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '3px',
+                      }}
+                    >
+                      <i className={copiedGcash ? 'fa-solid fa-check' : 'fa-regular fa-copy'} style={{ fontSize: '9px' }}></i>
+                      {copiedGcash ? 'Copied' : 'Copy'}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Single Primary Action: Save QR */}
+                <a
+                  href={settings.gcash_qr_url}
+                  download="GCash_QR.png"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    width: '100%',
+                    height: '38px',
+                    background: '#007DFE',
+                    color: '#FFF',
+                    borderRadius: '9px',
+                    fontSize: '12.5px',
+                    fontWeight: '700',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                    textDecoration: 'none',
+                    boxSizing: 'border-box',
+                  }}
+                >
+                  <i className="fa-solid fa-download" style={{ fontSize: '11px' }}></i> Save QR Code
+                </a>
+              </div>
+            </div>
+          )}
 
           {/* Order Summary */}
           <div className="section">

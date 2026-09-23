@@ -10,20 +10,20 @@ export const CUSTOM_ORDER_MESSENGER_URL = `https://m.me/61587268312750?text=${en
 
 export const FUN_CUSTOM_PROMPTS = [
   {
-    title: 'May Pinterest peg ka?',
-    subtitle: 'Lapag mo screenshot mo sa Messenger, gagawan natin ng paraan.',
+    title: 'May sample design ka?',
+    subtitle: 'Lapag mo screenshot o photo sa Messenger, gagawan natin ng paraan.',
     buttonText: 'Chat on Messenger',
-    templateText: 'Hi M&M Artsy! May Pinterest/custom peg po akong gusto ipagawa sa inyo.',
+    templateText: 'Hi M&M Artsy! May sample design o picture po akong gustong ipagaya sa inyo.',
   },
   {
     title: 'Wala bang pang-suyo dito?',
-    subtitle: 'Send mo custom peg mo, bati agad kayo niyan.',
+    subtitle: 'Send mo yung gustong design, bati agad kayo niyan.',
     buttonText: 'Order sa Messenger',
     templateText: 'Hi M&M Artsy! Inquire po sana ako ng custom handmade gift order para sa partner ko.',
   },
   {
     title: 'Gusto mo ng hindi basic?',
-    subtitle: 'Send mo lang peg mo, kami na bahala mag-magic.',
+    subtitle: 'Send mo lang yung picture, kami na bahala mag-craft.',
     buttonText: 'Ipa-Custom Mo Na',
     templateText: 'Hi M&M Artsy! Gusto ko po magpagawa ng unique customized handmade craft.',
   },
@@ -36,8 +36,8 @@ export const FUN_CUSTOM_PROMPTS = [
   {
     title: 'Walang ganito sa mall no?',
     subtitle: 'Handmade kasi! Send your photo at gawa tayo ng unique piece.',
-    buttonText: 'Send Peg sa Messenger',
-    templateText: 'Hi M&M Artsy! May photo peg po ako na gusto kong ipa-recreate.',
+    buttonText: 'Send Photo sa Messenger',
+    templateText: 'Hi M&M Artsy! May sample picture po ako na gusto kong ipagaya.',
   },
   {
     title: 'May paboritong color combo?',
@@ -47,19 +47,19 @@ export const FUN_CUSTOM_PROMPTS = [
   },
   {
     title: 'Para sa favorite person mo?',
-    subtitle: 'I-send mo ang peg niya, gagawan natin ng personalized version.',
+    subtitle: 'I-send mo yung reference photo, gagawan natin ng personalized version.',
     buttonText: 'Order sa Messenger',
     templateText: 'Hi M&M Artsy! Magpapagawa po sana ako ng special personalized handmade gift.',
   },
   {
     title: 'Nakita mo sa TikTok o Reels?',
-    subtitle: 'Send mo video o screenshot, kayang-kaya i-recreate yan.',
+    subtitle: 'Send mo video o screenshot, kayang-kaya natin gawin yan.',
     buttonText: 'Chat on Messenger',
     templateText: 'Hi M&M Artsy! May nakita po akong viral handmade craft sa TikTok/Reels na gusto ko ipagawa.',
   },
   {
     title: 'Custom order yarn?',
-    subtitle: 'Kahit anong weird o cute na idea, game ang artisans natin.',
+    subtitle: 'Kahit anong cute o unique na idea, game ang artisans natin.',
     buttonText: 'Usap Tayo sa Messenger',
     templateText: 'Hi M&M Artsy! Ask ko lang po kung pwede magpagawa ng custom project.',
   },

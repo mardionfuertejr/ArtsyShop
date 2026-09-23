@@ -13,6 +13,7 @@ export default function ConfirmationClient({ order: serverOrder, referenceCode }
   const [localOrder, setLocalOrder] = useState(serverOrder || null);
   const [copiedReceipt, setCopiedReceipt] = useState(false);
   const [fbName, setFbName] = useState('');
+  const [isGeneratingReceipt, setIsGeneratingReceipt] = useState(false);
 
   const effectiveCode = referenceCode || serverOrder?.reference_code || '';
 
@@ -200,6 +201,206 @@ export default function ConfirmationClient({ order: serverOrder, referenceCode }
     openMessengerDirect(prefilledMessage);
   };
 
+  const handleDownloadReceiptImage = () => {
+    if (typeof document === 'undefined') return;
+    setIsGeneratingReceipt(true);
+    try {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      const scale = 2;
+      const width = 560;
+      const itemsCount = (order.order_items || []).length;
+      const baseHeight = 580 + (itemsCount * 50);
+      const height = Math.max(700, baseHeight);
+
+      canvas.width = width * scale;
+      canvas.height = height * scale;
+      ctx.scale(scale, scale);
+
+      // Background Card
+      ctx.fillStyle = '#FAF8F5';
+      ctx.fillRect(0, 0, width, height);
+
+      // Inner White Card
+      ctx.fillStyle = '#FFFFFF';
+      ctx.beginPath();
+      ctx.roundRect(14, 14, width - 28, height - 28, 16);
+      ctx.fill();
+      ctx.strokeStyle = '#E2E8F0';
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      // Brand Header
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#EA580C';
+      ctx.font = 'bold 20px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+      ctx.fillText('🌸 M&M ARTSY', width / 2, 50);
+
+      ctx.fillStyle = '#64748B';
+      ctx.font = '500 11px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+      ctx.fillText('Handcrafted Gifts & Custom Floral Studio', width / 2, 68);
+
+      ctx.fillStyle = '#0F172A';
+      ctx.font = '800 15px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+      ctx.fillText('OFFICIAL ORDER E-RECEIPT', width / 2, 96);
+
+      // Reference Pill
+      ctx.fillStyle = '#FFF7ED';
+      ctx.beginPath();
+      ctx.roundRect(width / 2 - 120, 108, 240, 26, 13);
+      ctx.fill();
+      ctx.strokeStyle = '#FDBA74';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      ctx.fillStyle = '#C2410C';
+      ctx.font = 'bold 12px monospace';
+      ctx.fillText(`REF #${order.reference_code || effectiveCode}`, width / 2, 125);
+
+      // Info Table Box
+      ctx.textAlign = 'left';
+      ctx.fillStyle = '#F8FAFC';
+      ctx.beginPath();
+      ctx.roundRect(30, 146, width - 60, 110, 10);
+      ctx.fill();
+      ctx.strokeStyle = '#E2E8F0';
+      ctx.stroke();
+
+      const drawRow = (label, val, y) => {
+        ctx.fillStyle = '#64748B';
+        ctx.font = '600 11px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+        ctx.fillText(label, 42, y);
+        ctx.fillStyle = '#0F172A';
+        ctx.font = '700 11px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+        ctx.fillText(val, 150, y);
+      };
+
+      const pMethod = order.payment_method === 'gcash' || order.paymentMethod === 'gcash'
+        ? `GCash Transfer ${order.gcash_reference_no || order.gcashRefNo ? `(Ref: ${order.gcash_reference_no || order.gcashRefNo})` : ''}`
+        : (order.order_type === 'delivery' ? 'Cash on Delivery (COD)' : 'Cash upon Pickup');
+
+      drawRow('Customer:', order.customer_name || 'Customer', 168);
+      drawRow('Contact No:', order.customer_phone || 'N/A', 188);
+      drawRow('Order Type:', order.order_type === 'delivery' ? `Delivery (${order.delivery_address || 'Address on file'})` : 'Studio Pickup', 208);
+      drawRow('Schedule:', formattedSchedule || 'As soon as crafted', 228);
+      drawRow('Payment:', pMethod, 248);
+
+      // Items List Header
+      let curY = 282;
+      ctx.fillStyle = '#64748B';
+      ctx.font = 'bold 11px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+      ctx.fillText('ITEM & SPECIFICATIONS', 32, curY);
+      ctx.textAlign = 'right';
+      ctx.fillText('AMOUNT', width - 32, curY);
+
+      ctx.strokeStyle = '#CBD5E1';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(32, curY + 6);
+      ctx.lineTo(width - 32, curY + 6);
+      ctx.stroke();
+
+      curY += 22;
+
+      // Items Rows
+      (order.order_items || []).forEach((it) => {
+        ctx.textAlign = 'left';
+        ctx.fillStyle = '#0F172A';
+        ctx.font = '700 12px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+        const nameText = `${it.product_name}  ×${it.quantity}`;
+        ctx.fillText(nameText, 32, curY);
+
+        ctx.textAlign = 'right';
+        ctx.font = '700 12px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+        ctx.fillText(formatCurrency(it.total_price), width - 32, curY);
+
+        const opts = (it.order_item_options || []).map(o => o?.option_value || o?.optionValue).filter(Boolean).join(' · ');
+        if (opts) {
+          ctx.textAlign = 'left';
+          ctx.fillStyle = '#64748B';
+          ctx.font = '500 10.5px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+          ctx.fillText(opts, 32, curY + 14);
+          curY += 30;
+        } else {
+          curY += 22;
+        }
+      });
+
+      // Total Breakdown
+      ctx.strokeStyle = '#E2E8F0';
+      ctx.beginPath();
+      ctx.moveTo(32, curY);
+      ctx.lineTo(width - 32, curY);
+      ctx.stroke();
+
+      curY += 16;
+
+      const drawTotalRow = (lbl, val, isBold = false, color = '#64748B') => {
+        ctx.textAlign = 'left';
+        ctx.fillStyle = color;
+        ctx.font = isBold ? '700 12.5px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' : '500 11.5px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+        ctx.fillText(lbl, width - 230, curY);
+
+        ctx.textAlign = 'right';
+        ctx.fillStyle = color === '#64748B' ? '#0F172A' : color;
+        ctx.font = isBold ? 'bold 15px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' : '600 11.5px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+        ctx.fillText(val, width - 32, curY);
+        curY += 16;
+      };
+
+      drawTotalRow('Subtotal:', formatCurrency(order.subtotal));
+      drawTotalRow('Delivery Fee:', order.order_type === 'pickup' ? 'FREE' : formatCurrency(order.delivery_fee));
+      if (rushFee > 0) drawTotalRow('Rush Fee:', `+${formatCurrency(rushFee)}`, false, '#EA580C');
+      if (order.voucher_discount > 0) drawTotalRow('Voucher Discount:', `-${formatCurrency(order.voucher_discount)}`, false, '#16A34A');
+
+      ctx.strokeStyle = '#CBD5E1';
+      ctx.beginPath();
+      ctx.moveTo(width - 230, curY);
+      ctx.lineTo(width - 32, curY);
+      ctx.stroke();
+      curY += 16;
+
+      drawTotalRow('TOTAL AMOUNT:', formatCurrency(order.total_amount), true, '#EA580C');
+
+      // Footer Note
+      curY = height - 48;
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#16A34A';
+      ctx.font = 'bold 11.5px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+      ctx.fillText('✓ ORDER REQUEST RECORDED IN SYSTEM', width / 2, curY);
+
+      ctx.fillStyle = '#94A3B8';
+      ctx.font = '500 10px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+      ctx.fillText('Ipakita ang resibong ito sa rider o seller para sa pickup/delivery.', width / 2, curY + 16);
+
+      // Trigger Download
+      const dataUrl = canvas.toDataURL('image/png');
+      const link = document.createElement('a');
+      link.download = `MM_Artsy_Receipt_${order.reference_code || 'order'}.png`;
+      link.href = dataUrl;
+      link.click();
+
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(
+          new CustomEvent('likha_toast', {
+            detail: {
+              type: 'success',
+              title: 'E-Receipt Downloaded! 📸',
+              message: 'Na-save na ang resibo bilang image sa iyong gallery / downloads.',
+              duration: 3500,
+            },
+          })
+        );
+      }
+    } catch (e) {
+      console.error('Error generating receipt image:', e);
+    } finally {
+      setIsGeneratingReceipt(false);
+    }
+  };
+
   return (
     <div className="customer-shell">
       {/* Top App Bar */}
@@ -348,18 +549,17 @@ export default function ConfirmationClient({ order: serverOrder, referenceCode }
               height: '46px',
               padding: '0 16px',
               fontSize: '14px',
-              fontWeight: '700',
-              boxShadow: '0 4px 14px rgba(8, 102, 255, 0.25)',
-              borderRadius: 'var(--radius-lg)',
-              border: 'none',
+              fontWeight: 'var(--weight-bold)',
+              borderRadius: 'var(--radius-xl)',
+              boxShadow: '0 4px 14px rgba(8, 102, 255, 0.3)',
               cursor: 'pointer',
+              textDecoration: 'none',
               width: '100%',
               boxSizing: 'border-box',
-              textAlign: 'center',
             }}
           >
-            <i className="fa-brands fa-facebook-messenger" style={{ fontSize: '18px', flexShrink: 0 }}></i>
-            <span>Open Messenger</span>
+            <i className="fa-brands fa-facebook-messenger" style={{ fontSize: '18px' }}></i>
+            <span>Open Messenger & Send Receipt</span>
           </button>
 
           {copiedReceipt && (
@@ -388,15 +588,14 @@ export default function ConfirmationClient({ order: serverOrder, referenceCode }
           )}
 
           <p style={{
+            fontSize: '11px',
+            color: 'var(--color-text-muted)',
+            textAlign: 'center',
             margin: '10px 0 0',
-            fontSize: '11.5px',
-            color: 'var(--color-text-muted, #64748B)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             gap: '5px',
-            textAlign: 'center',
-            lineHeight: 1.4,
           }}>
             <i className="fa-solid fa-circle-info" style={{ color: 'var(--color-primary, #EA580C)', fontSize: '11px', flexShrink: 0 }}></i>
             <span>Magsisimula ang pag-craft kapag nai-send na ang resibo sa Messenger.</span>
@@ -527,50 +726,80 @@ export default function ConfirmationClient({ order: serverOrder, referenceCode }
         </div>
 
         {/* ── ACTION BUTTONS ── */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', width: '100%', boxSizing: 'border-box' }}>
-          <Link
-            href={`/track?ref=${encodeURIComponent(order.reference_code || effectiveCode)}`}
-            className="btn btn-secondary"
-            id="track-order-btn"
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', width: '100%', boxSizing: 'border-box' }}>
+          {/* Download Official E-Receipt Button (Clean image for rider/seller verification) */}
+          <button
+            type="button"
+            onClick={handleDownloadReceiptImage}
+            disabled={isGeneratingReceipt}
+            className="btn btn-primary no-print"
+            id="download-receipt-btn"
             style={{
-              height: '44px',
-              fontSize: '13px',
-              fontWeight: '600',
+              height: '46px',
+              fontSize: '13.5px',
+              fontWeight: '700',
               display: 'inline-flex',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: '6px',
-              textDecoration: 'none',
-              borderRadius: 'var(--radius-lg)',
-              boxSizing: 'border-box',
+              gap: '8px',
+              borderRadius: 'var(--radius-xl)',
+              background: 'linear-gradient(135deg, #0F172A 0%, #1E293B 100%)',
+              color: '#FFFFFF',
+              border: 'none',
+              boxShadow: '0 4px 12px rgba(15, 23, 42, 0.2)',
+              cursor: 'pointer',
               width: '100%',
             }}
           >
-            <i className="fa-solid fa-truck-fast"></i>
-            <span>Track Order</span>
-          </Link>
+            <i className={isGeneratingReceipt ? 'fa-solid fa-spinner fa-spin' : 'fa-solid fa-image'}></i>
+            <span>{isGeneratingReceipt ? 'Generating Receipt Image...' : 'Download Official E-Receipt (Image)'}</span>
+          </button>
 
-          <Link
-            href="/shop"
-            className="btn btn-secondary"
-            id="continue-shopping-btn"
-            style={{
-              height: '44px',
-              fontSize: '13px',
-              fontWeight: '600',
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '6px',
-              textDecoration: 'none',
-              borderRadius: 'var(--radius-lg)',
-              boxSizing: 'border-box',
-              width: '100%',
-            }}
-          >
-            <i className="fa-solid fa-bag-shopping"></i>
-            <span>Shop More</span>
-          </Link>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', width: '100%', boxSizing: 'border-box' }}>
+            <Link
+              href={`/track?ref=${encodeURIComponent(order.reference_code || effectiveCode)}`}
+              className="btn btn-secondary no-print"
+              id="track-order-btn"
+              style={{
+                height: '42px',
+                fontSize: '12.5px',
+                fontWeight: '600',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '6px',
+                textDecoration: 'none',
+                borderRadius: 'var(--radius-lg)',
+                boxSizing: 'border-box',
+                width: '100%',
+              }}
+            >
+              <i className="fa-solid fa-truck-fast"></i>
+              <span>Track Order</span>
+            </Link>
+
+            <Link
+              href="/shop"
+              className="btn btn-secondary no-print"
+              id="continue-shopping-btn"
+              style={{
+                height: '42px',
+                fontSize: '12.5px',
+                fontWeight: '600',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '6px',
+                textDecoration: 'none',
+                borderRadius: 'var(--radius-lg)',
+                boxSizing: 'border-box',
+                width: '100%',
+              }}
+            >
+              <i className="fa-solid fa-bag-shopping"></i>
+              <span>Shop More</span>
+            </Link>
+          </div>
         </div>
       </main>
     </div>

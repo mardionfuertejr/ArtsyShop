@@ -14,6 +14,37 @@ import { createClient } from '@/lib/supabase/client';
 import { getMockProductBySlug } from '@/lib/mockData';
 import { formatCurrency } from '@/lib/utils/formatCurrency';
 
+function CartItemImage({ photo, name }) {
+  const [hasError, setHasError] = useState(false);
+
+  return (
+    <div
+      className="cart-item-image"
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'var(--color-surface-warm, #FAF8F5)',
+        flexShrink: 0,
+      }}
+    >
+      {photo && !hasError ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={photo}
+          alt={name || 'Handcrafted item'}
+          style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 'var(--radius-md)' }}
+          onError={() => setHasError(true)}
+        />
+      ) : (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%', background: 'rgba(234, 88, 12, 0.05)' }}>
+          <i className="fa-solid fa-gift" style={{ color: 'var(--color-primary)', fontSize: '1.25rem', opacity: 0.85 }}></i>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function CartPage() {
   const router = useRouter();
   const { cart, itemCount, totalQuantity, subtotal, removeItem, removeItems, updateQty, updateItem, isLoaded } = useCart();
@@ -385,7 +416,7 @@ export default function CartPage() {
 
         <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px' }}>
           <span style={{ fontSize: 'var(--text-xs)', fontWeight: '600', color: 'var(--color-text-secondary)' }}>
-            {totalQuantity} {totalQuantity === 1 ? 'item' : 'items'}
+            {cart.length} {cart.length === 1 ? 'item' : 'items'}
           </span>
         </div>
       </header>
@@ -467,7 +498,7 @@ export default function CartPage() {
                   {isAllSelected && <i className="fa-solid fa-check" style={{ fontSize: '11px' }}></i>}
                 </div>
                 <span className="cart-select-all-label" onClick={toggleSelectAll}>
-                  Select All ({totalQuantity} {totalQuantity === 1 ? 'item' : 'items'})
+                  Select All ({cart.length} {cart.length === 1 ? 'item' : 'items'})
                 </span>
                 {selectedItemIds.length > 0 && (
                   <button
@@ -505,27 +536,8 @@ export default function CartPage() {
                       {isSelected && <i className="fa-solid fa-check" style={{ fontSize: '11px' }}></i>}
                     </div>
 
-                    {/* Item Image */}
-                    <div
-                      className="cart-item-image"
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        background: 'var(--color-surface-warm)',
-                      }}
-                    >
-                      {item.photo ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={item.photo}
-                          alt={item.productName}
-                          style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 'var(--radius-md)' }}
-                        />
-                      ) : (
-                        <i className="fa-solid fa-image" style={{ color: 'var(--color-primary)', fontSize: '1.25rem' }}></i>
-                      )}
-                    </div>
+                    {/* Item Image with Fallback */}
+                    <CartItemImage photo={item.photo} name={item.productName} />
 
                     {/* Item Info (Single line with ellipsis, clean & no extra descriptions) */}
                     <div className="cart-item-info">

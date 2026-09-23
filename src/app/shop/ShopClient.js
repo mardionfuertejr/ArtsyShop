@@ -60,7 +60,13 @@ export default function ShopClient({
                 });
                 cleanCustom.forEach((p) => {
                   const key = String(p.id || p.slug || '').trim();
-                  if (key) map.set(key, p);
+                  if (key) {
+                    if (map.has(key)) {
+                      map.set(key, { ...p, ...map.get(key) });
+                    } else {
+                      map.set(key, p);
+                    }
+                  }
                 });
                 return Array.from(map.values());
               });

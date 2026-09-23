@@ -1,16 +1,16 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import ProductCard from './ProductCard';
-import { FUN_CUSTOM_PROMPTS, getRandomCustomPrompt, getPromptMessengerUrl, CUSTOM_ORDER_MESSENGER_URL, CUSTOM_ORDER_TEMPLATE } from '@/lib/constants/customPrompts';
+import { FUN_CUSTOM_PROMPTS, getRandomCustomPrompt, CUSTOM_ORDER_MESSENGER_URL, CUSTOM_ORDER_TEMPLATE } from '@/lib/constants/customPrompts';
 import { openMessengerDirect } from '@/lib/utils/browserNav';
 
-export default function LazyProductGrid({ products = [], initialCount = 10, batchSize = 10 }) {
+export default function LazyProductGrid({ products = [], initialCount = 12, batchSize = 12 }) {
   const [items, setItems] = useState(products);
   const [visibleCount, setVisibleCount] = useState(initialCount);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [prompt, setPrompt] = useState(FUN_CUSTOM_PROMPTS[0]);
+  const observerTargetRef = useRef(null);
 
   const sortStorefront = (a, b) => {
     const aSold = Boolean(a.is_sold_out || (a.is_ready_made && a.ready_made_stock === 0));
@@ -47,7 +47,7 @@ export default function LazyProductGrid({ products = [], initialCount = 10, batc
           for (const p of parsed) {
             const idx = merged.findIndex((m) => m.id === p.id || m.slug === p.slug);
             if (idx >= 0) {
-              merged[idx] = { ...merged[idx], ...p };
+              merged[idx] = { ...p, ...merged[idx] };
             } else {
               merged.unshift(p);
             }
@@ -60,11 +60,6 @@ export default function LazyProductGrid({ products = [], initialCount = 10, batc
     setItems([...products].sort(sortStorefront));
   }, [products]);
 
-  // Pick a random fun prompt on mount
-  useEffect(() => {
-    setPrompt(getRandomCustomPrompt());
-  }, []);
-
   // Reset count if items list changes
   useEffect(() => {
     setVisibleCount(initialCount);
@@ -72,17 +67,41 @@ export default function LazyProductGrid({ products = [], initialCount = 10, batc
 
   const visibleProducts = items.slice(0, visibleCount);
   const hasMore = visibleCount < items.length;
-  const remainingCount = items.length - visibleProducts.length;
-  const progressPercent = Math.min(100, Math.round((visibleProducts.length / (items.length || 1)) * 100));
 
-  const handleLoadMore = () => {
+  const loadNextBatch = useCallback(() => {
+    if (!hasMore || isLoadingMore) return;
     setIsLoadingMore(true);
-    // Add small tactile delay for realistic smoothness
+
     setTimeout(() => {
       setVisibleCount((prev) => Math.min(prev + batchSize, items.length));
       setIsLoadingMore(false);
-    }, 280);
-  };
+    }, 150);
+  }, [hasMore, isLoadingMore, batchSize, items.length]);
+
+  // ── Shopee-style Automatic Infinite Scroll Observer ──
+  useEffect(() => {
+    const target = observerTargetRef.current;
+    if (!target || !hasMore) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          loadNextBatch();
+        }
+      },
+      {
+        root: null,
+        rootMargin: '300px', // Pre-load 300px before user even reaches bottom for 0ms lag
+        threshold: 0.05,
+      }
+    );
+
+    observer.observe(target);
+
+    return () => {
+      if (target) observer.unobserve(target);
+    };
+  }, [hasMore, loadNextBatch]);
 
   if (!items || items.length === 0) {
     return (
@@ -143,113 +162,66 @@ export default function LazyProductGrid({ products = [], initialCount = 10, batc
             product={p}
             className="product-card-reveal"
             style={{
-              animationDelay: `${(idx % batchSize) * 55}ms`,
+              animationDelay: `${(idx % batchSize) * 45}ms`,
             }}
           />
         ))}
       </div>
 
-      {/* Bottom Controls / Status Area */}
-      <div style={{
-        marginTop: 'var(--space-4)',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        gap: 'var(--space-3)',
-      }}>
-        {hasMore ? (
-          <>
-            {/* Minimalist Progress Indicator */}
-            <div style={{ width: '100%', maxWidth: '240px', textAlign: 'center' }}>
-              <div style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                fontSize: '11px',
-                fontWeight: 'var(--weight-medium)',
-                color: 'var(--color-text-secondary)',
-                marginBottom: '5px',
-              }}>
-                <span>Showing {visibleProducts.length} of {products.length} products</span>
-                <span style={{ fontWeight: 'var(--weight-bold)', color: 'var(--color-primary)' }}>{progressPercent}%</span>
-              </div>
-              <div style={{
-                height: '3.5px',
-                background: 'var(--color-border-light)',
-                borderRadius: '999px',
-                overflow: 'hidden',
-              }}>
-                <div style={{
-                  height: '100%',
-                  width: `${progressPercent}%`,
-                  background: 'linear-gradient(90deg, var(--color-primary-light) 0%, var(--color-primary) 100%)',
-                  borderRadius: '999px',
-                  transition: 'width 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
-                }} />
-              </div>
+      {/* ── Automatic Infinite Scroll Sentinel Trigger ── */}
+      {hasMore && (
+        <div
+          ref={observerTargetRef}
+          style={{
+            width: '100%',
+            height: '40px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginTop: '12px',
+          }}
+        >
+          {isLoadingMore && (
+            <div style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '6px 16px',
+              borderRadius: '999px',
+              background: 'var(--color-surface, #FFFFFF)',
+              border: '1px solid var(--color-border-light, #E2E8F0)',
+              color: 'var(--color-primary, #EA580C)',
+              fontSize: '12px',
+              fontWeight: '600',
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
+            }}>
+              <i className="fa-solid fa-spinner fa-spin"></i>
+              <span>Loading more crafts...</span>
             </div>
+          )}
+        </div>
+      )}
 
-            {/* Load More Button */}
-            <button
-              type="button"
-              className="btn btn-secondary btn-sm ripple"
-              onClick={handleLoadMore}
-              disabled={isLoadingMore}
-              id="load-more-products-btn"
-              style={{
-                padding: '9px 24px',
-                borderRadius: '999px',
-                fontWeight: 'var(--weight-semibold)',
-                fontSize: '12.5px',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '8px',
-                border: '1.5px solid var(--color-border)',
-                background: 'var(--color-surface)',
-                boxShadow: 'var(--shadow-xs)',
-                cursor: 'pointer',
-                transition: 'all var(--transition-fast)',
-              }}
-            >
-              {isLoadingMore ? (
-                <>
-                  <i className="fa-solid fa-spinner fa-spin" style={{ color: 'var(--color-primary)' }}></i>
-                  <span>Loading...</span>
-                </>
-              ) : (
-                <>
-                  <span>Load More</span>
-                  <span style={{
-                    fontSize: '10.5px',
-                    fontWeight: 'var(--weight-bold)',
-                    background: 'var(--color-surface-warm)',
-                    padding: '2px 7px',
-                    borderRadius: '999px',
-                    color: 'var(--color-text-secondary)',
-                    border: '1px solid var(--color-border)',
-                  }}>
-                    +{Math.min(batchSize, remainingCount)}
-                  </span>
-                  <i className="fa-solid fa-arrow-down" style={{ fontSize: '11px', color: 'var(--color-primary)' }}></i>
-                </>
-              )}
-            </button>
-          </>
-        ) : (
-          /* Elegant Minimal End of Collection Signature Marker */
-          products.length > 3 && (
-            <div style={{ width: '100%', display: 'flex', justifyContent: 'center', marginTop: '12px', marginBottom: '8px' }}>
-              <div className="collection-end-marker">
-                <div className="end-marker-line" />
-                <div className="end-marker-content">
-                  <span>All <strong>{products.length}</strong> products loaded</span>
-                </div>
-                <div className="end-marker-line" />
-              </div>
-            </div>
-          )
-        )}
-      </div>
+      {/* ── End of Collection Marker (Subtle & Clean) ── */}
+      {!hasMore && items.length > 4 && (
+        <div
+          style={{
+            width: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '12px',
+            maxWidth: '320px',
+            margin: '20px auto 8px',
+          }}
+        >
+          <span style={{ flex: 1, height: '1px', background: 'var(--color-border-light, #E2E8F0)' }} />
+          <span style={{ fontSize: '11px', color: 'var(--color-text-muted, #94A3B8)', fontWeight: '600', letterSpacing: '0.01em', whiteSpace: 'nowrap' }}>
+            All {items.length} items loaded ✨
+          </span>
+          <span style={{ flex: 1, height: '1px', background: 'var(--color-border-light, #E2E8F0)' }} />
+        </div>
+      )}
     </div>
   );
 }

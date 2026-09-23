@@ -15,6 +15,7 @@ export default function AdminSettingsClient() {
     studioLng: 124.7350,
     gcashName: 'M.... J.. F...',
     gcashNumber: '09949909686',
+    gcashQrUrl: '',
     deliveryFee: 45,
     deliveryFeeMode: 'auto',
     deliveryFeeNear: 20,
@@ -104,10 +105,10 @@ export default function AdminSettingsClient() {
 
   const inputStyle = {
     width: '100%',
-    height: '38px',
-    background: '#F8FAFC',
-    border: '1.5px solid #E2E8F0',
-    borderRadius: '9px',
+    height: '36px',
+    background: '#FFFFFF',
+    border: '1px solid #CBD5E1',
+    borderRadius: '8px',
     padding: '0 12px',
     fontSize: '13px',
     color: '#0F172A',
@@ -128,7 +129,7 @@ export default function AdminSettingsClient() {
   };
 
   return (
-    <div style={{ width: '100%', maxWidth: '1180px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+    <div style={{ width: '100%', maxWidth: '1180px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '16px' }}>
       {/* Toast Notification */}
       {toastMsg && (
         <div
@@ -157,7 +158,7 @@ export default function AdminSettingsClient() {
 
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
-        <h1 style={{ margin: 0, fontSize: '23px', fontWeight: '800', color: '#0F172A', letterSpacing: '-0.02em' }}>
+        <h1 style={{ margin: 0, fontSize: '22px', fontWeight: '800', color: '#0F172A', letterSpacing: '-0.02em' }}>
           Store Settings
         </h1>
 
@@ -166,47 +167,47 @@ export default function AdminSettingsClient() {
           onClick={handleSave}
           disabled={saving}
           style={{
-            height: '38px',
-            padding: '0 18px',
-            borderRadius: '10px',
+            height: '34px',
+            padding: '0 15px',
+            borderRadius: '8px',
             border: 'none',
             background: 'var(--color-primary, #EA580C)',
             color: '#FFFFFF',
-            fontSize: '13px',
+            fontSize: '12.5px',
             fontWeight: '800',
             cursor: saving ? 'not-allowed' : 'pointer',
             display: 'inline-flex',
             alignItems: 'center',
-            gap: '7px',
-            boxShadow: '0 2px 8px rgba(234, 88, 12, 0.25)',
+            gap: '6px',
+            boxShadow: '0 1px 3px rgba(234, 88, 12, 0.25)',
             transition: 'all 0.15s ease',
           }}
         >
           {saving ? (
             <>
-              <i className="fa-solid fa-spinner fa-spin" style={{ fontSize: '12px' }}></i>
+              <i className="fa-solid fa-spinner fa-spin" style={{ fontSize: '11px' }}></i>
               <span>Saving...</span>
             </>
           ) : (
             <>
-              <i className="fa-solid fa-floppy-disk" style={{ fontSize: '12px' }}></i>
+              <i className="fa-solid fa-floppy-disk" style={{ fontSize: '11px' }}></i>
               <span>Save Changes</span>
             </>
           )}
         </button>
       </div>
 
-      <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))', gap: '14px', alignItems: 'stretch' }}>
+      <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))', gap: '16px', alignItems: 'stretch' }}>
           
           {/* Card 1: Delivery & Order Rates (Left) */}
           <div
             style={{
               background: '#FFFFFF',
-              borderRadius: '14px',
-              padding: '20px',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
-              border: '1px solid #F1F5F9',
+              borderRadius: '12px',
+              padding: '20px 22px',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
+              border: '1px solid #E2E8F0',
               display: 'flex',
               flexDirection: 'column',
               justifyContent: 'space-between',
@@ -220,13 +221,13 @@ export default function AdminSettingsClient() {
                   style={{
                     width: '36px',
                     height: '36px',
-                    borderRadius: '10px',
+                    borderRadius: '9px',
                     background: '#FFF5F2',
                     color: 'var(--color-primary, #EA580C)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    fontSize: '15px',
+                    fontSize: '14px',
                   }}
                 >
                   <i className="fa-solid fa-truck-fast"></i>
@@ -243,7 +244,7 @@ export default function AdminSettingsClient() {
                 {/* Store Pickup Address */}
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
-                    <label style={{ ...labelStyle, marginBottom: 0 }}>Store Pickup Address</label>
+                    <label style={{ ...labelStyle, marginBottom: 0 }}>Pickup Address / Location</label>
                     <button
                       type="button"
                       onClick={handleUseCurrentLocation}
@@ -295,8 +296,8 @@ export default function AdminSettingsClient() {
                       e.target.style.boxShadow = '0 0 0 3px rgba(234, 88, 12, 0.1)';
                     }}
                     onBlur={(e) => {
-                      e.target.style.borderColor = '#E2E8F0';
-                      e.target.style.background = '#F8FAFC';
+                      e.target.style.borderColor = '#CBD5E1';
+                      e.target.style.background = '#FFFFFF';
                       e.target.style.boxShadow = 'none';
                     }}
                   />
@@ -489,10 +490,10 @@ export default function AdminSettingsClient() {
           <div
             style={{
               background: '#FFFFFF',
-              borderRadius: '14px',
-              padding: '20px',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
-              border: '1px solid #F1F5F9',
+              borderRadius: '12px',
+              padding: '20px 22px',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
+              border: '1px solid #E2E8F0',
               display: 'flex',
               flexDirection: 'column',
               justifyContent: 'space-between',
@@ -506,13 +507,13 @@ export default function AdminSettingsClient() {
                   style={{
                     width: '36px',
                     height: '36px',
-                    borderRadius: '10px',
+                    borderRadius: '9px',
                     background: '#EFF6FF',
                     color: '#2563EB',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    fontSize: '15px',
+                    fontSize: '14px',
                   }}
                 >
                   <i className="fa-solid fa-credit-card"></i>
@@ -556,12 +557,10 @@ export default function AdminSettingsClient() {
                         placeholder="e.g. M.... J.. F..."
                         onFocus={(e) => {
                           e.target.style.borderColor = 'var(--color-primary, #EA580C)';
-                          e.target.style.background = '#FFFFFF';
                           e.target.style.boxShadow = '0 0 0 3px rgba(234, 88, 12, 0.1)';
                         }}
                         onBlur={(e) => {
-                          e.target.style.borderColor = '#E2E8F0';
-                          e.target.style.background = '#FFFFFF';
+                          e.target.style.borderColor = '#CBD5E1';
                           e.target.style.boxShadow = 'none';
                         }}
                       />
@@ -577,16 +576,91 @@ export default function AdminSettingsClient() {
                         placeholder="e.g. 09949909686"
                         onFocus={(e) => {
                           e.target.style.borderColor = 'var(--color-primary, #EA580C)';
-                          e.target.style.background = '#FFFFFF';
                           e.target.style.boxShadow = '0 0 0 3px rgba(234, 88, 12, 0.1)';
                         }}
                         onBlur={(e) => {
-                          e.target.style.borderColor = '#E2E8F0';
-                          e.target.style.background = '#FFFFFF';
+                          e.target.style.borderColor = '#CBD5E1';
                           e.target.style.boxShadow = 'none';
                         }}
                       />
                     </div>
+                  </div>
+
+                  {/* QR Code Upload / Preview */}
+                  <div style={{ paddingTop: '6px', borderTop: '1px solid #E2E8F0', marginTop: '2px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                      <label style={{ ...labelStyle, fontSize: '10.5px', marginBottom: 0 }}>
+                        GCash QR Code Image (Optional)
+                      </label>
+                      {settings.gcashQrUrl && (
+                        <button
+                          type="button"
+                          onClick={() => handleChange('gcashQrUrl', '')}
+                          style={{
+                            border: 'none',
+                            background: 'transparent',
+                            color: '#DC2626',
+                            fontSize: '11px',
+                            fontWeight: '700',
+                            cursor: 'pointer',
+                            padding: 0,
+                          }}
+                        >
+                          Remove QR
+                        </button>
+                      )}
+                    </div>
+
+                    {settings.gcashQrUrl ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', background: '#FFFFFF', padding: '8px 12px', borderRadius: '8px', border: '1px solid #CBD5E1' }}>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={settings.gcashQrUrl}
+                          alt="GCash QR Code Preview"
+                          style={{ width: '48px', height: '48px', objectFit: 'contain', borderRadius: '6px', border: '1px solid #E2E8F0' }}
+                        />
+                        <div style={{ flex: 1 }}>
+                          <p style={{ margin: 0, fontSize: '12px', fontWeight: '700', color: '#0F172A' }}>QR Code Uploaded</p>
+                          <p style={{ margin: '2px 0 0', fontSize: '11px', color: '#64748B' }}>Visible to customers on checkout</p>
+                        </div>
+                      </div>
+                    ) : (
+                      <label
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '8px',
+                          padding: '10px 14px',
+                          borderRadius: '8px',
+                          border: '1.5px dashed #CBD5E1',
+                          background: '#FFFFFF',
+                          color: '#475569',
+                          fontSize: '12px',
+                          fontWeight: '700',
+                          cursor: 'pointer',
+                          transition: 'all 0.15s ease',
+                        }}
+                      >
+                        <i className="fa-solid fa-qrcode" style={{ color: '#2563EB', fontSize: '14px' }}></i>
+                        <span>Upload GCash QR Photo</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          style={{ display: 'none' }}
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              const reader = new FileReader();
+                              reader.onload = () => {
+                                handleChange('gcashQrUrl', reader.result);
+                              };
+                              reader.readAsDataURL(file);
+                            }
+                          }}
+                        />
+                      </label>
+                    )}
                   </div>
                 </div>
 
@@ -608,22 +682,21 @@ export default function AdminSettingsClient() {
                   <textarea
                     style={{
                       ...inputStyle,
-                      height: '56px',
+                      height: '54px',
                       padding: '8px 12px',
                       resize: 'none',
                       lineHeight: 1.4,
+                      background: '#FFFFFF',
                     }}
                     value={settings.announcementText || ''}
                     onChange={(e) => handleChange('announcementText', e.target.value)}
                     placeholder="e.g. I-send ang resibo sa Messenger para masimulan agad ang pag-craft."
                     onFocus={(e) => {
                       e.target.style.borderColor = 'var(--color-primary, #EA580C)';
-                      e.target.style.background = '#FFFFFF';
                       e.target.style.boxShadow = '0 0 0 3px rgba(234, 88, 12, 0.1)';
                     }}
                     onBlur={(e) => {
-                      e.target.style.borderColor = '#E2E8F0';
-                      e.target.style.background = '#F8FAFC';
+                      e.target.style.borderColor = '#CBD5E1';
                       e.target.style.boxShadow = 'none';
                     }}
                     rows={2}
@@ -637,15 +710,16 @@ export default function AdminSettingsClient() {
               <div
                 style={{
                   background: '#FFF5F2',
-                  border: '1px solid rgba(234, 88, 12, 0.2)',
+                  border: '1px solid rgba(234, 88, 12, 0.25)',
                   color: '#9A3412',
                   fontSize: '11.5px',
                   padding: '9px 12px',
-                  borderRadius: '10px',
+                  borderRadius: '8px',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   textAlign: 'center',
+                  boxShadow: '0 1px 2px rgba(234, 88, 12, 0.04)',
                 }}
               >
                 <span style={{ fontWeight: '700' }}>📢 {settings.announcementText}</span>
@@ -658,7 +732,7 @@ export default function AdminSettingsClient() {
                   color: '#94A3B8',
                   fontSize: '11.5px',
                   padding: '9px 12px',
-                  borderRadius: '10px',
+                  borderRadius: '8px',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',

@@ -13,14 +13,25 @@ export function triggerToast({
   message = '',
   photo = null,
   type = 'cart', // 'cart' | 'success' | 'info' | 'error'
-  actionLabel = 'View Cart',
-  actionUrl = '/cart',
+  actionLabel = null,
+  actionUrl = null,
   duration = 3200,
 }) {
+  const effectiveActionLabel = actionLabel !== undefined ? actionLabel : (type === 'cart' ? 'View Cart' : null);
+  const effectiveActionUrl = actionUrl !== undefined ? actionUrl : (type === 'cart' ? '/cart' : null);
+
   if (typeof window !== 'undefined') {
     window.dispatchEvent(
       new CustomEvent('likha_toast', {
-        detail: { title, message, photo, type, actionLabel, actionUrl, duration },
+        detail: {
+          title,
+          message,
+          photo,
+          type,
+          actionLabel: effectiveActionLabel,
+          actionUrl: effectiveActionUrl,
+          duration,
+        },
       })
     );
   }
@@ -36,6 +47,7 @@ export default function GlobalToast() {
   const [toast, setToast] = useState(null);
   const [isVisible, setIsVisible] = useState(false);
   const [isLeaving, setIsLeaving] = useState(false);
+  const [touchStartY, setTouchStartY] = useState(null);
   const timerRef = useRef(null);
   const router = useRouter();
   const pathname = usePathname();
@@ -110,15 +122,37 @@ export default function GlobalToast() {
     }, 250);
   };
 
+  const handleTouchStart = (e) => {
+    setTouchStartY(e.touches[0].clientY);
+  };
+
+  const handleTouchEnd = (e) => {
+    if (touchStartY !== null) {
+      const deltaY = e.changedTouches[0].clientY - touchStartY;
+      if (deltaY < -25) {
+        // Swiped up -> dismiss
+        handleDismiss();
+      }
+      setTouchStartY(null);
+    }
+  };
+
   return (
     <div
       className={`likha-global-toast-container ${isLeaving ? 'toast-leave' : 'toast-enter'}`}
       role="alert"
       aria-live="assertive"
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
     >
-      <div className="likha-toast-card">
-        {/* Glow Accent Rim */}
-        <div className="likha-toast-glow" />
+      <div className={`likha-toast-card is-type-${toast.type || 'cart'}`}>
+        {/* Progress Countdown Bar */}
+        <div
+          className="likha-toast-progress-bar"
+          style={{
+            animationDuration: `${toast.duration || 3200}ms`,
+          }}
+        />
 
         <div className="likha-toast-content">
           {/* Left Visual: Photo or Icon */}
@@ -133,6 +167,8 @@ export default function GlobalToast() {
             ) : (
               <div className={`likha-toast-icon-box ${toast.type || 'cart'}`}>
                 {toast.type === 'error' ? (
+                  <i className="fa-solid fa-circle-xmark" />
+                ) : toast.type === 'warning' ? (
                   <i className="fa-solid fa-triangle-exclamation" />
                 ) : toast.type === 'info' ? (
                   <i className="fa-solid fa-circle-info" />
@@ -150,19 +186,18 @@ export default function GlobalToast() {
             )}
           </div>
 
-          {/* Text Info */}
+          {/* Text Info - Ultra-concise single line */}
           <div className="likha-toast-text-wrap">
             <div className="likha-toast-header">
-              <span className="likha-toast-title">{toast.title}</span>
+              <span className="likha-toast-title" title={toast.message || toast.title}>
+                {toast.type === 'cart'
+                  ? (toast.message ? `${toast.message}` : toast.title)
+                  : (toast.message || toast.title)}
+              </span>
               {toast.quantity && toast.quantity > 1 && (
                 <span className="likha-toast-qty-tag">+{toast.quantity}</span>
               )}
             </div>
-            {toast.message && (
-              <p className="likha-toast-desc" title={toast.message}>
-                {toast.message}
-              </p>
-            )}
           </div>
 
           {/* Action CTA Button */}
@@ -187,12 +222,6 @@ export default function GlobalToast() {
             <i className="fa-solid fa-xmark" />
           </button>
         </div>
-
-        {/* Dynamic Progress Timer Bar */}
-        <div
-          className="likha-toast-progress-bar"
-          style={{ animationDuration: `${toast.duration || 3200}ms` }}
-        />
       </div>
     </div>
   );

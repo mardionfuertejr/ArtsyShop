@@ -21,7 +21,7 @@ export default function HomeShowcaseTabs({ allProducts = [] }) {
           for (const p of parsed) {
             const idx = merged.findIndex((m) => m.id === p.id || m.slug === p.slug);
             if (idx >= 0) {
-              merged[idx] = { ...merged[idx], ...p };
+              merged[idx] = { ...p, ...merged[idx] };
             } else {
               merged.unshift(p);
             }

@@ -9,6 +9,7 @@ import { formatRelative, formatDate } from '@/lib/utils/formatDate';
 
 export default function AdminCustomRequestsClient() {
   const [requests, setRequests] = useState(MOCK_CUSTOM_REQUESTS);
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
   const [statusFilter, setStatusFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [toastMsg, setToastMsg] = useState('');
@@ -40,6 +41,7 @@ export default function AdminCustomRequestsClient() {
     } catch {}
 
     setRequests(combined);
+    setHasLoadedOnce(true);
   }, []);
 
   useEffect(() => {
@@ -272,14 +274,41 @@ export default function AdminCustomRequestsClient() {
             <tr style={{ background: '#F8FAFC', borderBottom: '1.5px solid #E2E8F0' }}>
               <th style={{ width: '20%', padding: '13px 18px', textAlign: 'left', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#334155', borderBottom: '1.5px solid #E2E8F0' }}>Ref & Date</th>
               <th style={{ width: '20%', padding: '13px 16px', textAlign: 'left', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#334155', borderBottom: '1.5px solid #E2E8F0' }}>Customer</th>
-              <th style={{ width: '28%', padding: '13px 16px', textAlign: 'left', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#334155', borderBottom: '1.5px solid #E2E8F0' }}>Request Details & Peg</th>
+              <th style={{ width: '28%', padding: '13px 16px', textAlign: 'left', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#334155', borderBottom: '1.5px solid #E2E8F0' }}>Request Details & Photo</th>
               <th style={{ width: '14%', padding: '13px 16px', textAlign: 'left', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#334155', borderBottom: '1.5px solid #E2E8F0' }}>Budget / Quote</th>
               <th style={{ width: '12%', padding: '13px 14px', textAlign: 'center', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#334155', borderBottom: '1.5px solid #E2E8F0' }}>Status</th>
               <th style={{ width: '6%', padding: '13px 14px', textAlign: 'center', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#334155', borderBottom: '1.5px solid #E2E8F0' }}>Action</th>
             </tr>
           </thead>
           <tbody key={`${statusFilter}-${searchQuery}-${currentPage}`} className="table-fade-enter">
-            {paginatedRequests.length === 0 ? (
+            {!hasLoadedOnce ? (
+              [1, 2, 3, 4, 5].map((i) => (
+                <tr key={`skeleton-req-${i}`} style={{ borderBottom: '1px solid #F1F5F9' }}>
+                  <td style={{ padding: '13px 18px', verticalAlign: 'middle' }}>
+                    <div style={{ width: '95px', height: '14px', borderRadius: '4px', background: 'linear-gradient(90deg, #F1F5F9 25%, #E2E8F0 50%, #F1F5F9 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.2s infinite ease-in-out', marginBottom: '5px' }} />
+                    <div style={{ width: '60px', height: '11px', borderRadius: '3px', background: '#F8FAFC' }} />
+                  </td>
+                  <td style={{ padding: '13px 16px', verticalAlign: 'middle' }}>
+                    <div style={{ width: '120px', height: '13px', borderRadius: '4px', background: '#F1F5F9', marginBottom: '4px' }} />
+                    <div style={{ width: '85px', height: '11px', borderRadius: '3px', background: '#F8FAFC' }} />
+                  </td>
+                  <td style={{ padding: '13px 16px', verticalAlign: 'middle' }}>
+                    <div style={{ width: '80%', height: '13px', borderRadius: '4px', background: '#F1F5F9', marginBottom: '5px' }} />
+                    <div style={{ width: '45%', height: '11px', borderRadius: '3px', background: '#F8FAFC' }} />
+                  </td>
+                  <td style={{ padding: '13px 16px', verticalAlign: 'middle' }}>
+                    <div style={{ width: '70px', height: '14px', borderRadius: '4px', background: '#F1F5F9', marginBottom: '4px' }} />
+                    <div style={{ width: '50px', height: '10px', borderRadius: '3px', background: '#F8FAFC' }} />
+                  </td>
+                  <td style={{ padding: '13px 14px', textAlign: 'center', verticalAlign: 'middle' }}>
+                    <div style={{ width: '80px', height: '22px', borderRadius: '999px', background: '#F1F5F9', margin: '0 auto' }} />
+                  </td>
+                  <td style={{ padding: '13px 14px', textAlign: 'center', verticalAlign: 'middle' }}>
+                    <div style={{ width: '28px', height: '28px', borderRadius: '6px', background: '#F8FAFC', margin: '0 auto' }} />
+                  </td>
+                </tr>
+              ))
+            ) : paginatedRequests.length === 0 ? (
               <tr>
                 <td colSpan={6} className="table-empty-cell" style={{ textAlign: 'center', padding: '120px 20px', border: 'none' }}>
                   <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '56px', height: '56px', borderRadius: '50%', background: '#f8fafc', color: '#94a3b8', marginBottom: '14px', fontSize: '22px' }}>
@@ -367,7 +396,7 @@ export default function AdminCustomRequestsClient() {
                             }}
                           >
                             <i className="fa-solid fa-image" style={{ fontSize: '10px' }}></i>
-                            <span>View Peg</span>
+                            <span>View Photo</span>
                           </button>
                         )}
                       </div>
@@ -549,7 +578,7 @@ export default function AdminCustomRequestsClient() {
                                 onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                               >
                                 <i className="fa-regular fa-image" style={{ fontSize: '12px', color: '#64748b', width: '14px' }}></i>
-                                <span>View Peg Image</span>
+                                <span>View Photo</span>
                               </button>
                             )}
 
@@ -857,7 +886,7 @@ export default function AdminCustomRequestsClient() {
             onClick={(e) => e.stopPropagation()}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-              <h3 style={{ margin: 0, fontSize: '14px', fontWeight: '800', color: '#0f172a' }}>Reference Peg Image</h3>
+              <h3 style={{ margin: 0, fontSize: '14px', fontWeight: '800', color: '#0f172a' }}>Reference Photo</h3>
               <button
                 type="button"
                 onClick={() => setPreviewPhoto(null)}
@@ -867,7 +896,7 @@ export default function AdminCustomRequestsClient() {
               </button>
             </div>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={previewPhoto} alt="Peg Reference" style={{ width: '100%', maxHeight: '420px', objectFit: 'contain', borderRadius: '10px' }} />
+            <img src={previewPhoto} alt="Reference Photo" style={{ width: '100%', maxHeight: '420px', objectFit: 'contain', borderRadius: '10px' }} />
           </div>
         </div>
       )}

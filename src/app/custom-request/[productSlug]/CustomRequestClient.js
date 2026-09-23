@@ -78,7 +78,7 @@ export default function CustomRequestClient({ product }) {
             )}
             <div style={{ minWidth: 0, flex: 1 }}>
               <p style={{ fontSize: '11px', color: 'var(--color-text-muted)', margin: 0, fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                Custom Peg Request
+                Custom Order Request
               </p>
               <p style={{ fontWeight: '700', fontSize: '13.5px', color: 'var(--color-text)', margin: '2px 0 0 0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {prodName}

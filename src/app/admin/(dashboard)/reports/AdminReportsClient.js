@@ -266,7 +266,7 @@ export default function AdminReportsClient({ initialOrders = [], initialProducts
       {/* ── Header ── */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <h1 style={{ margin: 0, fontSize: '23px', fontWeight: '800', color: '#0F172A', letterSpacing: '-0.02em' }}>
+          <h1 style={{ margin: 0, fontSize: '22px', fontWeight: '800', color: '#0F172A', letterSpacing: '-0.02em' }}>
             Sales & Reports
           </h1>
           <span
@@ -275,7 +275,7 @@ export default function AdminReportsClient({ initialOrders = [], initialProducts
               color: 'var(--color-primary, #EA580C)',
               fontSize: '12px',
               fontWeight: '800',
-              padding: '2.5px 9px',
+              padding: '2px 9px',
               borderRadius: '9999px',
             }}
           >
@@ -288,9 +288,9 @@ export default function AdminReportsClient({ initialOrders = [], initialProducts
             type="button"
             onClick={() => setShowResetModal(true)}
             style={{
-              height: '36px',
+              height: '34px',
               padding: '0 12px',
-              borderRadius: '9px',
+              borderRadius: '8px',
               border: '1px solid #FECACA',
               background: '#FFF5F5',
               color: '#DC2626',
@@ -300,7 +300,7 @@ export default function AdminReportsClient({ initialOrders = [], initialProducts
               display: 'inline-flex',
               alignItems: 'center',
               gap: '6px',
-              boxShadow: '0 1px 2px rgba(220, 38, 38, 0.05)',
+              boxShadow: '0 1px 2px rgba(220, 38, 38, 0.04)',
               transition: 'all 0.15s ease',
             }}
           >
@@ -313,9 +313,9 @@ export default function AdminReportsClient({ initialOrders = [], initialProducts
             onClick={loadData}
             disabled={isLoading}
             style={{
-              height: '36px',
-              padding: '0 14px',
-              borderRadius: '9px',
+              height: '34px',
+              padding: '0 13px',
+              borderRadius: '8px',
               border: '1px solid #E2E8F0',
               background: '#FFFFFF',
               color: '#334155',
@@ -367,17 +367,17 @@ export default function AdminReportsClient({ initialOrders = [], initialProducts
         <div
           style={{
             background: '#FFFFFF',
-            borderRadius: '14px',
+            borderRadius: '12px',
             padding: '16px 20px',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
-            border: '1px solid #F1F5F9',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
+            border: '1px solid #E2E8F0',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
           }}
         >
           <div>
-            <p style={{ fontSize: '11px', fontWeight: '800', color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.04em', margin: '0 0 4px' }}>
+            <p style={{ fontSize: '11px', fontWeight: '800', color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.04em', margin: '0 0 5px' }}>
               Total Revenue
             </p>
             <span style={{ fontSize: '22px', fontWeight: '900', color: '#166534', lineHeight: 1 }}>
@@ -386,15 +386,15 @@ export default function AdminReportsClient({ initialOrders = [], initialProducts
           </div>
           <div
             style={{
-              width: '40px',
-              height: '40px',
-              borderRadius: '10px',
+              width: '38px',
+              height: '38px',
+              borderRadius: '9px',
               background: '#DCFCE7',
               color: '#166534',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontSize: '16px',
+              fontSize: '15px',
             }}
           >
             <i className="fa-solid fa-peso-sign"></i>
@@ -405,17 +405,17 @@ export default function AdminReportsClient({ initialOrders = [], initialProducts
         <div
           style={{
             background: '#FFFFFF',
-            borderRadius: '14px',
+            borderRadius: '12px',
             padding: '16px 20px',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
-            border: '1px solid #F1F5F9',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
+            border: '1px solid #E2E8F0',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
           }}
         >
           <div>
-            <p style={{ fontSize: '11px', fontWeight: '800', color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.04em', margin: '0 0 4px' }}>
+            <p style={{ fontSize: '11px', fontWeight: '800', color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.04em', margin: '0 0 5px' }}>
               Net Profit
             </p>
             <span style={{ fontSize: '22px', fontWeight: '900', color: 'var(--color-primary, #EA580C)', lineHeight: 1 }}>
@@ -424,15 +424,15 @@ export default function AdminReportsClient({ initialOrders = [], initialProducts
           </div>
           <div
             style={{
-              width: '40px',
-              height: '40px',
-              borderRadius: '10px',
+              width: '38px',
+              height: '38px',
+              borderRadius: '9px',
               background: '#FFF5F2',
               color: 'var(--color-primary, #EA580C)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontSize: '16px',
+              fontSize: '15px',
             }}
           >
             <i className="fa-solid fa-chart-line"></i>
@@ -443,34 +443,37 @@ export default function AdminReportsClient({ initialOrders = [], initialProducts
         <div
           style={{
             background: '#FFFFFF',
-            borderRadius: '14px',
+            borderRadius: '12px',
             padding: '16px 20px',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
-            border: '1px solid #F1F5F9',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
+            border: '1px solid #E2E8F0',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
           }}
         >
           <div>
-            <p style={{ fontSize: '11px', fontWeight: '800', color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.04em', margin: '0 0 4px' }}>
+            <p style={{ fontSize: '11px', fontWeight: '800', color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.04em', margin: '0 0 5px' }}>
               Units Sold
             </p>
-            <span style={{ fontSize: '22px', fontWeight: '900', color: '#0EA5E9', lineHeight: 1 }}>
-              {totalUnitsSold}
-            </span>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
+              <span style={{ fontSize: '22px', fontWeight: '900', color: '#0EA5E9', lineHeight: 1 }}>
+                {totalUnitsSold}
+              </span>
+              <span style={{ fontSize: '12px', fontWeight: '700', color: '#64748B' }}>pcs</span>
+            </div>
           </div>
           <div
             style={{
-              width: '40px',
-              height: '40px',
-              borderRadius: '10px',
+              width: '38px',
+              height: '38px',
+              borderRadius: '9px',
               background: '#EFF6FF',
               color: '#0EA5E9',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontSize: '16px',
+              fontSize: '15px',
             }}
           >
             <i className="fa-solid fa-box-open"></i>
@@ -481,34 +484,37 @@ export default function AdminReportsClient({ initialOrders = [], initialProducts
         <div
           style={{
             background: '#FFFFFF',
-            borderRadius: '14px',
+            borderRadius: '12px',
             padding: '16px 20px',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
-            border: '1px solid #F1F5F9',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
+            border: '1px solid #E2E8F0',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
           }}
         >
           <div>
-            <p style={{ fontSize: '11px', fontWeight: '800', color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.04em', margin: '0 0 4px' }}>
+            <p style={{ fontSize: '11px', fontWeight: '800', color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.04em', margin: '0 0 5px' }}>
               Completed Orders
             </p>
-            <span style={{ fontSize: '22px', fontWeight: '900', color: '#8B5CF6', lineHeight: 1 }}>
-              {completedOrders.length}
-            </span>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
+              <span style={{ fontSize: '22px', fontWeight: '900', color: '#8B5CF6', lineHeight: 1 }}>
+                {completedOrders.length}
+              </span>
+              <span style={{ fontSize: '12px', fontWeight: '700', color: '#64748B' }}>orders</span>
+            </div>
           </div>
           <div
             style={{
-              width: '40px',
-              height: '40px',
-              borderRadius: '10px',
+              width: '38px',
+              height: '38px',
+              borderRadius: '9px',
               background: '#F5F3FF',
               color: '#8B5CF6',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontSize: '16px',
+              fontSize: '15px',
             }}
           >
             <i className="fa-solid fa-clipboard-check"></i>
@@ -531,9 +537,9 @@ export default function AdminReportsClient({ initialOrders = [], initialProducts
           style={{
             display: 'inline-flex',
             background: '#F1F5F9',
-            padding: '3.5px',
-            borderRadius: '11px',
-            gap: '3px',
+            padding: '3px',
+            borderRadius: '9px',
+            gap: '2px',
           }}
         >
           <button
@@ -541,13 +547,13 @@ export default function AdminReportsClient({ initialOrders = [], initialProducts
             onClick={() => handlePresetChange('this_month')}
             style={{
               border: 'none',
-              padding: '7px 14px',
-              borderRadius: '8px',
-              fontSize: '12.5px',
+              padding: '6px 13px',
+              borderRadius: '7px',
+              fontSize: '12px',
               fontWeight: periodPreset === 'this_month' ? '800' : '600',
               background: periodPreset === 'this_month' ? '#FFFFFF' : 'transparent',
               color: periodPreset === 'this_month' ? 'var(--color-primary, #EA580C)' : '#64748B',
-              boxShadow: periodPreset === 'this_month' ? '0 1px 3px rgba(0,0,0,0.06)' : 'none',
+              boxShadow: periodPreset === 'this_month' ? '0 1px 2px rgba(0,0,0,0.05)' : 'none',
               cursor: 'pointer',
               transition: 'all 0.15s ease',
             }}
@@ -560,13 +566,13 @@ export default function AdminReportsClient({ initialOrders = [], initialProducts
             onClick={() => handlePresetChange('last_month')}
             style={{
               border: 'none',
-              padding: '7px 14px',
-              borderRadius: '8px',
-              fontSize: '12.5px',
+              padding: '6px 13px',
+              borderRadius: '7px',
+              fontSize: '12px',
               fontWeight: periodPreset === 'last_month' ? '800' : '600',
               background: periodPreset === 'last_month' ? '#FFFFFF' : 'transparent',
               color: periodPreset === 'last_month' ? 'var(--color-primary, #EA580C)' : '#64748B',
-              boxShadow: periodPreset === 'last_month' ? '0 1px 3px rgba(0,0,0,0.06)' : 'none',
+              boxShadow: periodPreset === 'last_month' ? '0 1px 2px rgba(0,0,0,0.05)' : 'none',
               cursor: 'pointer',
               transition: 'all 0.15s ease',
             }}
@@ -579,13 +585,13 @@ export default function AdminReportsClient({ initialOrders = [], initialProducts
             onClick={() => handlePresetChange('this_year')}
             style={{
               border: 'none',
-              padding: '7px 14px',
-              borderRadius: '8px',
-              fontSize: '12.5px',
+              padding: '6px 13px',
+              borderRadius: '7px',
+              fontSize: '12px',
               fontWeight: periodPreset === 'this_year' ? '800' : '600',
               background: periodPreset === 'this_year' ? '#FFFFFF' : 'transparent',
               color: periodPreset === 'this_year' ? 'var(--color-primary, #EA580C)' : '#64748B',
-              boxShadow: periodPreset === 'this_year' ? '0 1px 3px rgba(0,0,0,0.06)' : 'none',
+              boxShadow: periodPreset === 'this_year' ? '0 1px 2px rgba(0,0,0,0.05)' : 'none',
               cursor: 'pointer',
               transition: 'all 0.15s ease',
             }}
@@ -598,13 +604,13 @@ export default function AdminReportsClient({ initialOrders = [], initialProducts
             onClick={() => handlePresetChange('all_time')}
             style={{
               border: 'none',
-              padding: '7px 14px',
-              borderRadius: '8px',
-              fontSize: '12.5px',
+              padding: '6px 13px',
+              borderRadius: '7px',
+              fontSize: '12px',
               fontWeight: periodPreset === 'all_time' ? '800' : '600',
               background: periodPreset === 'all_time' ? '#FFFFFF' : 'transparent',
               color: periodPreset === 'all_time' ? 'var(--color-primary, #EA580C)' : '#64748B',
-              boxShadow: periodPreset === 'all_time' ? '0 1px 3px rgba(0,0,0,0.06)' : 'none',
+              boxShadow: periodPreset === 'all_time' ? '0 1px 2px rgba(0,0,0,0.05)' : 'none',
               cursor: 'pointer',
               transition: 'all 0.15s ease',
             }}
@@ -625,9 +631,10 @@ export default function AdminReportsClient({ initialOrders = [], initialProducts
             style={{
               fontSize: '12px',
               fontWeight: '700',
-              padding: '7px 10px',
-              borderRadius: '9px',
-              border: '1.5px solid #E2E8F0',
+              height: '32px',
+              padding: '0 10px',
+              borderRadius: '8px',
+              border: '1px solid #CBD5E1',
               background: '#FFFFFF',
               color: '#334155',
               cursor: 'pointer',
@@ -652,9 +659,10 @@ export default function AdminReportsClient({ initialOrders = [], initialProducts
             style={{
               fontSize: '12px',
               fontWeight: '700',
-              padding: '7px 10px',
-              borderRadius: '9px',
-              border: '1.5px solid #E2E8F0',
+              height: '32px',
+              padding: '0 10px',
+              borderRadius: '8px',
+              border: '1px solid #CBD5E1',
               background: '#FFFFFF',
               color: '#334155',
               cursor: 'pointer',
@@ -675,8 +683,8 @@ export default function AdminReportsClient({ initialOrders = [], initialProducts
       <div
         style={{
           background: '#FFFFFF',
-          borderRadius: '14px',
-          border: '1px solid #F1F5F9',
+          borderRadius: '12px',
+          border: '1px solid #E2E8F0',
           boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
           overflow: 'hidden',
           display: 'flex',

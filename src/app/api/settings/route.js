@@ -10,6 +10,7 @@ let serverSettings = {
   contactNumber: '09949909686',
   gcashName: 'M.... J.. F...',
   gcashNumber: '09949909686',
+  gcashQrUrl: '',
   deliveryFee: 45,
   deliveryFeeMode: 'auto', // 'auto' (Distance-based GPS) or 'fixed' (Manual flat fee)
   deliveryFeeNear: 20,     // 0-2 km (Barugo Proper / Poblacion)

@@ -731,38 +731,39 @@ input:focus, select:focus, textarea:focus, .form-input:focus, .form-textarea:foc
   transform: scale(0.92);
 }
 
-/* ── Luxury Dynamic Island Global Toast (Pang-malakasan) ── */
+/* ── Modern Artisan Pill Toast (Clean, Light & Easy on the Eyes) ── */
 .likha-global-toast-container {
   position: fixed;
-  top: max(16px, env(safe-area-inset-top, 16px));
+  top: max(14px, env(safe-area-inset-top, 14px));
   left: 50%;
   transform: translateX(-50%);
-  z-index: 999999;
+  z-index: 9999999;
   width: calc(100% - 24px);
-  max-width: 440px;
+  max-width: 410px;
   pointer-events: none;
 }
 
 .likha-global-toast-container.toast-enter {
-  animation: toastSpringDown 0.42s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  animation: toastSpringDown 0.38s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 .likha-global-toast-container.toast-leave {
-  animation: toastSpringUp 0.28s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  animation: toastSpringUp 0.24s cubic-bezier(0.4, 0, 0.2, 1) forwards;
 }
 
 @keyframes toastSpringDown {
   0% {
     opacity: 0;
-    transform: translate(-50%, -32px) scale(0.92);
+    transform: translate(-50%, -28px) scale(0.92);
+    filter: blur(4px);
   }
-  60% {
-    opacity: 1;
-    transform: translate(-50%, 4px) scale(1.02);
+  70% {
+    transform: translate(-50%, 2px) scale(1.01);
   }
   100% {
     opacity: 1;
     transform: translate(-50%, 0) scale(1);
+    filter: blur(0);
   }
 }
 
@@ -773,55 +774,108 @@ input:focus, select:focus, textarea:focus, .form-input:focus, .form-textarea:foc
   }
   100% {
     opacity: 0;
-    transform: translate(-50%, -24px) scale(0.94);
+    transform: translate(-50%, -20px) scale(0.94);
+  }
+}
+
+@keyframes toastProgress {
+  0% {
+    width: 100%;
+  }
+  100% {
+    width: 0%;
   }
 }
 
 .likha-toast-card {
   pointer-events: auto;
   position: relative;
-  overflow: hidden;
-  background: rgba(18, 19, 24, 0.94);
-  backdrop-filter: blur(28px);
-  -webkit-backdrop-filter: blur(28px);
-  border-radius: 20px;
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.98);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-radius: 12px;
+  border: 1px solid rgba(226, 232, 240, 0.85);
   box-shadow: 
-    0 20px 48px -6px rgba(0, 0, 0, 0.55),
-    0 0 0 1px rgba(255, 255, 255, 0.08),
-    0 4px 20px rgba(234, 88, 12, 0.2);
-  color: #FFFFFF;
-  padding: 10px 12px;
+    0 10px 24px -4px rgba(0, 0, 0, 0.08),
+    0 2px 6px rgba(0, 0, 0, 0.03);
+  padding: 5px 10px 5px 7px;
+  overflow: hidden;
+  user-select: none;
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+}
+
+.likha-toast-card.is-type-cart {
+  border-color: rgba(234, 88, 12, 0.24);
+}
+
+.likha-toast-card.is-type-warning {
+  border-color: rgba(217, 119, 6, 0.26);
+}
+
+.likha-toast-card.is-type-success {
+  border-color: rgba(16, 185, 129, 0.26);
+}
+
+.likha-toast-card.is-type-error {
+  border-color: rgba(239, 68, 68, 0.26);
+}
+
+.likha-toast-card.is-type-info {
+  border-color: rgba(14, 165, 233, 0.26);
+}
+
+.likha-toast-progress-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 1.5px;
+  background: linear-gradient(90deg, var(--color-primary, #EA580C) 0%, #F97316 100%);
+  animation: toastProgress linear forwards;
+  border-radius: 0 0 12px 12px;
+  opacity: 0.65;
+}
+
+.likha-toast-card.is-type-warning .likha-toast-progress-bar {
+  background: linear-gradient(90deg, #D97706 0%, #F59E0B 100%);
+}
+
+.likha-toast-card.is-type-success .likha-toast-progress-bar {
+  background: linear-gradient(90deg, #059669 0%, #10B981 100%);
+}
+
+.likha-toast-card.is-type-error .likha-toast-progress-bar {
+  background: linear-gradient(90deg, #DC2626 0%, #EF4444 100%);
+}
+
+.likha-toast-card.is-type-info .likha-toast-progress-bar {
+  background: linear-gradient(90deg, #0284C7 0%, #0EA5E9 100%);
 }
 
 .likha-toast-glow {
-  position: absolute;
-  top: 0;
-  left: 15%;
-  right: 15%;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(234, 88, 12, 0.8), rgba(251, 146, 60, 0.8), transparent);
-  pointer-events: none;
+  display: none;
 }
 
 .likha-toast-content {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   position: relative;
-  z-index: 2;
+  width: 100%;
 }
 
 .likha-toast-media {
   position: relative;
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
   overflow: hidden;
   flex-shrink: 0;
-  background: #23242B;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+  background: var(--color-surface-warm, #F8FAFC);
+  border: 1px solid var(--color-border-light, #E2E8F0);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .likha-toast-img {
@@ -836,142 +890,112 @@ input:focus, select:focus, textarea:focus, .form-input:focus, .form-textarea:foc
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 18px;
+  font-size: 13px;
   color: #FFFFFF;
 }
 
 .likha-toast-icon-box.cart {
-  background: linear-gradient(135deg, #EA580C 0%, #C2410C 100%);
+  background: linear-gradient(135deg, #EA580C 0%, #D94A1E 100%);
 }
 
 .likha-toast-icon-box.success {
-  background: linear-gradient(135deg, #16A34A 0%, #15803D 100%);
+  background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+}
+
+.likha-toast-icon-box.warning {
+  background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);
 }
 
 .likha-toast-icon-box.error {
-  background: linear-gradient(135deg, #DC2626 0%, #B91C1C 100%);
+  background: linear-gradient(135deg, #EF4444 0%, #DC2626 100%);
 }
 
 .likha-toast-icon-box.info {
-  background: linear-gradient(135deg, #0284C7 0%, #0369A1 100%);
+  background: linear-gradient(135deg, #0EA5E9 0%, #0284C7 100%);
 }
 
 .likha-toast-mini-badge {
-  position: absolute;
-  bottom: -2px;
-  right: -2px;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  background: #16A34A;
-  color: #FFFFFF;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 8.5px;
-  border: 1.5px solid #121318;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.4);
+  display: none;
 }
 
 .likha-toast-text-wrap {
   flex: 1;
   min-width: 0;
   display: flex;
-  flex-direction: column;
-  gap: 2px;
+  align-items: center;
 }
 
 .likha-toast-header {
   display: flex;
   align-items: center;
   gap: 6px;
+  min-width: 0;
+  width: 100%;
 }
 
 .likha-toast-title {
-  font-size: 13px;
-  font-weight: 800;
-  color: #F8FAFC;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--color-text, #0F172A);
   letter-spacing: -0.01em;
-  font-family: var(--font-heading);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
 }
 
 .likha-toast-qty-tag {
   font-size: 10px;
-  font-weight: 800;
-  background: rgba(234, 88, 12, 0.25);
-  color: #FB923C;
-  padding: 1px 6px;
-  border-radius: 9999px;
-  border: 1px solid rgba(234, 88, 12, 0.4);
-}
-
-.likha-toast-desc {
-  font-size: 12px;
-  color: #CBD5E1;
-  margin: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  font-weight: 500;
+  font-weight: 700;
+  background: #FEF3C7;
+  color: #B45309;
+  padding: 1px 5px;
+  border-radius: 6px;
+  line-height: 1.2;
+  flex-shrink: 0;
 }
 
 .likha-toast-action-btn {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 6px 12px;
-  border-radius: 9999px;
-  background: linear-gradient(135deg, #EA580C 0%, #C2410C 100%);
-  color: #FFFFFF !important;
-  font-size: 11.5px;
+  gap: 4px;
+  padding: 4px 9px;
+  border-radius: 8px;
+  background: var(--color-primary-lighter, #FFF5F2);
+  color: var(--color-primary, #EA580C) !important;
+  font-size: 11px;
   font-weight: 700;
   text-decoration: none;
   flex-shrink: 0;
-  box-shadow: 0 3px 12px rgba(234, 88, 12, 0.4);
-  transition: transform 0.15s ease, filter 0.15s ease;
+  border: 1px solid rgba(234, 88, 12, 0.22);
+  transition: all 0.15s ease;
+  white-space: nowrap;
 }
 
+.likha-toast-action-btn:hover,
 .likha-toast-action-btn:active {
-  transform: scale(0.93);
+  background: var(--color-primary, #EA580C);
+  color: #FFFFFF !important;
 }
 
 .likha-toast-close-btn {
   background: transparent;
   border: none;
-  color: #64748B;
-  font-size: 13px;
+  color: var(--color-text-muted, #94A3B8);
+  font-size: 12px;
   padding: 4px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 50%;
+  border-radius: 6px;
   flex-shrink: 0;
-  transition: color 0.15s ease;
+  transition: all 0.15s ease;
 }
 
 .likha-toast-close-btn:hover {
-  color: #F8FAFC;
-}
-
-.likha-toast-progress-bar {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  height: 2.5px;
-  background: linear-gradient(90deg, #EA580C, #F97316, #FBBF24);
-  width: 100%;
-  transform-origin: left center;
-  animation: likhaToastProgress linear forwards;
-}
-
-@keyframes likhaToastProgress {
-  0% {
-    transform: scaleX(1);
-  }
-  100% {
-    transform: scaleX(0);
-  }
+  color: var(--color-text, #0F172A);
+  background: var(--color-surface-warm, #F1F5F9);
 }
 
 /* ── Global Smooth Transitions & Snappy Feedback ──────────────── */

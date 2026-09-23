@@ -92,6 +92,12 @@ export default function AdminProductsClient({ initialProducts, categories = [] }
     } catch {}
   }, []);
 
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
+
+  useEffect(() => {
+    setHasLoadedOnce(true);
+  }, []);
+
   // Delete Confirmation State
   const [productToDelete, setProductToDelete] = useState(null);
 
@@ -1230,7 +1236,33 @@ export default function AdminProductsClient({ initialProducts, categories = [] }
                 </tr>
               </thead>
               <tbody key={`${activeCategory}-${searchQuery}-${currentPage}`} className="table-fade-enter">
-                {paginatedProducts.length === 0 ? (
+                {!hasLoadedOnce && products.length === 0 ? (
+                  [1, 2, 3, 4, 5].map((i) => (
+                    <tr key={`skeleton-${i}`} style={{ borderBottom: '1px solid #F1F5F9' }}>
+                      <td style={{ padding: '13px 18px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                          <div style={{ width: '42px', height: '42px', borderRadius: '8px', background: 'linear-gradient(90deg, #F1F5F9 25%, #E2E8F0 50%, #F1F5F9 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.2s infinite ease-in-out', flexShrink: 0 }} />
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: 1 }}>
+                            <div style={{ width: '140px', height: '14px', borderRadius: '4px', background: '#F1F5F9' }} />
+                            <div style={{ width: '80px', height: '10px', borderRadius: '4px', background: '#F8FAFC' }} />
+                          </div>
+                        </div>
+                      </td>
+                      <td style={{ padding: '13px 14px' }}>
+                        <div style={{ width: '90px', height: '22px', borderRadius: '999px', background: '#F1F5F9' }} />
+                      </td>
+                      <td style={{ padding: '13px 14px' }}>
+                        <div style={{ width: '70px', height: '14px', borderRadius: '4px', background: '#F1F5F9' }} />
+                      </td>
+                      <td style={{ padding: '13px 10px', textAlign: 'center' }}>
+                        <div style={{ width: '60px', height: '20px', borderRadius: '999px', background: '#F1F5F9', margin: '0 auto' }} />
+                      </td>
+                      <td style={{ padding: '13px 8px', textAlign: 'center' }}>
+                        <div style={{ width: '28px', height: '28px', borderRadius: '6px', background: '#F1F5F9', margin: '0 auto' }} />
+                      </td>
+                    </tr>
+                  ))
+                ) : paginatedProducts.length === 0 ? (
                   <tr>
                     <td colSpan={5} className="table-empty-cell" style={{ textAlign: 'center', padding: '120px 20px', border: 'none' }}>
                       <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '56px', height: '56px', borderRadius: '50%', background: '#f8fafc', color: '#94a3b8', marginBottom: '14px', fontSize: '22px' }}>

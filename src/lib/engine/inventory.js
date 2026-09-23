@@ -90,14 +90,30 @@ export async function addStockForPurchase(purchaseId, materialId, quantity) {
 export async function adjustStock(materialId, quantity, movementType, notes) {
   const supabase = createClient();
 
-  const { error: updateErr } = await supabase
-    .from('materials')
-    .update({
-      current_stock: supabase.raw(`current_stock + ${quantity}`),
-    })
-    .eq('id', materialId);
+  // Try RPC first
+  const { error: rpcErr } = await supabase.rpc('add_stock', {
+    p_material_id: materialId,
+    p_quantity: quantity,
+  });
 
-  if (updateErr) return { success: false, error: updateErr.message };
+  if (rpcErr) {
+    // Fallback: fetch current stock and update
+    const { data: mat, error: fetchErr } = await supabase
+      .from('materials')
+      .select('current_stock')
+      .eq('id', materialId)
+      .single();
+
+    if (fetchErr) return { success: false, error: fetchErr.message };
+
+    const newStock = Math.max(0, (Number(mat?.current_stock) || 0) + Number(quantity));
+    const { error: updateErr } = await supabase
+      .from('materials')
+      .update({ current_stock: newStock })
+      .eq('id', materialId);
+
+    if (updateErr) return { success: false, error: updateErr.message };
+  }
 
   await supabase.from('stock_movements').insert({
     material_id: materialId,

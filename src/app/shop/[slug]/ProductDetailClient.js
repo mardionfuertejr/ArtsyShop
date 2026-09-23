@@ -67,7 +67,17 @@ export default function ProductDetailClient({ product: initialProduct, photos: i
     const targetSlug = (slug || '').toLowerCase().trim();
     const targetSlugClean = targetSlug.replace(/-/g, '');
 
-    // 1. Check localStorage first (instant response for custom added products)
+    // 1. If initialProduct is present from server, use it directly
+    if (initialProduct) {
+      setCurrentProduct(initialProduct);
+      if (!photos || photos.length === 0) {
+        setPhotos(buildPhotoList(initialProduct));
+      }
+      setLoading(false);
+      return;
+    }
+
+    // 2. Check localStorage for purely user-created custom products
     try {
       const local = localStorage.getItem('likha_custom_products');
       if (local) {
@@ -79,8 +89,7 @@ export default function ProductDetailClient({ product: initialProduct, photos: i
             return (
               pSlug === targetSlug ||
               pId === targetSlug ||
-              pSlug.replace(/-/g, '') === targetSlugClean ||
-              (initialProduct && (p.id === initialProduct.id || pSlug === (initialProduct.slug || '').toLowerCase()))
+              pSlug.replace(/-/g, '') === targetSlugClean
             );
           });
 
@@ -93,16 +102,6 @@ export default function ProductDetailClient({ product: initialProduct, photos: i
         }
       }
     } catch {}
-
-    // 2. If initialProduct is already present from server, keep it
-    if (initialProduct) {
-      setCurrentProduct(initialProduct);
-      if (!photos || photos.length === 0) {
-        setPhotos(buildPhotoList(initialProduct));
-      }
-      setLoading(false);
-      return;
-    }
 
     // 3. Fallback: Fetch /api/products from server
     async function fetchFromApi() {
@@ -131,37 +130,87 @@ export default function ProductDetailClient({ product: initialProduct, photos: i
     fetchFromApi();
   }, [slug, initialProduct]);
 
-  const defaultHandmadeOptions = [
+  // Smart category-based default options when product has no explicit options
+  const CATEGORY_DEFAULT_OPTIONS = {
+    bouquets: [
+      {
+        id: 'default-opt-color', option_name: 'Color / Theme', is_required: true,
+        choices: [
+          { label: 'Pastel Blush Pink', extra_cost: 0 }, { label: 'Crimson Velvet Red', extra_cost: 0 },
+          { label: 'Lilac Lavender', extra_cost: 0 }, { label: 'Sunflower Warm Yellow', extra_cost: 0 },
+          { label: 'White Elegance', extra_cost: 0 }, { label: 'Mixed Colors', extra_cost: 0 },
+        ],
+      },
+      {
+        id: 'default-opt-addons', option_name: 'Add-ons', is_required: false,
+        choices: [
+          { label: 'Message Card', extra_cost: 15 }, { label: 'Ribbon', extra_cost: 15 },
+          { label: 'Fairy LED Light', extra_cost: 35 }, { label: 'Gift Packaging', extra_cost: 30 },
+        ],
+      },
+    ],
+    'fuzzy-crafts': [
+      {
+        id: 'default-opt-color', option_name: 'Color / Theme', is_required: true,
+        choices: [
+          { label: 'Pastel Pink', extra_cost: 0 }, { label: 'Baby Blue', extra_cost: 0 },
+          { label: 'Cream White', extra_cost: 0 }, { label: 'Lavender', extra_cost: 0 },
+          { label: 'Sage Green', extra_cost: 0 },
+        ],
+      },
+    ],
+    'resin-art': [
+      {
+        id: 'default-opt-style', option_name: 'Color / Style', is_required: true,
+        choices: [
+          { label: 'Ocean Blue', extra_cost: 0 }, { label: 'Rose Gold', extra_cost: 0 },
+          { label: 'Crystal Clear', extra_cost: 0 }, { label: 'Galaxy Purple', extra_cost: 0 },
+          { label: 'Emerald Green', extra_cost: 0 },
+        ],
+      },
+    ],
+    'custom-gifts': [
+      {
+        id: 'default-opt-color', option_name: 'Color Theme', is_required: true,
+        choices: [
+          { label: 'Pink', extra_cost: 0 }, { label: 'Red', extra_cost: 0 },
+          { label: 'White', extra_cost: 0 }, { label: 'Purple', extra_cost: 0 },
+          { label: 'Mixed Colors', extra_cost: 0 },
+        ],
+      },
+    ],
+  };
+  const defaultFallback = [
     {
-      id: 'default-opt-color',
-      option_name: 'Color',
-      is_required: true,
+      id: 'default-opt-color', option_name: 'Color', is_required: true,
       choices: [
-        { label: 'Pink', extra_cost: 0 },
-        { label: 'Red', extra_cost: 0 },
-        { label: 'Purple', extra_cost: 0 },
-        { label: 'Yellow', extra_cost: 0 },
-        { label: 'Blue', extra_cost: 0 },
-        { label: 'Pastel', extra_cost: 0 },
-        { label: 'Mixed Colors', extra_cost: 0 },
+        { label: 'Pink', extra_cost: 0 }, { label: 'Red', extra_cost: 0 },
+        { label: 'Purple', extra_cost: 0 }, { label: 'Yellow', extra_cost: 0 },
+        { label: 'Blue', extra_cost: 0 }, { label: 'Mixed Colors', extra_cost: 0 },
       ],
     },
     {
-      id: 'default-opt-addons',
-      option_name: 'Add-ons',
-      is_required: false,
+      id: 'default-opt-addons', option_name: 'Add-ons', is_required: false,
       choices: [
-        { label: 'Message Card', extra_cost: 15 },
-        { label: 'Ribbon', extra_cost: 15 },
-        { label: 'Fairy Lights', extra_cost: 35 },
-        { label: 'Gift Box', extra_cost: 30 },
+        { label: 'Message Card', extra_cost: 15 }, { label: 'Ribbon', extra_cost: 15 },
+        { label: 'Fairy Lights', extra_cost: 35 }, { label: 'Gift Box', extra_cost: 30 },
       ],
     },
   ];
 
+  const getSmartDefaults = () => {
+    const catSlug = currentProduct?.category?.slug || '';
+    const catName = (currentProduct?.category?.name || '').toLowerCase();
+    if (CATEGORY_DEFAULT_OPTIONS[catSlug]) return CATEGORY_DEFAULT_OPTIONS[catSlug];
+    for (const [key, opts] of Object.entries(CATEGORY_DEFAULT_OPTIONS)) {
+      if (catName.includes(key.replace('-', ' ')) || catName.includes(key.split('-')[0])) return opts;
+    }
+    return defaultFallback;
+  };
+
   const options = (currentProduct?.product_options && currentProduct.product_options.length > 0)
     ? currentProduct.product_options
-    : defaultHandmadeOptions;
+    : getSmartDefaults();
 
   // Blank/unselected options by default (displays '---')
   const [selectedOptions, setSelectedOptions] = useState({});
@@ -328,7 +377,14 @@ export default function ProductDetailClient({ product: initialProduct, photos: i
     );
   }
 
-  const isSoldOut = Boolean(currentProduct.is_sold_out || (currentProduct.is_ready_made && currentProduct.ready_made_stock === 0));
+  const isSoldOut = Boolean(
+    currentProduct.is_sold_out === true ||
+    currentProduct.is_sold_out === 'true' ||
+    (currentProduct.is_ready_made && (Number(currentProduct.ready_made_stock) === 0 || currentProduct.ready_made_stock === '0'))
+  );
+  const maxStock = (currentProduct.is_ready_made && Number(currentProduct.ready_made_stock) > 0)
+    ? Number(currentProduct.ready_made_stock)
+    : 99;
   const isOnSale = Boolean(currentProduct.is_on_sale && currentProduct.sale_price && Number(currentProduct.base_price) > Number(currentProduct.sale_price));
   const originalBasePrice = parseFloat(currentProduct.base_price || 0);
   const effectiveBasePrice = isOnSale ? parseFloat(currentProduct.sale_price) : originalBasePrice;
@@ -379,7 +435,21 @@ export default function ProductDetailClient({ product: initialProduct, photos: i
   const hasMissingOptions = missingRequiredOptions.length > 0;
 
   const handleAddToCart = () => {
-    if (isSoldOut || added || hasMissingOptions) return;
+    if (isSoldOut || added) return;
+
+    if (hasMissingOptions) {
+      const missingLabels = missingRequiredOptions.map((o) => o.option_name).join(', ');
+      triggerToast({
+        message: `Please select ${missingLabels} first ✨`,
+        type: 'warning',
+      });
+      const optEl = document.querySelector('.option-selector-trigger');
+      if (optEl) {
+        optEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        optEl.click();
+      }
+      return;
+    }
 
     const photoUrl = photos[0]?.url || (photos[0]?.storage_path && supabaseUrl ? `${supabaseUrl}/storage/v1/object/public/product-photos/${photos[0].storage_path}` : null);
 
@@ -402,8 +472,7 @@ export default function ProductDetailClient({ product: initialProduct, photos: i
       .join(', ');
 
     triggerToast({
-      title: 'Added to Cart! ✨',
-      message: `${currentProduct.name}${selectedLabels ? ` (${selectedLabels})` : ''}`,
+      message: `${currentProduct.name}${selectedLabels ? ` (${selectedLabels})` : ''} added to cart`,
       photo: photoUrl,
       type: 'cart',
       quantity,
@@ -431,7 +500,21 @@ export default function ProductDetailClient({ product: initialProduct, photos: i
   };
 
   const handleCheckoutNow = () => {
-    if (isSoldOut || hasMissingOptions) return;
+    if (isSoldOut) return;
+
+    if (hasMissingOptions) {
+      const missingLabels = missingRequiredOptions.map((o) => o.option_name).join(', ');
+      triggerToast({
+        message: `Please select ${missingLabels} first ✨`,
+        type: 'warning',
+      });
+      const optEl = document.querySelector('.option-selector-trigger');
+      if (optEl) {
+        optEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        optEl.click();
+      }
+      return;
+    }
 
     clearToast();
 
@@ -511,6 +594,95 @@ export default function ProductDetailClient({ product: initialProduct, photos: i
 
           {/* Details */}
           <div className="product-info-panel">
+            {/* Status Badges Row (Sold Out | On-Hand | Made to Order | Bestseller | Sale) */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', marginBottom: '8px' }}>
+              {isSoldOut ? (
+                <span style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  background: '#1E293B',
+                  color: '#F8FAFC',
+                  fontSize: '11px',
+                  fontWeight: '800',
+                  padding: '3px 10px',
+                  borderRadius: '999px',
+                  letterSpacing: '0.04em',
+                  textTransform: 'uppercase',
+                  boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
+                }}>
+                  <i className="fa-solid fa-ban" style={{ fontSize: '10px' }}></i>
+                  <span>Sold Out</span>
+                </span>
+              ) : currentProduct.is_ready_made ? (
+                <span style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  background: '#DCFCE7',
+                  color: '#15803D',
+                  border: '1px solid rgba(22, 163, 74, 0.25)',
+                  fontSize: '11px',
+                  fontWeight: '700',
+                  padding: '3px 10px',
+                  borderRadius: '999px',
+                }}>
+                  <i className="fa-solid fa-leaf" style={{ fontSize: '10px' }}></i>
+                  <span>On Hand{currentProduct.ready_made_stock ? ` (${currentProduct.ready_made_stock} left)` : ''}</span>
+                </span>
+              ) : (
+                <span style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  background: 'rgba(194, 94, 56, 0.10)',
+                  color: 'var(--color-primary, #C25E38)',
+                  border: '1px solid rgba(194, 94, 56, 0.22)',
+                  fontSize: '11px',
+                  fontWeight: '700',
+                  padding: '3px 10px',
+                  borderRadius: '999px',
+                }}>
+                  <i className="fa-solid fa-wand-magic-sparkles" style={{ fontSize: '10px' }}></i>
+                  <span>Made to Order</span>
+                </span>
+              )}
+
+              {currentProduct.is_bestseller && !isSoldOut && (
+                <span style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  background: 'linear-gradient(135deg, #EA580C 0%, #F97316 100%)',
+                  color: '#FFFFFF',
+                  fontSize: '10.5px',
+                  fontWeight: '800',
+                  padding: '3px 9px',
+                  borderRadius: '999px',
+                  boxShadow: '0 2px 6px rgba(234, 88, 12, 0.25)',
+                }}>
+                  <i className="fa-solid fa-fire" style={{ fontSize: '9.5px' }}></i>
+                  <span>Bestseller</span>
+                </span>
+              )}
+
+              {isOnSale && !isSoldOut && (
+                <span style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  background: '#FEE2E2',
+                  color: '#B91C1C',
+                  fontSize: '10.5px',
+                  fontWeight: '800',
+                  padding: '3px 9px',
+                  borderRadius: '999px',
+                }}>
+                  <span>{saleBadgeText}</span>
+                </span>
+              )}
+            </div>
+
             {/* Title */}
             <h1 className="product-detail-title">{currentProduct.name}</h1>
 
@@ -546,6 +718,28 @@ export default function ProductDetailClient({ product: initialProduct, photos: i
               <p className="product-detail-desc">{currentProduct.description}</p>
             )}
 
+            {/* Out of Stock Notice Banner */}
+            {isSoldOut && (
+              <div style={{
+                background: '#FEF2F2',
+                border: '1px solid #FECACA',
+                borderRadius: '12px',
+                padding: '12px 14px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+                margin: '12px 0 16px',
+              }}>
+                <i className="fa-solid fa-circle-exclamation" style={{ color: '#DC2626', fontSize: '18px', flexShrink: 0 }}></i>
+                <div>
+                  <div style={{ fontSize: '13px', fontWeight: '700', color: '#991B1B' }}>Currently Out of Stock</div>
+                  <div style={{ fontSize: '11.5px', color: '#B91C1C', marginTop: '2px', lineHeight: '1.4' }}>
+                    Pansamantalang ubos ang stock para sa item na ito. Pwede kang mag-inquire sa Messenger para sa pre-order o custom crafting.
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Options */}
             {options && options.length > 0 && options.map((opt) => {
               if (!opt.choices || opt.choices.length === 0) return null;
@@ -569,7 +763,22 @@ export default function ProductDetailClient({ product: initialProduct, photos: i
                 <span className="quantity-card-title">
                   <i className="fa-solid fa-layer-group"></i> Quantity
                 </span>
-                <QuantityControl value={quantity} onChange={setQuantity} />
+                <QuantityControl
+                  value={quantity}
+                  onChange={(val) => {
+                    if (val > maxStock) {
+                      triggerToast({
+                        message: `Only ${maxStock} items available in stock 🌿`,
+                        type: 'warning',
+                      });
+                      setQuantity(maxStock);
+                    } else {
+                      setQuantity(val);
+                    }
+                  }}
+                  min={1}
+                  max={maxStock}
+                />
               </div>
             )}
 
@@ -578,40 +787,32 @@ export default function ProductDetailClient({ product: initialProduct, photos: i
               {isSoldOut ? (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
                   <button
-                    className="btn btn-secondary btn-full"
-                    disabled
-                    style={{
-                      opacity: 0.65,
-                      cursor: 'not-allowed',
-                      background: 'var(--color-surface-warm)',
-                      color: 'var(--color-text-muted)',
-                      border: '1px solid var(--color-border)',
-                      fontWeight: 'var(--weight-bold)',
-                    }}
-                  >
-                    <i className="fa-solid fa-ban" style={{ marginRight: '6px' }}></i>
-                    <span>Currently Sold Out</span>
-                  </button>
-                  <a
-                    href={`${MESSENGER_URL}?text=${encodeURIComponent(`Hi M&M Artsy! Inquire ko lang po kung kailan magkaka-stock ulit ng ${currentProduct.name}?`)}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      openMessengerDirect(`Hi M&M Artsy! Inquire ko lang po kung kailan magkaka-stock ulit ng ${currentProduct.name}?`);
+                    type="button"
+                    onClick={() => {
+                      const selectedList = getFilteredSelectedOptions().map(o => `${o.optionName}: ${o.optionValue}`).join(', ');
+                      const text = `Hi M&M Artsy! Inquire po sana ako para magpa-reserve ng "${currentProduct.name}" (Qty: ${quantity}${selectedList ? `, ${selectedList}` : ''}). Pa-notify po ako kapag available na. Maraming salamat po! 🌸`;
+                      openMessengerDirect(text);
                     }}
                     className="btn btn-primary btn-full"
                     style={{
+                      background: 'linear-gradient(135deg, #0084FF 0%, #0066CC 100%)',
+                      color: '#FFFFFF',
+                      fontWeight: '700',
+                      fontSize: '14px',
+                      boxShadow: '0 4px 14px rgba(0, 132, 255, 0.35)',
                       display: 'inline-flex',
                       alignItems: 'center',
                       justifyContent: 'center',
                       gap: '8px',
-                      textDecoration: 'none',
+                      minHeight: '44px',
+                      borderRadius: '12px',
+                      border: 'none',
+                      cursor: 'pointer',
                     }}
                   >
-                    <i className="fa-brands fa-facebook-messenger"></i>
-                    <span>Inquire Restock on Messenger</span>
-                  </a>
+                    <i className="fa-brands fa-facebook-messenger" style={{ fontSize: '16px' }}></i>
+                    <span>Pa-reserve / Inquire sa Messenger</span>
+                  </button>
                 </div>
               ) : (
                 <div className="shopee-bar-container">
@@ -621,9 +822,8 @@ export default function ProductDetailClient({ product: initialProduct, photos: i
                     type="button"
                     className="shopee-btn-add-cart ripple"
                     onClick={handleAddToCart}
-                    disabled={hasMissingOptions || added}
+                    disabled={added}
                     id="add-to-cart-btn"
-                    title={hasMissingOptions ? `Please select ${missingRequiredOptions.map((o) => o.option_name).join(', ')}` : ''}
                   >
                     <i className={added ? 'fa-solid fa-check' : 'fa-solid fa-cart-plus'}></i>
                     <span>{added ? 'Added to Cart' : 'Add to Cart'}</span>
@@ -634,9 +834,7 @@ export default function ProductDetailClient({ product: initialProduct, photos: i
                     type="button"
                     className="shopee-btn-buy-now ripple"
                     onClick={handleCheckoutNow}
-                    disabled={hasMissingOptions}
                     id="checkout-now-btn"
-                    title={hasMissingOptions ? `Please select ${missingRequiredOptions.map((o) => o.option_name).join(', ')}` : ''}
                   >
                     <span>Buy Now · {formatCurrency(totalPrice)}</span>
                   </button>

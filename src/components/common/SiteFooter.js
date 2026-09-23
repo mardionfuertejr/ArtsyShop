@@ -67,7 +67,7 @@ export default function SiteFooter({ className = '', style = {} }) {
   const [mounted, setMounted] = useState(false);
 
   // Form State
-  const [rating, setRating] = useState(5);
+  const [rating, setRating] = useState(0);
   const [message, setMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -99,7 +99,7 @@ export default function SiteFooter({ className = '', style = {} }) {
     setActivePakilig(randomPakilig);
 
     const feedbackPayload = {
-      rating,
+      rating: rating || 5,
       topic: 'Customer Feedback',
       message: message.trim(),
       customer_name: `Customer #${randomId}`,
@@ -134,7 +134,7 @@ export default function SiteFooter({ className = '', style = {} }) {
       setSuccess(false);
       setIsOpen(false);
       setMessage('');
-      setRating(5);
+      setRating(0);
     }, 2400);
   };
 
@@ -162,26 +162,25 @@ export default function SiteFooter({ className = '', style = {} }) {
       >
 
 
-        {/* ── FOOTER QUICK LINKS & METAS ── */}
+        {/* ── FOOTER QUICK LINKS & ACTIONS (Balanced Side-by-Side) ── */}
         <div
           style={{
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
-            gap: '8px',
+            gap: '12px',
             width: '100%',
+            maxWidth: '380px',
+            margin: '0 auto',
           }}
         >
-          {/* Action Pills */}
+          {/* Action Row - Perfectly balanced 2-pill group */}
           <div
             style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexWrap: 'wrap',
-              gap: '12px',
-              fontSize: '12px',
-              color: 'var(--color-text-secondary, #64748B)',
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr',
+              gap: '10px',
+              width: '100%',
             }}
           >
             <button
@@ -189,18 +188,21 @@ export default function SiteFooter({ className = '', style = {} }) {
               onClick={() => setIsOpen(true)}
               style={{
                 background: 'var(--color-surface, #FFFFFF)',
-                border: '1px solid var(--color-border-light, #E2E8F0)',
-                padding: '6px 12px',
+                border: '1.5px solid var(--color-border-light, #E2E8F0)',
+                padding: '8px 12px',
                 borderRadius: '999px',
-                fontSize: '11.5px',
-                fontWeight: '600',
-                color: 'var(--color-text-secondary, #64748B)',
+                fontSize: '12px',
+                fontWeight: '700',
+                color: 'var(--color-text-secondary, #475569)',
                 cursor: 'pointer',
-                display: 'inline-flex',
+                display: 'flex',
                 alignItems: 'center',
+                justifyContent: 'center',
                 gap: '6px',
                 transition: 'all 0.15s ease',
                 boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+                whiteSpace: 'nowrap',
+                minHeight: '38px',
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.borderColor = 'var(--color-primary, #EA580C)';
@@ -208,48 +210,40 @@ export default function SiteFooter({ className = '', style = {} }) {
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.borderColor = 'var(--color-border-light, #E2E8F0)';
-                e.currentTarget.style.color = 'var(--color-text-secondary, #64748B)';
+                e.currentTarget.style.color = 'var(--color-text-secondary, #475569)';
               }}
             >
-              <i className="fa-regular fa-comment-dots" style={{ color: 'var(--color-primary, #EA580C)' }}></i>
-              <span>Feedback & Ideas</span>
+              <i className="fa-regular fa-comment-dots" style={{ color: 'var(--color-primary, #EA580C)', fontSize: '13px' }}></i>
+              <span>Feedback</span>
             </button>
 
-            <a
-              href={CUSTOM_ORDER_MESSENGER_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={(e) => {
-                e.preventDefault();
-                openMessengerDirect(CUSTOM_ORDER_TEMPLATE);
-              }}
+            <button
+              type="button"
+              onClick={() => openMessengerDirect(CUSTOM_ORDER_TEMPLATE)}
               style={{
-                background: 'var(--color-surface, #FFFFFF)',
-                border: '1px solid var(--color-border-light, #E2E8F0)',
-                padding: '6px 12px',
+                background: 'linear-gradient(135deg, #0084FF 0%, #0062E0 100%)',
+                border: 'none',
+                padding: '8px 12px',
                 borderRadius: '999px',
-                fontSize: '11.5px',
-                fontWeight: '600',
-                color: 'var(--color-text-secondary, #64748B)',
-                textDecoration: 'none',
-                display: 'inline-flex',
+                fontSize: '12px',
+                fontWeight: '700',
+                color: '#FFFFFF',
+                cursor: 'pointer',
+                display: 'flex',
                 alignItems: 'center',
+                justifyContent: 'center',
                 gap: '6px',
-                transition: 'all 0.15s ease',
-                boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+                boxShadow: '0 2px 8px rgba(0, 132, 255, 0.22)',
+                transition: 'transform 0.15s ease, box-shadow 0.15s ease',
+                whiteSpace: 'nowrap',
+                minHeight: '38px',
               }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = 'var(--color-primary, #EA580C)';
-                e.currentTarget.style.color = 'var(--color-primary, #EA580C)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = 'var(--color-border-light, #E2E8F0)';
-                e.currentTarget.style.color = 'var(--color-text-secondary, #64748B)';
-              }}
+              onMouseEnter={(e) => (e.currentTarget.style.transform = 'translateY(-1px)')}
+              onMouseLeave={(e) => (e.currentTarget.style.transform = 'translateY(0)')}
             >
-              <i className="fa-solid fa-paintbrush" style={{ color: '#F59E0B' }}></i>
-              <span>Custom Order Form</span>
-            </a>
+              <i className="fa-brands fa-facebook-messenger" style={{ fontSize: '13px' }}></i>
+              <span>Custom Order</span>
+            </button>
           </div>
 
           {/* Copyright & Tagline */}
@@ -258,10 +252,10 @@ export default function SiteFooter({ className = '', style = {} }) {
               fontSize: '11px',
               color: 'var(--color-text-muted, #94A3B8)',
               letterSpacing: '0.01em',
-              lineHeight: '1.5',
+              lineHeight: '1.4',
             }}
           >
-            &copy; {new Date().getFullYear()} M&M Artsy • Handcrafted with love in Barugo 🌸
+            &copy; {new Date().getFullYear()} M&M Artsy • Handcrafted in Barugo, Leyte 🌸
           </div>
         </div>
       </footer>
@@ -274,136 +268,153 @@ export default function SiteFooter({ className = '', style = {} }) {
             onClick={(e) => e.stopPropagation()}
             role="dialog"
             aria-modal="true"
-            style={{ maxWidth: '400px', borderRadius: '24px', padding: '24px 20px', textAlign: 'left' }}
+            style={{
+              maxWidth: '400px',
+              borderRadius: '24px',
+              padding: '24px 20px',
+              textAlign: 'left',
+              boxShadow: '0 20px 50px rgba(0, 0, 0, 0.2)',
+            }}
           >
+            {/* Modal Header */}
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <div
                   style={{
-                    width: '32px',
-                    height: '32px',
-                    borderRadius: '50%',
+                    width: '36px',
+                    height: '36px',
+                    borderRadius: '12px',
                     background: 'var(--color-primary-lighter, #FFF5F2)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     color: 'var(--color-primary, #EA580C)',
-                    fontSize: '14px',
+                    fontSize: '16px',
                   }}
                 >
                   <i className="fa-solid fa-heart"></i>
                 </div>
-                <div>
-                  <h3 style={{ margin: 0, fontSize: '15px', fontWeight: '800', color: 'var(--color-text)' }}>
-                    Share Your Feedback
-                  </h3>
-                  <span style={{ fontSize: '11.5px', color: 'var(--color-text-muted)' }}>
-                    Help M&M Artsy grow & bloom
-                  </span>
-                </div>
+                <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '800', color: 'var(--color-text)' }}>
+                  Share Your Feedback
+                </h3>
               </div>
               <button
                 type="button"
                 onClick={() => !submitting && setIsOpen(false)}
+                aria-label="Close modal"
                 style={{
-                  background: 'transparent',
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '50%',
+                  background: 'var(--color-surface-warm, #F1F5F9)',
                   border: 'none',
-                  fontSize: '16px',
-                  color: 'var(--color-text-muted)',
+                  fontSize: '14px',
+                  color: 'var(--color-text-secondary, #64748B)',
                   cursor: 'pointer',
-                  padding: '4px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'all 0.15s ease',
                 }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = '#E2E8F0')}
+                onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--color-surface-warm, #F1F5F9)')}
               >
                 <i className="fa-solid fa-xmark"></i>
               </button>
             </div>
 
             {success ? (
-              <div style={{ textAlign: 'center', padding: '24px 0' }} className="fade-in">
+              <div style={{ textAlign: 'center', padding: '24px 8px' }} className="fade-in">
                 <div
                   style={{
-                    width: '60px',
-                    height: '60px',
+                    width: '64px',
+                    height: '64px',
                     borderRadius: '50%',
                     background: 'var(--color-primary-lighter, #FFF5F2)',
                     color: 'var(--color-primary, #EA580C)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    fontSize: '26px',
-                    margin: '0 auto 14px',
-                    animation: 'bounceIn 0.5s ease',
+                    fontSize: '28px',
+                    margin: '0 auto 16px',
                   }}
                 >
                   <i className="fa-solid fa-wand-magic-sparkles"></i>
                 </div>
-                <h4 style={{ margin: '0 0 6px', fontSize: '16px', fontWeight: '800', color: 'var(--color-primary, #EA580C)' }}>
+                <h4 style={{ margin: '0 0 6px', fontSize: '17px', fontWeight: '800', color: 'var(--color-primary, #EA580C)' }}>
                   {activePakilig.title}
                 </h4>
-                <p style={{ margin: 0, fontSize: '13px', color: 'var(--color-text-secondary)', lineHeight: '1.4' }}>
+                <p style={{ margin: 0, fontSize: '13px', color: 'var(--color-text-secondary)', lineHeight: '1.5' }}>
                   {activePakilig.subtitle}
                 </p>
               </div>
             ) : (
-              <form onSubmit={handleFeedbackSubmit}>
-                {/* Rating selection */}
-                <div style={{ marginBottom: '14px' }}>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', marginBottom: '6px' }}>
-                    How was your experience browsing?
-                  </label>
-                  <div style={{ display: 'flex', gap: '8px' }}>
+              <form onSubmit={handleFeedbackSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                {/* 5-Star Clean Interactive Rating */}
+                <div
+                  style={{
+                    background: 'var(--color-surface-warm, #F8FAFC)',
+                    border: '1px solid var(--color-border-light, #E2E8F0)',
+                    borderRadius: '16px',
+                    padding: '14px 12px',
+                    textAlign: 'center',
+                  }}
+                >
+                  <span style={{ display: 'block', fontSize: '12.5px', fontWeight: '700', color: 'var(--color-text-secondary, #64748B)', marginBottom: '8px' }}>
+                    How was your experience?
+                  </span>
+                  
+                  <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px' }}>
                     {[1, 2, 3, 4, 5].map((star) => (
                       <button
                         key={star}
                         type="button"
                         onClick={() => setRating(star)}
                         style={{
-                          background: star <= rating ? '#FEF3C7' : 'var(--color-surface-warm, #F8FAFC)',
-                          border: star <= rating ? '1.5px solid #F59E0B' : '1.5px solid var(--color-border-light, #E2E8F0)',
-                          borderRadius: '10px',
-                          padding: '8px 10px',
+                          background: 'none',
+                          border: 'none',
+                          padding: '4px',
                           cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '4px',
-                          fontSize: '12.5px',
-                          fontWeight: '700',
-                          color: star <= rating ? '#D97706' : 'var(--color-text-muted)',
-                          transition: 'all 0.15s ease',
-                          flex: 1,
-                          justifyContent: 'center',
+                          fontSize: '32px',
+                          lineHeight: 1,
+                          color: rating > 0 && star <= rating ? '#F59E0B' : '#CBD5E1',
+                          transform: rating > 0 && star <= rating ? 'scale(1.1)' : 'scale(1)',
+                          transition: 'transform 0.15s ease, color 0.15s ease',
+                          outline: 'none',
                         }}
+                        aria-label={`Rate ${star} star`}
                       >
-                        <i className={`fa-${star <= rating ? 'solid' : 'regular'} fa-star`}></i>
-                        <span>{star}</span>
+                        ★
                       </button>
                     ))}
                   </div>
                 </div>
 
                 {/* Feedback Input */}
-                <div style={{ marginBottom: '16px' }}>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', marginBottom: '6px' }}>
-                    Any suggestions, ideas, or message for our crafters?
+                <div>
+                  <label style={{ display: 'block', fontSize: '12.5px', fontWeight: '700', color: 'var(--color-text)', marginBottom: '6px' }}>
+                    Your Message or Suggestions
                   </label>
                   <textarea
                     required
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}
-                    placeholder="e.g. Sana po magka-custom crochet sunflower keychain, ang cute ng site!"
+                    placeholder="Tell us what you loved or how we can improve..."
                     rows={4}
                     style={{
                       width: '100%',
-                      padding: '10px 12px',
-                      borderRadius: '12px',
+                      padding: '12px 14px',
+                      borderRadius: '14px',
                       border: '1.5px solid var(--color-border-light, #E2E8F0)',
-                      background: 'var(--color-surface, #FFFFFF)',
+                      background: '#FFFFFF',
                       fontSize: '13px',
                       color: 'var(--color-text)',
                       fontFamily: 'inherit',
                       resize: 'none',
                       boxSizing: 'border-box',
                       outline: 'none',
+                      lineHeight: '1.45',
+                      transition: 'border-color 0.15s ease',
                     }}
                     onFocus={(e) => {
                       e.currentTarget.style.borderColor = 'var(--color-primary, #EA580C)';
@@ -417,16 +428,24 @@ export default function SiteFooter({ className = '', style = {} }) {
                 <button
                   type="submit"
                   disabled={submitting || !message.trim()}
-                  className="btn btn-primary btn-full ripple"
+                  className="btn ripple"
                   style={{
-                    borderRadius: '12px',
-                    padding: '11px',
+                    borderRadius: '14px',
+                    padding: '13px',
                     fontWeight: '700',
-                    fontSize: '13.5px',
+                    fontSize: '14px',
+                    background: (!message.trim() || submitting)
+                      ? 'var(--color-border, #E2E8F0)'
+                      : 'linear-gradient(135deg, #EA580C 0%, #D94A1E 100%)',
+                    color: (!message.trim() || submitting) ? 'var(--color-text-muted, #94A3B8)' : '#FFFFFF',
+                    border: 'none',
+                    cursor: (!message.trim() || submitting) ? 'not-allowed' : 'pointer',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     gap: '8px',
+                    boxShadow: (!message.trim() || submitting) ? 'none' : '0 4px 14px rgba(234, 88, 12, 0.28)',
+                    transition: 'all 0.15s ease',
                   }}
                 >
                   <i className={submitting ? 'fa-solid fa-spinner fa-spin' : 'fa-solid fa-paper-plane'}></i>
@@ -435,7 +454,8 @@ export default function SiteFooter({ className = '', style = {} }) {
               </form>
             )}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   );

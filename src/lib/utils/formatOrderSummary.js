@@ -3,7 +3,7 @@ import { formatDateShort, formatTime12Hour, isRushDate } from './formatDate';
 
 /**
  * Standardized, Professional & Accurate Order Summary Formatter
- * Used across Customer Confirmation, Order Tracking, and Admin Workspace
+ * Human-sounding, well-structured, Meta-safe (No spam triggers, clean encoding)
  */
 export function formatOrderSummary(order) {
   if (!order) return '';
@@ -15,14 +15,25 @@ export function formatOrderSummary(order) {
   const items = order.order_items || order.items || [];
   const itemsCount = items.length;
 
-  const baseFulfillment = order.order_type === 'pickup' ? 'Store Pickup' : 'Delivery';
+  const baseFulfillment = order.order_type === 'pickup' ? 'Pickup' : 'Delivery';
   const fulfillmentType = isRush ? `${baseFulfillment} (Rush Order)` : baseFulfillment;
 
-  const paymentMethodLabel = order.payment_method === 'gcash'
-    ? 'GCash'
-    : order.order_type === 'delivery'
-      ? 'Cash on Delivery (COD)'
-      : 'Cash upon Pickup';
+  let paymentMethodLabel = 'Cash on Delivery (COD)';
+  if (order.payment_method === 'gcash' || order.paymentMethod === 'gcash') {
+    const refNo = order.gcash_reference_no || order.gcashRefNo;
+    const hasProof = Boolean(order.payment_proof_url || order.paymentProofUrl);
+    if (refNo) {
+      paymentMethodLabel = `GCash (Ref: ${refNo})`;
+    } else if (hasProof) {
+      paymentMethodLabel = 'GCash (Proof Attached)';
+    } else {
+      paymentMethodLabel = 'GCash';
+    }
+  } else if (order.order_type === 'pickup' || order.orderType === 'pickup') {
+    paymentMethodLabel = 'Cash upon Pickup';
+  } else {
+    paymentMethodLabel = 'Cash on Delivery (COD)';
+  }
 
   const targetDateStr = order.preferred_date || order.preferredDate;
   const targetTimeStr = order.preferred_time || order.preferredTime;
@@ -47,45 +58,54 @@ export function formatOrderSummary(order) {
     })
     .join('\n');
 
+  const pickupLoc = order.pickup_address || order.pickupAddress || '';
+  const isDelivery = order.order_type === 'delivery';
+
   let detailsList = [];
-  detailsList.push(`Fulfillment: ${fulfillmentType}`);
+  detailsList.push(`• Reference: #${order.reference_code || order.referenceCode || 'MM-ORDER'}`);
+  detailsList.push(`• Customer: ${order.customer_name || order.customerName || 'Customer'}${order.customer_phone || order.customerPhone ? ` (${order.customer_phone || order.customerPhone})` : ''}`);
+  
+  if (isDelivery) {
+    detailsList.push(`• Delivery to: ${deliveryAddr || 'Delivery'}${isRush ? ' (Rush Order)' : ''}`);
+  } else {
+    detailsList.push(`• Pickup at: ${pickupLoc || 'Pickup'}${isRush ? ' (Rush Order)' : ''}`);
+  }
+
   if (formattedSchedule) {
-    detailsList.push(`Date Needed: ${formattedSchedule}`);
+    detailsList.push(`• Date Needed: ${formattedSchedule}`);
   }
-  if (order.order_type === 'delivery' && deliveryAddr) {
-    detailsList.push(`Delivery Address: ${deliveryAddr}`);
-  }
-  detailsList.push(`Payment Method: ${paymentMethodLabel}`);
-  if (customerNote) {
-    detailsList.push(`Special Instructions: ${customerNote}`);
-  }
+  detailsList.push(`• Payment: ${paymentMethodLabel}`);
+
   const detailsBlock = detailsList.join('\n');
 
   let priceLines = [];
   if (itemsCount > 1 || deliveryFee > 0 || voucherDiscount > 0 || rushFee > 0) {
-    if (order.subtotal) priceLines.push(`Subtotal: ${formatCurrency(order.subtotal)}`);
+    if (order.subtotal) priceLines.push(`• Subtotal: ${formatCurrency(order.subtotal)}`);
   }
   if (deliveryFee > 0) {
-    priceLines.push(`Delivery Fee: ${formatCurrency(deliveryFee)}`);
+    priceLines.push(`• Delivery Fee: ${formatCurrency(deliveryFee)}`);
   }
   if (rushFee > 0) {
-    priceLines.push(`Rush Fee: ${formatCurrency(rushFee)}`);
+    priceLines.push(`• Rush Fee: ${formatCurrency(rushFee)}`);
   }
   if (voucherDiscount > 0) {
-    priceLines.push(`Voucher Discount: -${formatCurrency(voucherDiscount)}`);
+    priceLines.push(`• Voucher Discount: -${formatCurrency(voucherDiscount)}`);
   }
-  priceLines.push(`Total Amount: ${formatCurrency(order.total_amount || order.totalAmount || 0)}`);
+  priceLines.push(`• Total Amount: ${formatCurrency(order.total_amount || order.totalAmount || 0)}`);
   const priceBreakdown = priceLines.join('\n');
 
-  return `Order Summary — M&M's Artsy
-Reference Code: ${order.reference_code || order.referenceCode || 'M&M-ORDER'}
-Customer: ${order.customer_name || order.customerName || 'Customer'}${order.customer_phone || order.customerPhone ? ` (${order.customer_phone || order.customerPhone})` : ''}
+  const notesLine = customerNote ? `\n\nSpecial Instructions: ${customerNote}` : '';
+
+  return `Hi M&M Artsy! I would like to confirm my order from your shop:
+
+📋 Order Details:
 ${detailsBlock}
 
-Ordered Items:
+🛍 Items:
 ${itemsListText || '• Handcrafted Bouquet / Crafts'}
 
-${priceBreakdown}
+💰 Summary:
+${priceBreakdown}${notesLine}
 
-Hi M&M's Artsy! I would like to confirm my order from the website. Thank you!`;
+Thank you po!`;
 }

@@ -11,7 +11,7 @@ export const revalidate = 30;
 
 export const metadata = {
   title: "M&M's Artsy | Handcrafted Flowers & Custom Gifts",
-  description: 'Order handcrafted bouquets, crochet, resin and custom gifts from M&M\'s Artsy.',
+  description: 'Order handcrafted fuzzy wire bouquets, floral mirrors, resin, and custom gifts from M&M\'s Artsy.',
 };
 
 async function getFeaturedProducts() {
@@ -23,7 +23,9 @@ async function getFeaturedProducts() {
         .select(`
           id, name, slug, base_price, is_ready_made, ready_made_stock,
           is_on_sale, sale_price, sale_tag, is_sold_out, is_bestseller,
-          product_photos (id, url, storage_path, is_cover, display_order)
+          category:categories(id, name, slug),
+          product_photos (id, url, storage_path, is_cover, display_order),
+          product_options (id, option_name, choices, is_required, display_order)
         `)
         .eq('is_available', true)
         .order('display_order', { ascending: true });
@@ -44,7 +46,9 @@ async function getReadyMadeProducts() {
         .select(`
           id, name, slug, base_price, is_ready_made, ready_made_stock,
           is_on_sale, sale_price, sale_tag, is_sold_out, is_bestseller,
-          product_photos (id, url, storage_path, is_cover, display_order)
+          category:categories(id, name, slug),
+          product_photos (id, url, storage_path, is_cover, display_order),
+          product_options (id, option_name, choices, is_required, display_order)
         `)
         .eq('is_available', true)
         .eq('is_ready_made', true)

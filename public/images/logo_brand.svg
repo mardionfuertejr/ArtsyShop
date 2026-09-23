@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 380 120" width="100%" height="100%" fill="none">
+  <defs>
+    <linearGradient id="goldPillar1" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFE57A" />
+      <stop offset="35%" stop-color="#F5B20D" />
+      <stop offset="100%" stop-color="#D97706" />
+    </linearGradient>
+
+    <linearGradient id="goldPillar2" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFE066" />
+      <stop offset="45%" stop-color="#F59E0B" />
+      <stop offset="100%" stop-color="#C26100" />
+    </linearGradient>
+
+    <linearGradient id="goldDiagAscent" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#F59E0B" />
+      <stop offset="50%" stop-color="#FCD34D" />
+      <stop offset="100%" stop-color="#FEF08A" />
+    </linearGradient>
+
+    <linearGradient id="goldDiagDescent" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FDE68A" />
+      <stop offset="50%" stop-color="#F59E0B" />
+      <stop offset="100%" stop-color="#B45309" />
+    </linearGradient>
+
+    <linearGradient id="foldShadowGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="rgba(146, 64, 14, 0.55)" />
+      <stop offset="100%" stop-color="rgba(146, 64, 14, 0)" />
+    </linearGradient>
+
+    <filter id="logoShadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="1.5" stdDeviation="2" flood-color="#92400E" flood-opacity="0.22" />
+    </filter>
+  </defs>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Alex+Brush&amp;display=swap');
+    .artsy-text {
+      font-family: 'Alex Brush', 'Dancing Script', 'Great Vibes', cursive;
+      font-size: 84px;
+      font-weight: 500;
+      fill: #1F1B18;
+    }
+  </style>
+
+  <!-- Two Distinct Spaced Letters: M & M -->
+  <g id="two-m-monogram" filter="url(#logoShadow)">
+    <rect x="14" y="16" width="14" height="88" rx="2" fill="url(#goldPillar1)" />
+    <polygon points="14,16 28,16 64,104 50,104" fill="url(#goldDiagDescent)" />
+    <polygon points="50,104 64,104 96,16 82,16" fill="url(#goldDiagAscent)" />
+    <polygon points="46,88 50,104 64,104 56,88" fill="url(#foldShadowGrad)" />
+    <rect x="82" y="16" width="14" height="88" rx="2" fill="url(#goldPillar2)" />
+
+    <rect x="74" y="16" width="14" height="88" rx="2" fill="url(#goldPillar1)" opacity="0.96" />
+    <polygon points="74,16 88,16 124,104 110,104" fill="url(#goldDiagDescent)" />
+    <polygon points="110,104 124,104 156,16 142,16" fill="url(#goldDiagAscent)" />
+    <polygon points="106,88 110,104 124,104 116,88" fill="url(#foldShadowGrad)" />
+    <rect x="142" y="16" width="14" height="88" rx="2" fill="url(#goldPillar1)" />
+  </g>
+
+  <!-- Artsy Text (Tighter, cohesive spacing) -->
+  <text x="176" y="82" class="artsy-text" text-anchor="start">Artsy</text>
+</svg>

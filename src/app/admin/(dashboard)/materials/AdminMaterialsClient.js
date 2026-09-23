@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client';
 
 export default function AdminMaterialsClient({ initialMaterials = [] }) {
   const [materials, setMaterials] = useState(() => (initialMaterials.length > 0 ? initialMaterials : getMockMaterials()));
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState('all');
   const [toastMsg, setToastMsg] = useState('');
@@ -25,6 +26,7 @@ export default function AdminMaterialsClient({ initialMaterials = [] }) {
 
     if (initialMaterials && initialMaterials.length > 0) {
       setMaterials(sanitizeUnits(initialMaterials));
+      setHasLoadedOnce(true);
       return;
     }
     try {
@@ -44,6 +46,7 @@ export default function AdminMaterialsClient({ initialMaterials = [] }) {
         }
       }
     } catch {}
+    setHasLoadedOnce(true);
   }, [initialMaterials]);
 
   // Modal State for New / Edit Material
@@ -444,7 +447,32 @@ export default function AdminMaterialsClient({ initialMaterials = [] }) {
             </tr>
           </thead>
           <tbody key={`${activeCategory}-${searchQuery}-${currentPage}`} className="table-fade-enter">
-            {paginatedMaterials.length === 0 ? (
+            {!hasLoadedOnce ? (
+              [1, 2, 3, 4, 5].map((i) => (
+                <tr key={`skeleton-mat-${i}`} style={{ borderBottom: '1px solid #F1F5F9' }}>
+                  <td style={{ padding: '13px 18px', verticalAlign: 'middle' }}>
+                    <div style={{ width: '130px', height: '14px', borderRadius: '4px', background: 'linear-gradient(90deg, #F1F5F9 25%, #E2E8F0 50%, #F1F5F9 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.2s infinite ease-in-out', marginBottom: '5px' }} />
+                    <div style={{ width: '80px', height: '11px', borderRadius: '3px', background: '#F8FAFC' }} />
+                  </td>
+                  <td style={{ padding: '13px 16px', verticalAlign: 'middle' }}>
+                    <div style={{ width: '75px', height: '20px', borderRadius: '999px', background: '#F1F5F9' }} />
+                  </td>
+                  <td style={{ padding: '13px 16px', verticalAlign: 'middle' }}>
+                    <div style={{ width: '90px', height: '14px', borderRadius: '4px', background: '#F1F5F9', marginBottom: '4px' }} />
+                    <div style={{ width: '60px', height: '10px', borderRadius: '3px', background: '#F8FAFC' }} />
+                  </td>
+                  <td style={{ padding: '13px 16px', verticalAlign: 'middle' }}>
+                    <div style={{ width: '65px', height: '14px', borderRadius: '4px', background: '#F1F5F9' }} />
+                  </td>
+                  <td style={{ padding: '13px 14px', textAlign: 'center', verticalAlign: 'middle' }}>
+                    <div style={{ width: '80px', height: '22px', borderRadius: '999px', background: '#F1F5F9', margin: '0 auto' }} />
+                  </td>
+                  <td style={{ padding: '13px 14px', textAlign: 'center', verticalAlign: 'middle' }}>
+                    <div style={{ width: '28px', height: '28px', borderRadius: '6px', background: '#F8FAFC', margin: '0 auto' }} />
+                  </td>
+                </tr>
+              ))
+            ) : paginatedMaterials.length === 0 ? (
               <tr>
                 <td colSpan={6} className="table-empty-cell" style={{ textAlign: 'center', padding: '120px 20px', border: 'none' }}>
                   <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '56px', height: '56px', borderRadius: '50%', background: '#f8fafc', color: '#94a3b8', marginBottom: '14px', fontSize: '22px' }}>

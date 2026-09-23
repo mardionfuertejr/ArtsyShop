@@ -1161,22 +1161,15 @@ export default function OrderDetailClient({ order: initialOrder }) {
                     }}>
                       <i className={isGcash ? 'fa-solid fa-wallet' : 'fa-solid fa-money-bill-wave'}></i>
                     </div>
-                    <div style={{ minWidth: 0 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                        <span style={{ fontSize: '12.5px', fontWeight: '800', color: isGcash ? '#1E40AF' : '#166534' }}>
-                          {isGcash ? 'GCash Transfer' : (order.order_type === 'delivery' ? 'Cash on Delivery (COD)' : 'Cash upon Pickup')}
-                        </span>
-                        {refNo && (
-                          <span style={{ fontSize: '11px', fontWeight: '700', color: '#1E40AF', background: '#DBEAFE', padding: '1px 6px', borderRadius: '4px', fontFamily: 'monospace' }}>
-                            Ref: {refNo}
-                          </span>
-                        )}
-                      </div>
-                      <span style={{ fontSize: '11px', color: isGcash ? '#3B82F6' : '#15803D' }}>
-                        {isGcash
-                          ? (proofUrl ? 'Proof of payment attached' : 'Direct mobile / QR payment')
-                          : (order.order_type === 'delivery' ? 'Collect cash from customer upon delivery' : 'Collect cash upon customer pickup')}
+                    <div style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: '13px', fontWeight: '800', color: isGcash ? '#1E40AF' : '#166534' }}>
+                        {isGcash ? 'GCash Transfer' : (order.order_type === 'delivery' ? 'Cash on Delivery (COD)' : 'Cash upon Pickup')}
                       </span>
+                      {refNo && (
+                        <span style={{ fontSize: '11.5px', fontWeight: '700', color: '#1E40AF', background: '#DBEAFE', padding: '2px 8px', borderRadius: '4px', fontFamily: 'monospace' }}>
+                          Ref: {refNo}
+                        </span>
+                      )}
                     </div>
                   </div>
 

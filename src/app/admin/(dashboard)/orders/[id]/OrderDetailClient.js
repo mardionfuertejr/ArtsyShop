@@ -1182,36 +1182,24 @@ export default function OrderDetailClient({ order: initialOrder }) {
 
                   {proofUrl && (
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={proofUrl}
-                        alt="Receipt"
-                        style={{
-                          width: '34px',
-                          height: '34px',
-                          objectFit: 'cover',
-                          borderRadius: '6px',
-                          border: '1px solid #93C5FD',
-                          cursor: 'pointer',
-                        }}
-                        onClick={() => setShowReceiptModal(true)}
-                        title="Click to view full receipt"
-                      />
                       <button
                         type="button"
                         onClick={() => setShowReceiptModal(true)}
                         style={{
-                          background: '#FFFFFF',
-                          border: '1px solid #93C5FD',
-                          color: '#1D4ED8',
-                          fontSize: '11px',
+                          background: '#007DFE',
+                          border: 'none',
+                          color: '#FFFFFF',
+                          fontSize: '11.5px',
                           fontWeight: '700',
-                          padding: '4px 8px',
-                          borderRadius: '6px',
+                          padding: '6px 12px',
+                          borderRadius: '8px',
                           cursor: 'pointer',
                           display: 'inline-flex',
                           alignItems: 'center',
-                          gap: '4px',
+                          gap: '6px',
+                          boxShadow: '0 2px 6px rgba(0, 125, 254, 0.25)',
+                          transition: 'all 0.15s ease',
+                          whiteSpace: 'nowrap',
                         }}
                       >
                         <i className="fa-solid fa-receipt"></i>
@@ -1415,7 +1403,16 @@ export default function OrderDetailClient({ order: initialOrder }) {
                   src={order.payment_proof_url || order.paymentProofUrl}
                   alt="Customer Payment Receipt"
                   style={{ maxWidth: '100%', maxHeight: '60vh', objectFit: 'contain', borderRadius: '8px' }}
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none';
+                    const fallback = e.currentTarget.parentElement?.querySelector('.receipt-img-fallback');
+                    if (fallback) fallback.style.display = 'block';
+                  }}
                 />
+                <div className="receipt-img-fallback" style={{ display: 'none', color: '#64748B', fontSize: '13px', padding: '24px', textAlign: 'center' }}>
+                  <i className="fa-solid fa-receipt" style={{ color: '#007DFE', fontSize: '28px', display: 'block', marginBottom: '8px' }}></i>
+                  <span>Receipt image uploaded</span>
+                </div>
               </div>
 
               {/* Details & Actions Footer */}

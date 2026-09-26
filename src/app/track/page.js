@@ -1180,6 +1180,25 @@ function TrackContent() {
                   </div>
                 )}
 
+                {/* Awaiting Messenger Confirmation Notice */}
+                {(!order.sent_to_messenger && !order.messenger_opened_at && order.status !== 'confirmed' && order.status !== 'completed' && order.status !== 'ready' && order.status !== 'cancelled') && (
+                  <div style={{
+                    background: '#EFF6FF',
+                    border: '1px solid #BFDBFE',
+                    borderRadius: 'var(--radius-lg)',
+                    padding: '10px 14px',
+                    marginBottom: '12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                  }}>
+                    <i className="fa-brands fa-facebook-messenger" style={{ color: '#0866FF', fontSize: '20px', flexShrink: 0 }}></i>
+                    <div style={{ fontSize: '11.5px', color: '#1E40AF', fontWeight: '600', lineHeight: 1.35 }}>
+                      Please send your order receipt to our Facebook page so our crafting team can verify and confirm your order.
+                    </div>
+                  </div>
+                )}
+
                 {/* Key Metadata Box */}
                 <div
                   style={{

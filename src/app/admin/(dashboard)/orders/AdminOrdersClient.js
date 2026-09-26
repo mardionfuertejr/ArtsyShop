@@ -843,7 +843,10 @@ export default function AdminOrdersClient({ initialOrders }) {
                   completed: { label: 'COMPLETED', bg: '#D1FAE5', color: '#065F46' },
                   cancelled: { label: 'CANCELLED', bg: '#FEE2E2', color: '#991B1B' },
                 };
-                const badge = statusBadgeConfig[ord.status] || statusBadgeConfig.confirmed;
+                const isAwaitingMessenger = ord.status === 'pending' || (!ord.sent_to_messenger && !ord.messenger_opened_at && ord.status !== 'confirmed' && ord.status !== 'completed' && ord.status !== 'ready' && ord.status !== 'cancelled');
+                const badge = isAwaitingMessenger
+                  ? { label: 'AWAITING MSG', bg: '#FFF7ED', color: '#EA580C' }
+                  : (statusBadgeConfig[ord.status] || statusBadgeConfig.confirmed);
                 const rowKey = `${ord.id || ord.reference_code}-${idx}`;
                 const isRush = Boolean(ord.is_rush || (ord.preferred_date && isRushDate(ord.preferred_date)));
                 const displayItems = consolidateOrderItems(ord.order_items);

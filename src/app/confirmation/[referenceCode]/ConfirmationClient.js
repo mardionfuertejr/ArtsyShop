@@ -139,6 +139,7 @@ export default function ConfirmationClient({ order: serverOrder, referenceCode }
           if (idx !== -1) {
             list[idx].messenger_opened_at = nowIso;
             list[idx].sent_to_messenger = true;
+            if (list[idx].status === 'pending') list[idx].status = 'confirmed';
             localStorage.setItem('likha_mock_orders', JSON.stringify(list));
           }
         }
@@ -147,6 +148,7 @@ export default function ConfirmationClient({ order: serverOrder, referenceCode }
           const s = JSON.parse(singleRaw);
           s.messenger_opened_at = nowIso;
           s.sent_to_messenger = true;
+          if (s.status === 'pending') s.status = 'confirmed';
           localStorage.setItem(`likha_last_order_${code}`, JSON.stringify(s));
         }
       }
@@ -159,6 +161,7 @@ export default function ConfirmationClient({ order: serverOrder, referenceCode }
           .update({
             messenger_opened_at: nowIso,
             sent_to_messenger: true,
+            status: 'confirmed',
           })
           .eq('reference_code', code)
           .then(() => {})

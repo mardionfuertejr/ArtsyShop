@@ -219,14 +219,33 @@ export default function ConfirmationClient({ order: serverOrder, referenceCode }
       ctx.fillStyle = '#FFFDF9';
       ctx.fillRect(0, 0, width, height);
 
-      // Subtle Outer Border Card
+      // Outer Perimeter Border (Frames the image on white/dark viewer backgrounds)
+      ctx.strokeStyle = '#E5DCCD';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(1, 1, width - 2, height - 2);
+
+      // Main White Card with Rounded Border
       ctx.fillStyle = '#FFFFFF';
       ctx.beginPath();
-      ctx.roundRect(10, 10, width - 20, height - 20, 14);
+      ctx.roundRect(8, 8, width - 16, height - 16, 12);
       ctx.fill();
-      ctx.strokeStyle = '#EBE3D5';
+      ctx.strokeStyle = '#E0D4C3';
       ctx.lineWidth = 1.5;
       ctx.stroke();
+
+      // Subtle Decorative Inset Framing Border
+      ctx.beginPath();
+      ctx.roundRect(14, 14, width - 28, height - 28, 8);
+      ctx.strokeStyle = '#F3ECE0';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+
+      // Delicate Corner Botanical Accents
+      ctx.font = '14px sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillText('🌸🍃', 22, 34);
+      ctx.textAlign = 'right';
+      ctx.fillText('🍃🌸', width - 22, 34);
 
       // Brand Header
       ctx.textAlign = 'center';

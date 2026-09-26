@@ -599,7 +599,7 @@ function TrackContent() {
         </div>
       </header>
 
-      <main className="content-area" style={{ maxWidth: '540px', margin: '0 auto', width: '100%', paddingBottom: '100px' }}>
+      <main className="content-area page-enter" style={{ maxWidth: '540px', margin: '0 auto', width: '100%', paddingBottom: '100px' }}>
         {/* Search / Track Input Bar (ONLY when NO order is currently being viewed) */}
         {!order && (
           <div

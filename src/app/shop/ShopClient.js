@@ -219,7 +219,7 @@ export default function ShopClient({
       {/* Store Announcement Bar */}
       <StoreAnnouncementBar />
 
-      <main className="page-content">
+      <main className="page-content page-enter">
         {/* Category Filter Tabs */}
         <nav aria-label="Filter by category">
           <div className="category-tabs">

@@ -133,10 +133,10 @@
   --z-toast:      1100;
 
   /* ── Transitions ─────────────────────────────────────────── */
-  --transition-fast:   80ms ease;
-  --transition-base:   120ms cubic-bezier(0.16, 1, 0.3, 1);
-  --transition-slow:   200ms ease;
-  --transition-spring: 250ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  --transition-fast:   150ms cubic-bezier(0.16, 1, 0.3, 1);
+  --transition-base:   220ms cubic-bezier(0.16, 1, 0.3, 1);
+  --transition-slow:   320ms cubic-bezier(0.16, 1, 0.3, 1);
+  --transition-spring: 360ms cubic-bezier(0.34, 1.56, 0.64, 1);
 
   /* ── Breakpoints (reference only — use in media queries) ─── */
   /* 480px | 768px | 1024px | 1280px */

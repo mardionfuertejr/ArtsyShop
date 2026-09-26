@@ -114,7 +114,7 @@ export default async function HomePage() {
       {/* Store Announcement Bar */}
       <StoreAnnouncementBar />
 
-      <main className="page-content">
+      <main className="page-content page-enter">
         {/* ── CURATED SHOWCASE TABS (Bestsellers | On-Hand | Promos) ──────────────── */}
         <HomeShowcaseTabs allProducts={products} />
 

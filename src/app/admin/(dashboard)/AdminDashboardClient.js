@@ -2,12 +2,14 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import { formatDate } from '@/lib/utils/formatDate';
 import AdminNotepad from '@/components/admin/AdminNotepad';
 import DashboardFinancialWidget from '@/components/admin/DashboardFinancialWidget';
+import DashboardSalesAnalyticsChart from '@/components/admin/DashboardSalesAnalyticsChart';
 
 export default function AdminDashboardClient({ initialOrders = [], initialMaterials = [] }) {
+  const router = useRouter();
   // Helper to resolve 1-hour auto transition to Crafting (preparing)
   const resolveAutoStatus = (orderList) => {
     const oneHourMs = 60 * 60 * 1000;
@@ -138,55 +140,14 @@ export default function AdminDashboardClient({ initialOrders = [], initialMateri
     };
   }, [syncDashboardData]);
 
-  // Calculations
-  const activeOrders = orders.filter((o) =>
-    ['pending', 'for_confirmation', 'confirmed', 'preparing', 'ready'].includes(o.status)
-  );
-
   const completedOrders = orders.filter((o) => o.status === 'completed');
   const collectedRevenue = completedOrders.reduce((s, o) => s + (parseFloat(o.total_amount) || 0), 0);
-  const pendingRevenue = activeOrders.reduce((s, o) => s + (parseFloat(o.total_amount) || 0), 0);
   const calculatedSales = collectedRevenue; // Realized Kita from completed orders
   const calculatedExpenses = orders.reduce((s, o) => s + (parseFloat(o.total_cost) || 0), 0);
 
   const lowStockMaterials = (materials || []).filter(
     (m) => parseFloat(m.current_stock) <= parseFloat(m.minimum_stock)
   );
-
-  const getStatusBadge = (st) => {
-    const config = {
-      pending: { label: 'CONFIRMED', bg: '#E0E7FF', color: '#3730A3' },
-      for_confirmation: { label: 'CONFIRMED', bg: '#E0E7FF', color: '#3730A3' },
-      confirmed: { label: 'CONFIRMED', bg: '#E0E7FF', color: '#3730A3' },
-      preparing: { label: 'CRAFTING', bg: '#FCE7F3', color: '#9D174D' },
-      ready: { label: 'READY', bg: '#DCFCE7', color: '#166534' },
-      completed: { label: 'COMPLETED', bg: '#D1FAE5', color: '#065F46' },
-      cancelled: { label: 'CANCELLED', bg: '#FEE2E2', color: '#991B1B' },
-    };
-    const c = config[st] || { label: st ? st.toUpperCase() : 'UNKNOWN', bg: '#F3F4F6', color: '#374151' };
-    return (
-      <span
-        style={{
-          background: c.bg,
-          color: c.color,
-          fontSize: '11px',
-          fontWeight: '800',
-          letterSpacing: '0.04em',
-          padding: '0 8px',
-          height: '24px',
-          borderRadius: '9999px',
-          display: 'inline-flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          width: '96px',
-          boxSizing: 'border-box',
-          textAlign: 'center',
-        }}
-      >
-        {c.label}
-      </span>
-    );
-  };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '18px', maxWidth: '1200px', margin: '0 auto' }}>
@@ -205,198 +166,8 @@ export default function AdminDashboardClient({ initialOrders = [], initialMateri
         initialExpenses={calculatedExpenses || 0}
       />
 
-      {/* Active Orders Queue */}
-      <div
-        className="card"
-        style={{
-          padding: '20px',
-          background: 'var(--color-surface, #ffffff)',
-          borderRadius: '16px',
-          border: 'none',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
-        }}
-      >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <h2 style={{ fontSize: '15.5px', fontWeight: '800', color: 'var(--color-text)', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <i className="fa-solid fa-clock-rotate-left" style={{ color: 'var(--color-primary)', fontSize: '14px' }}></i>
-              <span>Active Orders Queue</span>
-            </h2>
-            <span
-              style={{
-                background: 'rgba(180, 83, 9, 0.1)',
-                color: 'var(--color-primary, #b45309)',
-                fontSize: '11px',
-                fontWeight: '700',
-                padding: '2px 8px',
-                borderRadius: '9999px',
-              }}
-            >
-              {activeOrders.length} active
-            </span>
-          </div>
-
-          <Link href="/admin/orders" style={{ fontSize: '12px', fontWeight: '700', color: 'var(--color-primary)', textDecoration: 'none' }}>
-            View Full Orders Page →
-          </Link>
-        </div>
-
-        {activeOrders.length === 0 ? (
-          <div
-            style={{
-              textAlign: 'center',
-              padding: '72px 20px',
-              minHeight: '220px',
-              background: 'var(--color-surface-warm, #FAF6F0)',
-              borderRadius: '12px',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '10px',
-            }}
-          >
-            <div
-              style={{
-                width: '56px',
-                height: '56px',
-                borderRadius: '50%',
-                background: '#DCFCE7',
-                color: '#16A34A',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '24px',
-              }}
-            >
-              <i className="fa-solid fa-check"></i>
-            </div>
-            <p style={{ fontWeight: '800', fontSize: '15px', color: 'var(--color-text, #0f172a)', margin: 0 }}>
-              All caught up! 🎉
-            </p>
-            <p style={{ fontSize: '12.5px', color: '#64748b', margin: 0 }}>
-              No active orders in the queue right now.
-            </p>
-          </div>
-        ) : (
-          <div className="data-table-wrapper" style={{ margin: 0, overflowX: 'auto', border: 'none', borderRadius: '12px', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
-            <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr style={{ background: '#F8FAFC', borderBottom: '1.5px solid #E2E8F0' }}>
-                  <th style={{ width: '24%', padding: '12px 14px', textAlign: 'left', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#334155', borderBottom: '1.5px solid #E2E8F0' }}>Order & Needed Date</th>
-                  <th style={{ width: '26%', padding: '12px 14px', textAlign: 'left', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#334155', borderBottom: '1.5px solid #E2E8F0' }}>Customer</th>
-                  <th style={{ width: '28%', padding: '12px 14px', textAlign: 'left', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#334155', borderBottom: '1.5px solid #E2E8F0' }}>Items</th>
-                  <th style={{ width: '12%', padding: '12px 14px', textAlign: 'center', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#334155', borderBottom: '1.5px solid #E2E8F0' }}>Status</th>
-                  <th style={{ width: '10%', padding: '12px 14px', textAlign: 'center', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#334155', borderBottom: '1.5px solid #E2E8F0' }}>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {activeOrders.map((ord) => (
-                  <tr key={ord.id || ord.reference_code} style={{ borderBottom: '1px solid #E2E8F0' }}>
-                    <td style={{ padding: '12px 14px', borderBottom: '1px solid #E2E8F0' }}>
-                      <Link href={`/admin/orders/${ord.id || ord.reference_code}`} style={{ display: 'block', fontWeight: '800', fontSize: '13px', color: '#0f172a', textDecoration: 'none' }}>
-                        {ord.reference_code}
-                      </Link>
-                      <span style={{ fontSize: '11px', color: '#64748b', fontWeight: '600' }}>
-                        {ord.preferred_date ? (
-                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px', color: '#475569' }}>
-                            <i className="fa-regular fa-calendar" style={{ fontSize: '9.5px', color: '#64748b' }}></i>
-                            <span>Needed: {formatDate(ord.preferred_date)}</span>
-                          </span>
-                        ) : (
-                          <span style={{ color: '#94a3b8' }}>No date set</span>
-                        )}
-                      </span>
-                    </td>
-                    <td style={{ padding: '12px 14px', borderBottom: '1px solid #E2E8F0' }}>
-                      <p style={{ fontWeight: '700', color: '#0f172a', margin: '0 0 2px', fontSize: '13px', whiteSpace: 'nowrap' }}>
-                        {ord.customer_name}
-                      </p>
-                      {ord.order_type === 'delivery' && (
-                        <span style={{ fontSize: '10.5px', color: 'var(--color-primary, #b45309)', display: 'inline-flex', alignItems: 'center', gap: '4px', fontWeight: '600' }}>
-                          <i className="fa-solid fa-motorcycle" style={{ fontSize: '9.5px' }}></i>
-                          <span>Delivery</span>
-                        </span>
-                      )}
-                    </td>
-                    <td style={{ padding: '12px 14px', verticalAlign: 'middle', borderBottom: '1px solid #E2E8F0' }}>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                        {ord.order_items && ord.order_items.length > 0 ? (
-                          ord.order_items.map((it, idx) => (
-                            <div
-                              key={idx}
-                              style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '6px',
-                                fontSize: '12px',
-                              }}
-                            >
-                              <span
-                                style={{
-                                  background: '#f1f5f9',
-                                  color: '#334155',
-                                  fontWeight: '700',
-                                  fontSize: '10.5px',
-                                  padding: '1px 5px',
-                                  borderRadius: '4px',
-                                  lineHeight: 1.2,
-                                  flexShrink: 0,
-                                }}
-                              >
-                                {it.quantity}×
-                              </span>
-                              <span
-                                style={{
-                                  color: '#1e293b',
-                                  fontWeight: '500',
-                                  whiteSpace: 'nowrap',
-                                  overflow: 'hidden',
-                                  textOverflow: 'ellipsis',
-                                }}
-                                title={it.product_name}
-                              >
-                                {it.product_name}
-                              </span>
-                            </div>
-                          ))
-                        ) : (
-                          <span style={{ fontSize: '12px', color: '#94a3b8', fontStyle: 'italic' }}>Custom crafts</span>
-                        )}
-                      </div>
-                    </td>
-                    <td style={{ padding: '12px 14px', textAlign: 'center', whiteSpace: 'nowrap', borderBottom: '1px solid #E2E8F0' }}>
-                      {getStatusBadge(ord.status)}
-                    </td>
-                    <td style={{ padding: '12px 14px', textAlign: 'center', whiteSpace: 'nowrap', borderBottom: '1px solid #E2E8F0' }}>
-                      <Link
-                        href={`/admin/orders/${ord.id || ord.reference_code}`}
-                        className="btn btn-secondary btn-sm"
-                        style={{
-                          padding: '4px 12px',
-                          fontSize: '11.5px',
-                          fontWeight: '700',
-                          borderRadius: '8px',
-                          border: 'none',
-                          background: '#f1f5f9',
-                          color: '#334155',
-                          textDecoration: 'none',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '4px',
-                        }}
-                      >
-                        <span>View</span>
-                        <i className="fa-solid fa-arrow-right" style={{ fontSize: '9px', opacity: 0.7 }}></i>
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+      {/* Sales & Product Analytics Line Graph */}
+      <DashboardSalesAnalyticsChart orders={orders} />
 
       {/* Low Stock / Out of Stock Materials Alert */}
       {lowStockMaterials && lowStockMaterials.length > 0 && (

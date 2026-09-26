@@ -6,6 +6,9 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { MOCK_PRODUCTS } from '@/lib/mockData';
 import { formatCurrencyCompact } from '@/lib/utils/formatCurrency';
+import { resolveProductPhoto } from '@/lib/utils/productImage';
+
+const QUICK_SEARCH_SUGGESTIONS = ['Bouquet', 'Mirror', 'Keychain', 'Rose', 'Tulip'];
 
 export default function HeaderSearchBar() {
   const router = useRouter();
@@ -17,7 +20,7 @@ export default function HeaderSearchBar() {
   const containerRef = useRef(null);
   const inputRef = useRef(null);
 
-  // Load all products for live instant matching
+  // Load products for live matching
   useEffect(() => {
     let isMounted = true;
     async function loadProducts() {
@@ -28,7 +31,7 @@ export default function HeaderSearchBar() {
           const { data, error } = await supabase
             .from('products')
             .select(`
-              id, name, slug, base_price, sale_price, is_on_sale, description,
+              id, name, slug, base_price, sale_price, sale_tag, is_on_sale, is_ready_made, ready_made_stock, is_sold_out, is_bestseller, description, is_available,
               category:categories(id, name, slug),
               product_photos(url, storage_path, is_cover, display_order)
             `)
@@ -42,19 +45,32 @@ export default function HeaderSearchBar() {
 
       try {
         if (typeof window !== 'undefined') {
+          const deletedIds = JSON.parse(localStorage.getItem('likha_deleted_products') || '[]');
           const localProds = JSON.parse(localStorage.getItem('likha_custom_products') || '[]');
+
+          const map = new Map();
+          (loaded || []).forEach((p) => {
+            if (p && !deletedIds.includes(p.id) && p.is_available !== false) {
+              const key = String(p.id || p.slug || '').trim();
+              if (key) map.set(key, p);
+            }
+          });
+
           if (Array.isArray(localProds) && localProds.length > 0) {
-            const map = new Map();
-            (loaded || []).forEach((p) => {
-              const key = String(p.id || p.slug || '').trim();
-              if (key) map.set(key, p);
+            localProds.forEach((p) => {
+              if (p && !deletedIds.includes(p.id) && p.is_available !== false) {
+                const key = String(p.id || p.slug || '').trim();
+                if (key) {
+                  if (map.has(key)) {
+                    map.set(key, { ...map.get(key), ...p });
+                  } else {
+                    map.set(key, p);
+                  }
+                }
+              }
             });
-            (localProds || []).forEach((p) => {
-              const key = String(p.id || p.slug || '').trim();
-              if (key) map.set(key, p);
-            });
-            loaded = Array.from(map.values());
           }
+          loaded = Array.from(map.values()).filter((p) => !deletedIds.includes(p.id) && p.is_available !== false);
         }
       } catch {}
 
@@ -64,12 +80,18 @@ export default function HeaderSearchBar() {
     }
 
     loadProducts();
+
+    window.addEventListener('likha_products_updated', loadProducts);
+    window.addEventListener('storage', loadProducts);
+
     return () => {
       isMounted = false;
+      window.removeEventListener('likha_products_updated', loadProducts);
+      window.removeEventListener('storage', loadProducts);
     };
   }, []);
 
-  // Handle outside click & escape to collapse
+  // Handle outside click & escape key
   useEffect(() => {
     function handleClickOutside(e) {
       if (containerRef.current && !containerRef.current.contains(e.target)) {
@@ -97,16 +119,17 @@ export default function HeaderSearchBar() {
     };
   }, [isExpanded]);
 
-  // Focus input on expand
+  // Auto-focus input on expand
   useEffect(() => {
     if (isExpanded) {
-      setTimeout(() => {
+      const timer = setTimeout(() => {
         inputRef.current?.focus();
-      }, 90);
+      }, 100);
+      return () => clearTimeout(timer);
     }
   }, [isExpanded]);
 
-  // Comprehensive matching: Name + Price + Description
+  // Clean, fast matching: Name + Category + Price
   const matchedProducts = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return [];
@@ -115,16 +138,10 @@ export default function HeaderSearchBar() {
     const isPriceSearch = !isNaN(numericQuery) && numericQuery > 0;
 
     return products.filter((p) => {
-      // 1. Name match
       const nameMatch = p.name?.toLowerCase().includes(q);
-
-      // 2. Description match
+      const catMatch = p.category?.name?.toLowerCase().includes(q);
       const descMatch = p.description?.toLowerCase().includes(q);
 
-      // 3. Category match
-      const catMatch = p.category?.name?.toLowerCase().includes(q);
-
-      // 4. Price match
       let priceMatch = false;
       const basePrice = Number(p.base_price || 0);
       const salePrice = Number(p.sale_price || basePrice);
@@ -135,12 +152,10 @@ export default function HeaderSearchBar() {
         const rawBaseStr = Math.round(basePrice).toString();
         if (priceStr.includes(Math.round(numericQuery).toString()) || rawBaseStr.includes(Math.round(numericQuery).toString())) {
           priceMatch = true;
-        } else if (q.includes('<') || q.includes('under') || q.includes('below')) {
-          priceMatch = effectivePrice <= numericQuery;
         }
       }
 
-      return nameMatch || descMatch || catMatch || priceMatch;
+      return nameMatch || catMatch || descMatch || priceMatch;
     });
   }, [query, products]);
 
@@ -162,59 +177,24 @@ export default function HeaderSearchBar() {
   };
 
   const handleFormSubmit = (e) => {
-    e.preventDefault();
+    e?.preventDefault?.();
     if (!query.trim()) return;
     setIsOpen(false);
     setIsExpanded(false);
     router.push(`/shop?q=${encodeURIComponent(query.trim())}`);
   };
 
-  const getProductImage = (p) => {
-    const cover = p.product_photos?.find((ph) => ph.is_cover) || p.product_photos?.[0];
-    if (cover?.url) return cover.url;
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    if (cover?.storage_path && supabaseUrl && supabaseUrl.startsWith('http') && !supabaseUrl.includes('placeholder')) {
-      return `${supabaseUrl}/storage/v1/object/public/product-photos/${cover.storage_path}`;
-    }
-    return 'https://images.unsplash.com/photo-1561181286-d3fee7d55364?auto=format&fit=crop&w=400&q=80';
-  };
-
-  // Whole-word clean snippet extractor (no broken word cutoffs)
-  const getCleanSnippet = (product, q) => {
-    const desc = (product.description || '').trim();
-    if (!desc) return '';
-    const lowerDesc = desc.toLowerCase();
-    const cleanQ = (q || '').trim().toLowerCase();
-
-    if (!cleanQ || !lowerDesc.includes(cleanQ)) {
-      return desc.length > 70 ? desc.slice(0, 70).trim() + '...' : desc;
-    }
-
-    const matchIdx = lowerDesc.indexOf(cleanQ);
-
-    // If match is near start, begin cleanly at index 0
-    if (matchIdx <= 25) {
-      return desc.length > 75 ? desc.slice(0, 75).trim() + '...' : desc;
-    }
-
-    // Find previous space to avoid cutting word in half
-    const searchStart = Math.max(0, matchIdx - 20);
-    const spaceBefore = desc.indexOf(' ', searchStart);
-    const startIdx = spaceBefore !== -1 && spaceBefore < matchIdx ? spaceBefore + 1 : matchIdx;
-
-    const endSearch = Math.min(desc.length, matchIdx + cleanQ.length + 40);
-    const spaceAfter = desc.indexOf(' ', endSearch);
-    const endIdx = spaceAfter !== -1 ? spaceAfter : desc.length;
-
-    const snippet = desc.slice(startIdx, endIdx).trim();
-    return `...${snippet}${endIdx < desc.length ? '...' : ''}`;
+  const handleSelectSuggestion = (tag) => {
+    setQuery(tag);
+    setIsOpen(true);
+    inputRef.current?.focus();
   };
 
   const matchCount = matchedProducts.length;
 
   return (
     <>
-      {/* Background Dim / Lock Overlay when Searching */}
+      {/* Background Dim Backdrop */}
       {isExpanded && (
         <div
           className="header-search-backdrop"
@@ -223,7 +203,7 @@ export default function HeaderSearchBar() {
         />
       )}
 
-      {/* Search Bar Wrapper - Keeps Header Static without shifting elements */}
+      {/* Search Bar Wrapper */}
       <div
         ref={containerRef}
         className={`header-search-anchor ${isExpanded ? 'is-active' : ''}`}
@@ -251,12 +231,12 @@ export default function HeaderSearchBar() {
               }}
               onFocus={() => {
                 setIsExpanded(true);
-                if (query.trim()) setIsOpen(true);
+                setIsOpen(true);
               }}
               aria-label="Search items"
             />
 
-            {/* Always visible Close/Clear Button inside the expanded box */}
+            {/* Clear / Close Button */}
             {isExpanded && (
               <button
                 type="button"
@@ -270,95 +250,154 @@ export default function HeaderSearchBar() {
             )}
           </form>
 
-          {/* Spacious, Beautiful Results Dropdown */}
-          {isExpanded && isOpen && query.trim().length > 0 && (
+          {/* Results & Suggestions Dropdown */}
+          {isExpanded && isOpen && (
             <div className="header-search-dropdown">
-              <div className="header-search-dropdown-header">
-                <span className="header-search-count-label">
-                  {matchCount > 0
-                    ? `${matchCount} ${matchCount === 1 ? 'product found' : 'products found'}`
-                    : 'No matching products'}
-                </span>
-                <button
-                  type="button"
-                  className="header-search-dropdown-close"
-                  onClick={() => setIsOpen(false)}
-                  aria-label="Close dropdown"
-                >
-                  ✕
-                </button>
-              </div>
-
-              <div className="header-search-results-list">
-                {searchResults.length > 0 ? (
-                  searchResults.map((prod) => (
-                    <Link
-                      key={prod.id}
-                      href={`/shop/${prod.slug}`}
-                      className="header-search-item"
-                      onClick={() => {
-                        setIsOpen(false);
-                        setIsExpanded(false);
-                        setQuery('');
-                      }}
+              {query.trim().length > 0 ? (
+                <>
+                  {/* Header count */}
+                  <div className="header-search-dropdown-header">
+                    <span className="header-search-count-label">
+                      {matchCount > 0
+                        ? `${matchCount} ${matchCount === 1 ? 'item found' : 'items found'}`
+                        : 'No matches found'}
+                    </span>
+                    <button
+                      type="button"
+                      className="header-search-dropdown-close"
+                      onClick={() => setIsOpen(false)}
+                      aria-label="Close dropdown"
                     >
-                      {/* Thumbnail Image */}
-                      <div className="header-search-thumb-wrap">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={getProductImage(prod)}
-                          alt={prod.name}
-                          className="header-search-thumb"
-                          loading="lazy"
-                          onError={(e) => {
-                            e.currentTarget.src = 'https://images.unsplash.com/photo-1561181286-d3fee7d55364?auto=format&fit=crop&w=400&q=80';
-                          }}
-                        />
-                      </div>
-
-                      {/* Info: Title & Clean Snippet */}
-                      <div className="header-search-info">
-                        <p className="header-search-name">{prod.name}</p>
-                        <p className="header-search-desc">
-                          {getCleanSnippet(prod, query)}
-                        </p>
-                      </div>
-
-                      {/* Price Column */}
-                      <div className="header-search-price-box">
-                        <span className="header-search-price">
-                          {formatCurrencyCompact(prod.is_on_sale && prod.sale_price ? prod.sale_price : prod.base_price)}
-                        </span>
-                        {prod.is_on_sale && prod.sale_price && (
-                          <span className="header-search-old-price">
-                            {formatCurrencyCompact(prod.base_price)}
-                          </span>
-                        )}
-                      </div>
-                    </Link>
-                  ))
-                ) : (
-                  <div className="header-search-empty">
-                    <p style={{ fontWeight: '700', margin: '0 0 6px 0', fontSize: '14px', color: 'var(--color-text)' }}>
-                      Walang nahanap para sa &ldquo;{query}&rdquo;
-                    </p>
-                    <p style={{ fontSize: '12.5px', color: 'var(--color-text-secondary)', margin: 0, lineHeight: 1.45 }}>
-                      Subukang maghanap ng craft name (tulad ng <em>Rose</em>, <em>Bouquet</em>, <em>Tulip</em>), presyo (tulad ng <em>250</em>), o detalye.
-                    </p>
+                      ✕
+                    </button>
                   </div>
-                )}
-              </div>
 
-              {matchCount > 0 && (
-                <div className="header-search-dropdown-footer">
-                  <button
-                    type="button"
-                    className="header-search-view-all-btn"
-                    onClick={handleFormSubmit}
-                  >
-                    <span>View all {matchCount > 1 ? `(${matchCount}) ` : ''}results in Shop</span>
-                    <i className="fa-solid fa-arrow-right" style={{ fontSize: '10px' }} />
-                  </button>
+                  {/* Results List */}
+                  <div className="header-search-results-list">
+                    {searchResults.length > 0 ? (
+                      searchResults.map((prod) => (
+                        <Link
+                          key={prod.id}
+                          href={`/shop/${prod.slug}`}
+                          className="header-search-item"
+                          onClick={() => {
+                            setIsOpen(false);
+                            setIsExpanded(false);
+                            setQuery('');
+                          }}
+                        >
+                          {/* Thumbnail */}
+                          <div className="header-search-thumb-wrap">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={resolveProductPhoto(prod)}
+                              alt={prod.name}
+                              className="header-search-thumb"
+                              loading="lazy"
+                              onError={(e) => {
+                                e.currentTarget.src = 'https://images.unsplash.com/photo-1561181286-d3fee7d55364?auto=format&fit=crop&w=400&q=80';
+                              }}
+                            />
+                          </div>
+
+                          {/* Info: Name & Category */}
+                          <div className="header-search-info">
+                            <p className="header-search-name">{prod.name}</p>
+                            <span style={{ fontSize: '11px', color: '#64748B', fontWeight: '500' }}>
+                              {prod.category?.name || 'Handcrafted Craft'}
+                            </span>
+                          </div>
+
+                          {/* Price Column */}
+                          <div className="header-search-price-box">
+                            <span className="header-search-price">
+                              {formatCurrencyCompact(prod.is_on_sale && prod.sale_price ? prod.sale_price : prod.base_price)}
+                            </span>
+                            {prod.is_on_sale && prod.sale_price && (
+                              <span className="header-search-old-price">
+                                {formatCurrencyCompact(prod.base_price)}
+                              </span>
+                            )}
+                          </div>
+                        </Link>
+                      ))
+                    ) : (
+                      <div className="header-search-empty" style={{ padding: '20px 16px', textAlign: 'center' }}>
+                        <p style={{ fontWeight: '700', margin: '0 0 6px 0', fontSize: '13.5px', color: '#0F172A' }}>
+                          No results for &ldquo;{query}&rdquo;
+                        </p>
+                        <p style={{ fontSize: '12px', color: '#64748B', margin: '0 0 12px 0' }}>
+                          Try searching for popular craft tags below:
+                        </p>
+                        <div style={{ display: 'flex', gap: '6px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                          {QUICK_SEARCH_SUGGESTIONS.map((tag) => (
+                            <button
+                              key={tag}
+                              type="button"
+                              onClick={() => handleSelectSuggestion(tag)}
+                              style={{
+                                background: '#F1F5F9',
+                                border: '1px solid #CBD5E1',
+                                borderRadius: '14px',
+                                padding: '3px 10px',
+                                fontSize: '11px',
+                                fontWeight: '600',
+                                color: '#334155',
+                                cursor: 'pointer',
+                              }}
+                            >
+                              {tag}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {matchCount > 0 && (
+                    <div className="header-search-dropdown-footer">
+                      <button
+                        type="button"
+                        className="header-search-view-all-btn"
+                        onClick={handleFormSubmit}
+                      >
+                        <span>View all {matchCount} results in Shop</span>
+                        <i className="fa-solid fa-arrow-right" style={{ fontSize: '10px' }} />
+                      </button>
+                    </div>
+                  )}
+                </>
+              ) : (
+                /* Quick Search Suggestions when query is empty */
+                <div style={{ padding: '14px 16px' }}>
+                  <div style={{ fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', color: '#94A3B8', letterSpacing: '0.05em', marginBottom: '8px' }}>
+                    Popular Searches
+                  </div>
+                  <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                    {QUICK_SEARCH_SUGGESTIONS.map((tag) => (
+                      <button
+                        key={tag}
+                        type="button"
+                        onClick={() => handleSelectSuggestion(tag)}
+                        style={{
+                          background: '#F8FAFC',
+                          border: '1px solid #E2E8F0',
+                          borderRadius: '14px',
+                          padding: '4px 10px',
+                          fontSize: '11.5px',
+                          fontWeight: '600',
+                          color: '#334155',
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                        }}
+                      >
+                        <i className="fa-solid fa-magnifying-glass" style={{ fontSize: '9px', color: '#94A3B8' }} />
+                        <span>{tag}</span>
+                      </button>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>

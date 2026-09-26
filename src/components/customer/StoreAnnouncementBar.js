@@ -58,6 +58,14 @@ export default function StoreAnnouncementBar({ initialSettings = null }) {
     }
 
     fetchSettings();
+
+    window.addEventListener('likha_settings_updated', fetchSettings);
+    window.addEventListener('storage', fetchSettings);
+
+    return () => {
+      window.removeEventListener('likha_settings_updated', fetchSettings);
+      window.removeEventListener('storage', fetchSettings);
+    };
   }, []);
 
   const handleDismiss = () => {
@@ -78,48 +86,7 @@ export default function StoreAnnouncementBar({ initialSettings = null }) {
   const isExternalMessenger = settings.announcementLink && (settings.announcementLink.includes('m.me') || settings.announcementLink.includes('facebook.com'));
 
   return (
-    <>
-      <style>{`
-        @keyframes newsTickerCrawl {
-          0% {
-            transform: translate3d(0, 0, 0);
-          }
-          100% {
-            transform: translate3d(-50%, 0, 0);
-          }
-        }
-        .news-ticker-container {
-          display: flex;
-          align-items: center;
-          width: 100%;
-          overflow: hidden;
-          position: relative;
-          user-select: none;
-        }
-        .news-ticker-track {
-          display: inline-flex;
-          align-items: center;
-          white-space: nowrap;
-          animation: newsTickerCrawl 25s linear infinite;
-          will-change: transform;
-        }
-        .news-ticker-track:hover,
-        .news-ticker-track:active {
-          animation-play-state: paused;
-        }
-        .news-ticker-item {
-          display: inline-flex;
-          align-items: center;
-          gap: 8px;
-          padding: 0 16px;
-          color: #9A3412;
-          font-weight: 600;
-          font-size: 11.5px;
-          letter-spacing: 0.01em;
-        }
-      `}</style>
-
-      <aside
+    <aside
         className="store-announcement-bar no-print"
         aria-label="Store announcement"
         style={{
@@ -253,7 +220,6 @@ export default function StoreAnnouncementBar({ initialSettings = null }) {
           <i className="fa-solid fa-xmark"></i>
         </button>
       </aside>
-    </>
   );
 }
 

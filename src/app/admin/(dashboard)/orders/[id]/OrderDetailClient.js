@@ -8,6 +8,28 @@ import { formatCurrency } from '@/lib/utils/formatCurrency';
 import { formatDate, formatRelative, formatTime12Hour } from '@/lib/utils/formatDate';
 import { formatOrderSummary } from '@/lib/utils/formatOrderSummary';
 
+function isValidProofImage(url) {
+  if (!url || typeof url !== 'string') return false;
+  const trimmed = url.trim();
+  if (
+    !trimmed ||
+    trimmed === 'null' ||
+    trimmed === 'undefined' ||
+    trimmed === 'placeholder' ||
+    trimmed === 'none' ||
+    trimmed.length < 5
+  ) {
+    return false;
+  }
+  return (
+    trimmed.startsWith('data:image/') ||
+    trimmed.startsWith('http://') ||
+    trimmed.startsWith('https://') ||
+    trimmed.startsWith('blob:') ||
+    (trimmed.startsWith('/') && !trimmed.startsWith('/api/'))
+  );
+}
+
 export default function OrderDetailClient({ order: initialOrder }) {
   const [order, setOrder] = useState(initialOrder);
 
@@ -19,11 +41,119 @@ export default function OrderDetailClient({ order: initialOrder }) {
   const [status, setStatus] = useState(initialStatus);
   const [updating, setUpdating] = useState(false);
   const [copiedReceipt, setCopiedReceipt] = useState(false);
+  const [copiedRef, setCopiedRef] = useState(false);
   const [showReceiptModal, setShowReceiptModal] = useState(false);
+  const [imageError, setImageError] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [userLocation, setUserLocation] = useState(null);
+  const [distanceInfo, setDistanceInfo] = useState(null);
+  const [locating, setLocating] = useState(false);
+  const [locError, setLocError] = useState(null);
   const menuRef = useRef(null);
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
+  const userMarkerRef = useRef(null);
+  const routeLineRef = useRef(null);
+
+  const handleLocateDistance = () => {
+    if (typeof window === 'undefined' || !navigator.geolocation) {
+      setLocError('GPS not supported');
+      return;
+    }
+
+    setLocating(true);
+    setLocError(null);
+
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const uLat = pos.coords.latitude;
+        const uLng = pos.coords.longitude;
+        setUserLocation({ lat: uLat, lng: uLng });
+
+        const rawLat = parseFloat(order.delivery_location?.latitude);
+        const rawLng = parseFloat(order.delivery_location?.longitude);
+        const destLat = (!isNaN(rawLat) && rawLat !== 0) ? rawLat : 11.3256;
+        const destLng = (!isNaN(rawLng) && rawLng !== 0) ? rawLng : 124.7349;
+
+        // Haversine calculation with local road winding factor (1.25x)
+        const R = 6371;
+        const dLat = (destLat - uLat) * Math.PI / 180;
+        const dLon = (destLng - uLng) * Math.PI / 180;
+        const a =
+          Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+          Math.cos(uLat * Math.PI / 180) * Math.cos(destLat * Math.PI / 180) *
+          Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        const straightKm = R * c;
+        const roadKm = Math.max(0.1, straightKm * 1.25);
+        const mins = Math.max(1, Math.round((roadKm / 28) * 60)); // ~28 km/h local driving speed
+
+        setDistanceInfo({
+          km: roadKm < 1 ? `${Math.round(roadKm * 1000)}m` : `${roadKm.toFixed(1)}km`,
+          minutes: mins,
+          meters: Math.round(roadKm * 1000),
+        });
+        setLocating(false);
+
+        // Update Leaflet map with pulsing live location marker & dashed route line
+        try {
+          if (mapInstanceRef.current) {
+            const L = (await import('leaflet')).default;
+            const map = mapInstanceRef.current;
+
+            if (userMarkerRef.current) {
+              userMarkerRef.current.remove();
+            }
+            if (routeLineRef.current) {
+              routeLineRef.current.remove();
+            }
+
+            const userIcon = L.divIcon({
+              className: 'admin-live-user-pin',
+              html: `<div style="
+                width: 16px;
+                height: 16px;
+                background: #0284C7;
+                border: 2.5px solid #FFFFFF;
+                border-radius: 50%;
+                box-shadow: 0 0 0 7px rgba(2, 132, 199, 0.35), 0 3px 6px rgba(0,0,0,0.3);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+              ">
+                <div style="width: 4px; height: 4px; background: #FFFFFF; border-radius: 50%;"></div>
+              </div>`,
+              iconSize: [22, 22],
+              iconAnchor: [11, 11],
+            });
+
+            userMarkerRef.current = L.marker([uLat, uLng], { icon: userIcon }).addTo(map);
+            userMarkerRef.current.bindPopup('<div style="font-size: 11.5px; font-weight: 700; color: #0284C7; padding: 2px;">📍 Your Current Location</div>');
+
+            routeLineRef.current = L.polyline([[uLat, uLng], [destLat, destLng]], {
+              color: '#0284C7',
+              weight: 3.5,
+              dashArray: '6, 8',
+              opacity: 0.85,
+            }).addTo(map);
+
+            map.fitBounds([[uLat, uLng], [destLat, destLng]], {
+              padding: [35, 35],
+              maxZoom: 17,
+            });
+          }
+        } catch (e) {
+          console.error('Error updating live map markers:', e);
+        }
+      },
+      (err) => {
+        console.warn('Geolocation error:', err);
+        setLocError('Location permission denied');
+        setLocating(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 30000 }
+    );
+  };
 
   const handleCopyOrderReceipt = () => {
     if (!order) return;
@@ -45,6 +175,28 @@ export default function OrderDetailClient({ order: initialOrder }) {
       }
       setCopiedReceipt(true);
       setTimeout(() => setCopiedReceipt(false), 2500);
+    } catch {}
+  };
+
+  const handleCopyRef = (text) => {
+    if (!text) return;
+    try {
+      if (typeof navigator !== 'undefined' && navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(text);
+      } else if (typeof document !== 'undefined') {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.top = '-9999px';
+        textarea.style.left = '-9999px';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+      }
+      setCopiedRef(true);
+      setTimeout(() => setCopiedRef(false), 2000);
     } catch {}
   };
 
@@ -1035,10 +1187,14 @@ export default function OrderDetailClient({ order: initialOrder }) {
                 <span>{order.order_type === 'delivery' ? 'Delivery' : 'Pickup'}</span>
               </span>
             </div>
-
-            {/* Customer & Date Needed Info Pills - Responsive auto-adjust */}
-            <div className="pills-grid" style={{ display: 'grid', gridTemplateColumns: order.preferred_date ? '1fr 1fr' : '1fr', gap: '10px' }}>
-              {/* Customer Name & Phone */}
+            {/* Customer & Date Needed Info Pills - Equal Height & Balanced */}
+            <div className="pills-grid" style={{
+              display: 'grid',
+              gridTemplateColumns: order.preferred_date ? '1fr 1fr' : '1fr',
+              gap: '10px',
+              alignItems: 'stretch',
+            }}>
+              {/* Customer Box */}
               <div style={{
                 background: '#F8FAFC',
                 padding: '10px 12px',
@@ -1046,49 +1202,58 @@ export default function OrderDetailClient({ order: initialOrder }) {
                 border: '1px solid #E2E8F0',
                 display: 'flex',
                 flexDirection: 'column',
-                justifyContent: 'center',
-                minHeight: '60px',
+                justifyContent: 'space-between',
+                gap: '8px',
+                minHeight: '75px',
               }}>
-                <span style={{ fontSize: '9.5px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.04em', color: '#64748B', display: 'flex', alignItems: 'center', gap: '5px', marginBottom: '3px' }}>
-                  <i className="fa-solid fa-user" style={{ fontSize: '9.5px', color: 'var(--color-primary)' }}></i>
-                  <span>Customer</span>
-                </span>
-                <p style={{ fontWeight: '800', fontSize: '13px', color: '#0F172A', margin: 0, wordBreak: 'break-word', lineHeight: 1.3 }}>
-                  {order.customer_name}
-                </p>
-                {order.customer_phone && (
-                  <span style={{ fontSize: '11px', color: '#64748B', fontWeight: '600', display: 'block', marginTop: '2px', wordBreak: 'break-all' }}>
-                    {order.customer_phone}
+                <div>
+                  <span style={{ fontSize: '9.5px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.04em', color: '#64748B', display: 'flex', alignItems: 'center', gap: '5px', marginBottom: '2px' }}>
+                    <i className="fa-solid fa-user" style={{ fontSize: '9.5px', color: 'var(--color-primary)' }}></i>
+                    <span>Customer</span>
                   </span>
-                )}
-                {order.status === 'pending' && (
+                  <p style={{ fontWeight: '800', fontSize: '13px', color: '#0F172A', margin: 0, wordBreak: 'break-word', lineHeight: 1.3 }}>
+                    {order.customer_name}
+                  </p>
+                  {order.customer_phone && (
+                    <span style={{ fontSize: '11px', color: '#64748B', fontWeight: '600', display: 'block', marginTop: '2px', wordBreak: 'break-all' }}>
+                      {order.customer_phone}
+                    </span>
+                  )}
+                </div>
+
+                {/* Messenger Chat Status Badge */}
+                <div style={{
+                  paddingTop: '6px',
+                  borderTop: '1px solid #E2E8F0',
+                  marginTop: 'auto',
+                }}>
                   <div style={{
-                    marginTop: '5px',
-                    paddingTop: '5px',
-                    borderTop: '1px solid #E2E8F0',
-                    display: 'flex',
+                    display: 'inline-flex',
                     alignItems: 'center',
                     gap: '5px',
-                    fontSize: '11px',
-                    fontWeight: '600',
-                    color: (order.messenger_opened_at || order.sent_to_messenger) ? '#16A34A' : '#64748B',
+                    padding: '2px 7px',
+                    borderRadius: '5px',
+                    fontSize: '10px',
+                    fontWeight: '700',
+                    background: (order.messenger_opened_at || order.sent_to_messenger) ? '#ECFDF5' : '#FFFBEB',
+                    color: (order.messenger_opened_at || order.sent_to_messenger) ? '#065F46' : '#92400E',
+                    border: (order.messenger_opened_at || order.sent_to_messenger) ? '1px solid #A7F3D0' : '1px solid #FDE68A',
                   }}>
-                    <span style={{
-                      width: '6px',
-                      height: '6px',
-                      borderRadius: '50%',
-                      background: (order.messenger_opened_at || order.sent_to_messenger) ? '#16A34A' : '#CBD5E1',
-                      display: 'inline-block',
-                      flexShrink: 0,
-                    }}></span>
+                    <i
+                      className={(order.messenger_opened_at || order.sent_to_messenger) ? 'fa-brands fa-facebook-messenger' : 'fa-regular fa-clock'}
+                      style={{
+                        color: (order.messenger_opened_at || order.sent_to_messenger) ? '#0084FF' : '#D97706',
+                        fontSize: '10px',
+                      }}
+                    />
                     <span>
                       {(order.messenger_opened_at || order.sent_to_messenger) ? 'Chat Opened' : 'Awaiting Chat'}
                     </span>
                   </div>
-                )}
+                </div>
               </div>
 
-              {/* Date Needed */}
+              {/* Date Needed Box */}
               {order.preferred_date && (
                 <div style={{
                   background: '#F8FAFC',
@@ -1097,33 +1262,51 @@ export default function OrderDetailClient({ order: initialOrder }) {
                   border: '1px solid #E2E8F0',
                   display: 'flex',
                   flexDirection: 'column',
-                  justifyContent: 'center',
-                  minHeight: '60px',
+                  justifyContent: 'space-between',
+                  gap: '8px',
+                  minHeight: '75px',
                 }}>
-                  <span style={{
-                    fontSize: '9.5px',
-                    fontWeight: '700',
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.04em',
+                  <div>
+                    <span style={{
+                      fontSize: '9.5px',
+                      fontWeight: '700',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.04em',
+                      color: '#64748B',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                      marginBottom: '2px',
+                    }}>
+                      <i className="fa-regular fa-calendar-check" style={{ fontSize: '10px', color: 'var(--color-primary)' }}></i>
+                      <span>Date Needed</span>
+                    </span>
+                    <p style={{
+                      fontWeight: '800',
+                      fontSize: '12.5px',
+                      color: '#0F172A',
+                      margin: 0,
+                      wordBreak: 'break-word',
+                      lineHeight: 1.3,
+                    }}>
+                      {formatDate(order.preferred_date)}{order.preferred_time ? ` · ${formatTime12Hour(order.preferred_time)}` : ''}
+                    </p>
+                  </div>
+
+                  <div style={{
+                    paddingTop: '6px',
+                    borderTop: '1px solid #E2E8F0',
+                    marginTop: 'auto',
+                    fontSize: '10px',
                     color: '#64748B',
+                    fontWeight: '600',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '5px',
-                    marginBottom: '3px',
+                    gap: '4px',
                   }}>
-                    <i className="fa-regular fa-calendar-check" style={{ fontSize: '10px', color: 'var(--color-primary)' }}></i>
-                    <span>Date Needed</span>
-                  </span>
-                  <p style={{
-                    fontWeight: '800',
-                    fontSize: '12.5px',
-                    color: '#0F172A',
-                    margin: 0,
-                    wordBreak: 'break-word',
-                    lineHeight: 1.3,
-                  }}>
-                    {formatDate(order.preferred_date)}{order.preferred_time ? ` · ${formatTime12Hour(order.preferred_time)}` : ''}
-                  </p>
+                    <i className="fa-solid fa-truck-fast" style={{ fontSize: '10px', color: 'var(--color-primary)' }}></i>
+                    <span>Delivery Schedule</span>
+                  </div>
                 </div>
               )}
             </div>
@@ -1131,8 +1314,10 @@ export default function OrderDetailClient({ order: initialOrder }) {
             {/* Payment Method & Proof of Payment Card */}
             {(() => {
               const isGcash = order.payment_method === 'gcash' || order.paymentMethod === 'gcash';
-              const proofUrl = order.payment_proof_url || order.paymentProofUrl;
-              const refNo = order.gcash_reference_no || order.gcashRefNo;
+              const rawProofUrl = order.payment_proof_url || order.paymentProofUrl;
+              const hasPhoto = isValidProofImage(rawProofUrl);
+              const refNo = (order.gcash_reference_no || order.gcashRefNo || '').trim();
+              const hasRef = Boolean(refNo);
 
               return (
                 <div style={{
@@ -1141,62 +1326,126 @@ export default function OrderDetailClient({ order: initialOrder }) {
                   borderRadius: '10px',
                   padding: '10px 12px',
                   display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: '10px',
-                  flexWrap: 'wrap',
+                  flexDirection: 'column',
+                  gap: '8px',
                 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flex: 1 }}>
-                    <div style={{
-                      width: '32px',
-                      height: '32px',
-                      borderRadius: '8px',
-                      background: isGcash ? '#007DFE' : '#16A34A',
-                      color: '#FFFFFF',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: '13px',
-                      flexShrink: 0,
-                    }}>
-                      <i className={isGcash ? 'fa-solid fa-wallet' : 'fa-solid fa-money-bill-wave'}></i>
-                    </div>
-                    <div style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                      <span style={{ fontSize: '13px', fontWeight: '800', color: isGcash ? '#1E40AF' : '#166534' }}>
-                        {isGcash ? 'GCash Transfer' : (order.order_type === 'delivery' ? 'Cash on Delivery (COD)' : 'Cash upon Pickup')}
-                      </span>
-                      {refNo && (
-                        <span style={{ fontSize: '11.5px', fontWeight: '700', color: '#1E40AF', background: '#DBEAFE', padding: '2px 8px', borderRadius: '4px', fontFamily: 'monospace' }}>
-                          Ref: {refNo}
+                  {/* Top Row: Method, Status Badge & Action Button (Aligned & Balanced) */}
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '8px',
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+                      <div style={{
+                        width: '30px',
+                        height: '30px',
+                        borderRadius: '8px',
+                        background: isGcash ? '#007DFE' : '#16A34A',
+                        color: '#FFFFFF',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '12.5px',
+                        flexShrink: 0,
+                      }}>
+                        <i className={isGcash ? 'fa-solid fa-wallet' : 'fa-solid fa-money-bill-wave'}></i>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', minWidth: 0 }}>
+                        <span style={{ fontSize: '12.5px', fontWeight: '800', color: isGcash ? '#1E40AF' : '#166534', whiteSpace: 'nowrap' }}>
+                          {isGcash ? 'GCash' : (order.order_type === 'delivery' ? 'Cash on Delivery (COD)' : 'Cash (Pickup)')}
                         </span>
-                      )}
+                        {isGcash && (
+                          hasPhoto && hasRef ? (
+                            <span style={{ fontSize: '10px', fontWeight: '700', color: '#047857', background: '#ECFDF5', border: '1px solid #A7F3D0', padding: '1.5px 6px', borderRadius: '4px', whiteSpace: 'nowrap' }}>
+                              <i className="fa-solid fa-check-double"></i> Pic & Ref
+                            </span>
+                          ) : hasPhoto ? (
+                            <span style={{ fontSize: '10px', fontWeight: '700', color: '#047857', background: '#ECFDF5', border: '1px solid #A7F3D0', padding: '1.5px 6px', borderRadius: '4px', whiteSpace: 'nowrap' }}>
+                              <i className="fa-solid fa-image"></i> Pic Attached
+                            </span>
+                          ) : hasRef ? (
+                            <span style={{ fontSize: '10px', fontWeight: '700', color: '#1D4ED8', background: '#DBEAFE', border: '1px solid #93C5FD', padding: '1.5px 6px', borderRadius: '4px', whiteSpace: 'nowrap' }}>
+                              <i className="fa-solid fa-receipt"></i> Ref Only
+                            </span>
+                          ) : (
+                            <span style={{ fontSize: '10px', fontWeight: '700', color: '#B45309', background: '#FEF3C7', border: '1px solid #FDE68A', padding: '1.5px 6px', borderRadius: '4px', whiteSpace: 'nowrap' }}>
+                              <i className="fa-solid fa-clock"></i> Unverified
+                            </span>
+                          )
+                        )}
+                      </div>
                     </div>
-                  </div>
 
-                  {proofUrl && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                    {/* View Receipt Photo Button (Aligned on Right) */}
+                    {isGcash && hasPhoto && (
                       <button
                         type="button"
-                        onClick={() => setShowReceiptModal(true)}
+                        onClick={() => {
+                          setImageError(false);
+                          setShowReceiptModal(true);
+                        }}
                         style={{
                           background: '#007DFE',
                           border: 'none',
                           color: '#FFFFFF',
-                          fontSize: '11.5px',
+                          fontSize: '11px',
                           fontWeight: '700',
-                          padding: '6px 12px',
-                          borderRadius: '8px',
+                          padding: '5px 10px',
+                          borderRadius: '7px',
                           cursor: 'pointer',
                           display: 'inline-flex',
                           alignItems: 'center',
-                          gap: '6px',
-                          boxShadow: '0 2px 6px rgba(0, 125, 254, 0.25)',
+                          gap: '5px',
+                          boxShadow: '0 1px 3px rgba(0, 125, 254, 0.25)',
                           transition: 'all 0.15s ease',
+                          flexShrink: 0,
                           whiteSpace: 'nowrap',
                         }}
                       >
-                        <i className="fa-solid fa-receipt"></i>
-                        <span>View Receipt</span>
+                        <i className="fa-solid fa-image"></i>
+                        <span>Receipt</span>
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Compact Reference No. Row */}
+                  {isGcash && hasRef && (
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      background: '#FFFFFF',
+                      border: '1px solid #DBEAFE',
+                      borderRadius: '7px',
+                      padding: '5px 8px',
+                      gap: '6px',
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '5px', minWidth: 0 }}>
+                        <span style={{ fontSize: '10.5px', color: '#64748B', fontWeight: '600' }}>Ref:</span>
+                        <strong style={{ fontSize: '12px', color: '#0F172A', fontFamily: 'monospace', letterSpacing: '0.5px', wordBreak: 'break-all' }}>{refNo}</strong>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleCopyRef(refNo)}
+                        style={{
+                          background: copiedRef ? '#10B981' : '#F1F5F9',
+                          color: copiedRef ? '#FFFFFF' : '#1E293B',
+                          border: '1px solid #CBD5E1',
+                          borderRadius: '5px',
+                          padding: '2px 7px',
+                          fontSize: '10.5px',
+                          fontWeight: '700',
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '3px',
+                          flexShrink: 0,
+                          transition: 'all 0.15s ease',
+                        }}
+                      >
+                        <i className={copiedRef ? 'fa-solid fa-check' : 'fa-regular fa-copy'} style={{ fontSize: '10px' }}></i>
+                        <span>{copiedRef ? 'Copied' : 'Copy'}</span>
                       </button>
                     </div>
                   )}
@@ -1216,7 +1465,54 @@ export default function OrderDetailClient({ order: initialOrder }) {
               marginTop: 'auto',
               flex: 1,
               minHeight: '200px',
+              position: 'relative',
             }}>
+              {/* Floating Live Distance & ETA Pill (Auto-calculated from Current Location) */}
+              {distanceInfo && (
+                <div style={{
+                  position: 'absolute',
+                  top: '10px',
+                  left: '10px',
+                  zIndex: 1000,
+                  background: 'rgba(15, 23, 42, 0.88)',
+                  backdropFilter: 'blur(6px)',
+                  color: '#FFFFFF',
+                  padding: '5px 10px',
+                  borderRadius: '8px',
+                  fontSize: '11px',
+                  fontWeight: '700',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  boxShadow: '0 2px 6px rgba(0,0,0,0.3)',
+                  border: '1px solid rgba(255,255,255,0.15)',
+                  pointerEvents: 'none',
+                }}>
+                  <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#10B981', display: 'inline-block', boxShadow: '0 0 8px #10B981' }}></span>
+                  <span>{distanceInfo.km} away</span>
+                  <span style={{ color: '#94A3B8' }}>•</span>
+                  <span style={{ color: '#38BDF8' }}>~{distanceInfo.minutes} min drive</span>
+                </div>
+              )}
+
+              {locError && (
+                <div style={{
+                  position: 'absolute',
+                  top: '10px',
+                  left: '10px',
+                  zIndex: 1000,
+                  background: 'rgba(239, 68, 68, 0.9)',
+                  color: '#FFFFFF',
+                  padding: '4px 8px',
+                  borderRadius: '6px',
+                  fontSize: '10.5px',
+                  fontWeight: '600',
+                  boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
+                }}>
+                  {locError}
+                </div>
+              )}
+
               {/* Satellite Map */}
               <div
                 ref={mapRef}
@@ -1229,7 +1525,7 @@ export default function OrderDetailClient({ order: initialOrder }) {
                 }}
               />
 
-              {/* Address & Directions Bar */}
+              {/* Address & Action Buttons Bar */}
               <div style={{
                 padding: '10px 12px',
                 background: '#ffffff',
@@ -1249,7 +1545,7 @@ export default function OrderDetailClient({ order: initialOrder }) {
                   </div>
                   <p style={{ fontSize: '12px', fontWeight: '700', color: '#0F172A', margin: 0, lineHeight: 1.3, wordBreak: 'break-word' }}>
                     {order.order_type === 'delivery'
-                      ? (order.delivery_location?.address || 'Poblacion, Barugo, Leyte')
+                      ? (order.delivery_location?.address || (typeof order.delivery_location === 'string' ? order.delivery_location : null) || order.delivery_address || order.address || 'Poblacion, Barugo, Leyte')
                       : 'M&M Artsy • Barugo, Leyte'}
                   </p>
                   {order.order_type === 'delivery' && order.delivery_location?.landmark_notes && order.delivery_location.landmark_notes.trim() !== (order.delivery_location.address || '').trim() && (
@@ -1259,7 +1555,46 @@ export default function OrderDetailClient({ order: initialOrder }) {
                   )}
                 </div>
 
-                {(order.delivery_location?.latitude || order.delivery_location?.address || order.order_type === 'pickup') && (
+                {/* 1-Word Action Buttons: Locate & Directions (Uniform 32px Height, Non-redundant) */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                  {/* 1-Word GPS Distance Calculator Button (Only relevant for Delivery orders) */}
+                  {order.order_type === 'delivery' && (
+                    <button
+                      type="button"
+                      onClick={handleLocateDistance}
+                      disabled={locating}
+                      title="Calculate distance & ETA from your current GPS location"
+                      style={{
+                        height: '32px',
+                        padding: '0 11px',
+                        fontSize: '11.5px',
+                        fontWeight: '700',
+                        borderRadius: '8px',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '5px',
+                        flexShrink: 0,
+                        cursor: locating ? 'wait' : 'pointer',
+                        background: distanceInfo ? '#EFF6FF' : '#F8FAFC',
+                        border: distanceInfo ? '1px solid #BFDBFE' : '1px solid #CBD5E1',
+                        color: distanceInfo ? '#1D4ED8' : '#334155',
+                        boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+                        whiteSpace: 'nowrap',
+                        boxSizing: 'border-box',
+                        lineHeight: 1,
+                        transition: 'all 0.15s ease',
+                      }}
+                    >
+                      <i
+                        className={locating ? 'fa-solid fa-spinner fa-spin' : 'fa-solid fa-location-crosshairs'}
+                        style={{ color: distanceInfo ? '#2563EB' : '#0284C7', fontSize: '11.5px' }}
+                      ></i>
+                      <span>{locating ? 'Locating...' : (distanceInfo ? distanceInfo.km : 'Locate')}</span>
+                    </button>
+                  )}
+
+                  {/* Google Maps Live Turn-by-Turn GPS Directions Button */}
                   <a
                     href={(() => {
                       const isDelivery = order.order_type === 'delivery';
@@ -1267,201 +1602,341 @@ export default function OrderDetailClient({ order: initialOrder }) {
                       const rawLng = parseFloat(order.delivery_location?.longitude);
                       const hasValidCoords = !isNaN(rawLat) && !isNaN(rawLng) && rawLat !== 0;
 
-                      const destination = isDelivery && hasValidCoords
-                        ? `${rawLat},${rawLng}`
-                        : isDelivery && order.delivery_location?.address
-                          ? encodeURIComponent(`${order.delivery_location.address}, Barugo, Leyte, Philippines`)
-                          : '11.3256,124.7349';
+                      const addrStr = typeof order.delivery_location === 'string'
+                        ? order.delivery_location
+                        : (order.delivery_location?.address || order.delivery_address || order.address || 'Poblacion, Barugo, Leyte');
 
-                      return `https://www.google.com/maps/dir//${destination}/data=!3m1!1e3!4m2!4m1!3e0?api=1&travelmode=driving&dir_action=navigate&basemap=satellite&t=k`;
+                      const destination = isDelivery
+                        ? (hasValidCoords ? `${rawLat},${rawLng}` : encodeURIComponent(`${addrStr}, Barugo, Leyte, Philippines`))
+                        : encodeURIComponent('M&M Artsy, Barugo, Leyte, Philippines');
+
+                      const originParam = userLocation ? `&origin=${userLocation.lat},${userLocation.lng}` : '';
+
+                      return `https://www.google.com/maps/dir/?api=1${originParam}&destination=${destination}&travelmode=driving&dir_action=navigate`;
                     })()}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="btn btn-secondary btn-sm"
-                    title="Start GPS Navigation"
+                    title="Open Google Maps for turn-by-turn driving directions"
                     style={{
-                      padding: '5px 10px',
-                      fontSize: '11px',
+                      height: '32px',
+                      padding: '0 12px',
+                      fontSize: '11.5px',
                       fontWeight: '700',
-                      borderRadius: '7px',
+                      borderRadius: '8px',
                       display: 'inline-flex',
                       alignItems: 'center',
+                      justifyContent: 'center',
                       gap: '5px',
                       flexShrink: 0,
                       textDecoration: 'none',
-                      background: '#F8FAFC',
-                      border: '1px solid #CBD5E1',
-                      color: '#1E293B',
+                      background: '#0F172A',
+                      border: '1px solid #0F172A',
+                      color: '#FFFFFF',
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.15)',
+                      whiteSpace: 'nowrap',
+                      boxSizing: 'border-box',
+                      lineHeight: 1,
                     }}
                   >
-                    <i className="fa-solid fa-location-arrow" style={{ color: 'var(--color-primary)', fontSize: '10px' }}></i>
+                    <i className="fa-solid fa-diamond-turn-right" style={{ color: '#38BDF8', fontSize: '11.5px' }}></i>
                     <span>Directions</span>
                   </a>
-                )}
+                </div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Payment Proof Receipt Zoom Modal */}
-        {showReceiptModal && (order.payment_proof_url || order.paymentProofUrl) && (
-          <div
-            style={{
-              position: 'fixed',
-              inset: 0,
-              background: 'rgba(15, 23, 42, 0.8)',
-              backdropFilter: 'blur(5px)',
-              zIndex: 99999,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              padding: '20px',
-            }}
-            onClick={() => setShowReceiptModal(false)}
-          >
+        {/* Payment Proof / Reference Verification Modal */}
+        {showReceiptModal && (() => {
+          const rawProofUrl = order.payment_proof_url || order.paymentProofUrl;
+          const hasPhoto = isValidProofImage(rawProofUrl);
+          const showPhoto = hasPhoto && !imageError;
+          const refNo = (order.gcash_reference_no || order.gcashRefNo || '').trim();
+          const hasRef = Boolean(refNo);
+
+          return (
             <div
               style={{
-                background: '#FFFFFF',
-                borderRadius: '16px',
-                padding: '20px',
-                maxWidth: '460px',
-                width: '100%',
-                maxHeight: '90vh',
+                position: 'fixed',
+                inset: 0,
+                background: 'rgba(15, 23, 42, 0.8)',
+                backdropFilter: 'blur(5px)',
+                zIndex: 99999,
                 display: 'flex',
-                flexDirection: 'column',
-                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
-                position: 'relative',
-              }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <div style={{
-                    width: '28px',
-                    height: '28px',
-                    borderRadius: '8px',
-                    background: '#EFF6FF',
-                    color: '#2563EB',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '12px',
-                  }}>
-                    <i className="fa-solid fa-receipt"></i>
-                  </div>
-                  <div>
-                    <h3 style={{ fontSize: '14px', fontWeight: '800', color: '#0F172A', margin: 0 }}>
-                      Payment Proof / Receipt
-                    </h3>
-                    <span style={{ fontSize: '11px', color: '#64748B' }}>
-                      Order #{order.reference_code}
-                    </span>
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => setShowReceiptModal(false)}
-                  style={{
-                    background: '#F1F5F9',
-                    border: 'none',
-                    borderRadius: '50%',
-                    width: '30px',
-                    height: '30px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    cursor: 'pointer',
-                    color: '#64748B',
-                  }}
-                >
-                  <i className="fa-solid fa-xmark"></i>
-                </button>
-              </div>
-
-              {/* Receipt Image Container */}
-              <div style={{
-                flex: 1,
-                overflowY: 'auto',
-                background: '#F8FAFC',
-                borderRadius: '12px',
-                border: '1px solid #E2E8F0',
-                padding: '12px',
-                display: 'flex',
-                justifyContent: 'center',
                 alignItems: 'center',
-              }}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={order.payment_proof_url || order.paymentProofUrl}
-                  alt="Customer Payment Receipt"
-                  style={{ maxWidth: '100%', maxHeight: '60vh', objectFit: 'contain', borderRadius: '8px' }}
-                  onError={(e) => {
-                    e.currentTarget.style.display = 'none';
-                    const fallback = e.currentTarget.parentElement?.querySelector('.receipt-img-fallback');
-                    if (fallback) fallback.style.display = 'block';
-                  }}
-                />
-                <div className="receipt-img-fallback" style={{ display: 'none', color: '#64748B', fontSize: '13px', padding: '24px', textAlign: 'center' }}>
-                  <i className="fa-solid fa-receipt" style={{ color: '#007DFE', fontSize: '28px', display: 'block', marginBottom: '8px' }}></i>
-                  <span>Receipt image uploaded</span>
-                </div>
-              </div>
-
-              {/* Details & Actions Footer */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '14px', gap: '8px' }}>
-                <div style={{ fontSize: '12px', color: '#64748B' }}>
-                  {(order.gcash_reference_no || order.gcashRefNo) && (
-                    <span>Ref: <strong style={{ color: '#0F172A', fontFamily: 'monospace' }}>{order.gcash_reference_no || order.gcashRefNo}</strong></span>
-                  )}
-                </div>
-
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <a
-                    href={order.payment_proof_url || order.paymentProofUrl}
-                    download={`Receipt_${order.reference_code}.png`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{
-                      height: '34px',
-                      padding: '0 12px',
-                      background: '#007DFE',
-                      color: '#FFFFFF',
-                      borderRadius: '8px',
-                      fontSize: '12px',
-                      fontWeight: '700',
-                      display: 'inline-flex',
+                justifyContent: 'center',
+                padding: '20px',
+              }}
+              onClick={() => setShowReceiptModal(false)}
+            >
+              <div
+                style={{
+                  background: '#FFFFFF',
+                  borderRadius: '16px',
+                  padding: '20px',
+                  maxWidth: '480px',
+                  width: '100%',
+                  maxHeight: '90vh',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+                  position: 'relative',
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                {/* Modal Header */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div style={{
+                      width: '32px',
+                      height: '32px',
+                      borderRadius: '9px',
+                      background: '#EFF6FF',
+                      color: '#007DFE',
+                      display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      gap: '6px',
-                      textDecoration: 'none',
-                    }}
-                  >
-                    <i className="fa-solid fa-arrow-down-to-bracket"></i>
-                    <span>Download</span>
-                  </a>
+                      fontSize: '14px',
+                    }}>
+                      <i className={showPhoto ? "fa-solid fa-image" : "fa-solid fa-receipt"}></i>
+                    </div>
+                    <div>
+                      <h3 style={{ fontSize: '15px', fontWeight: '800', color: '#0F172A', margin: 0 }}>
+                        {showPhoto ? 'GCash Receipt Photo' : 'GCash Payment Verification'}
+                      </h3>
+                      <span style={{ fontSize: '11px', color: '#64748B' }}>
+                        Order #{order.reference_code} · {order.customer_name}
+                      </span>
+                    </div>
+                  </div>
+
                   <button
                     type="button"
                     onClick={() => setShowReceiptModal(false)}
                     style={{
-                      height: '34px',
-                      padding: '0 12px',
                       background: '#F1F5F9',
-                      color: '#334155',
-                      border: '1px solid #CBD5E1',
-                      borderRadius: '8px',
-                      fontSize: '12px',
-                      fontWeight: '700',
+                      border: 'none',
+                      borderRadius: '50%',
+                      width: '30px',
+                      height: '30px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
                       cursor: 'pointer',
+                      color: '#64748B',
                     }}
                   >
-                    Close
+                    <i className="fa-solid fa-xmark"></i>
                   </button>
+                </div>
+
+                {/* Modal Body */}
+                {showPhoto ? (
+                  /* Photo Mode (Screenshot uploaded) */
+                  <div style={{
+                    flex: 1,
+                    overflowY: 'auto',
+                    background: '#0F172A',
+                    borderRadius: '12px',
+                    border: '1px solid #1E293B',
+                    padding: '12px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    minHeight: '260px',
+                    position: 'relative',
+                  }}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={rawProofUrl}
+                      alt="Customer Payment Receipt"
+                      onError={() => setImageError(true)}
+                      style={{
+                        maxWidth: '100%',
+                        maxHeight: '58vh',
+                        objectFit: 'contain',
+                        borderRadius: '8px',
+                        cursor: 'zoom-in',
+                      }}
+                      onClick={() => {
+                        if (typeof window !== 'undefined') {
+                          window.open(rawProofUrl, '_blank');
+                        }
+                      }}
+                      title="Click to open full size"
+                    />
+                  </div>
+                ) : (
+                  <div style={{
+                    background: '#F8FAFC',
+                    borderRadius: '12px',
+                    border: '1px solid #E2E8F0',
+                    padding: '24px 18px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    textAlign: 'center',
+                    gap: '12px',
+                  }}>
+                    <div style={{
+                      width: '48px',
+                      height: '48px',
+                      borderRadius: '14px',
+                      background: '#EFF6FF',
+                      color: '#007DFE',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '22px',
+                      border: '1px solid #BFDBFE',
+                    }}>
+                      <i className="fa-solid fa-receipt"></i>
+                    </div>
+
+                    <div>
+                      <span style={{ fontSize: '11px', fontWeight: '800', color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                        GCash Reference Number
+                      </span>
+                      <div style={{
+                        fontSize: '20px',
+                        fontWeight: '800',
+                        color: '#007DFE',
+                        fontFamily: 'monospace',
+                        letterSpacing: '1px',
+                        marginTop: '4px',
+                        background: '#FFFFFF',
+                        padding: '8px 16px',
+                        borderRadius: '8px',
+                        border: '1.5px solid #BFDBFE',
+                        userSelect: 'all',
+                      }}>
+                        {refNo || 'No Reference Provided'}
+                      </div>
+                      <div style={{ fontSize: '12px', color: '#047857', fontWeight: '700', marginTop: '8px' }}>
+                        Expected Total: ₱{parseFloat(order.total_amount || 0).toLocaleString()}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Modal Footer */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '14px', gap: '8px', flexWrap: 'wrap' }}>
+                  <div style={{ fontSize: '12px', color: '#64748B' }}>
+                    {showPhoto && (
+                      hasRef ? (
+                        <span>Ref: <strong style={{ color: '#0F172A', fontFamily: 'monospace' }}>{refNo}</strong></span>
+                      ) : (
+                        <span style={{ fontStyle: 'italic', color: '#94A3B8' }}>No Ref No. typed · Check photo</span>
+                      )
+                    )}
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    {hasRef && (
+                      <button
+                        type="button"
+                        onClick={() => handleCopyRef(refNo)}
+                        style={{
+                          height: '34px',
+                          padding: '0 12px',
+                          background: copiedRef ? '#10B981' : '#F1F5F9',
+                          color: copiedRef ? '#FFFFFF' : '#1E293B',
+                          border: '1px solid #CBD5E1',
+                          borderRadius: '8px',
+                          fontSize: '12px',
+                          fontWeight: '700',
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          transition: 'all 0.15s ease',
+                        }}
+                      >
+                        <i className={copiedRef ? 'fa-solid fa-check' : 'fa-regular fa-copy'}></i>
+                        <span>{copiedRef ? 'Copied Ref!' : 'Copy Ref'}</span>
+                      </button>
+                    )}
+
+                    {showPhoto && (
+                      <>
+                        <a
+                          href={rawProofUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{
+                            height: '34px',
+                            padding: '0 12px',
+                            background: '#EFF6FF',
+                            color: '#007DFE',
+                            border: '1px solid #BFDBFE',
+                            borderRadius: '8px',
+                            fontSize: '12px',
+                            fontWeight: '700',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '6px',
+                            textDecoration: 'none',
+                          }}
+                        >
+                          <i className="fa-solid fa-up-right-from-square"></i>
+                          <span>Open Full</span>
+                        </a>
+
+                        <a
+                          href={rawProofUrl}
+                          download={`Receipt_${order.reference_code}.png`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{
+                            height: '34px',
+                            padding: '0 12px',
+                            background: '#007DFE',
+                            color: '#FFFFFF',
+                            border: 'none',
+                            borderRadius: '8px',
+                            fontSize: '12px',
+                            fontWeight: '700',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '6px',
+                            textDecoration: 'none',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          <i className="fa-solid fa-download"></i>
+                          <span>Download</span>
+                        </a>
+                      </>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={() => setShowReceiptModal(false)}
+                      style={{
+                        height: '34px',
+                        padding: '0 14px',
+                        background: '#F1F5F9',
+                        color: '#475569',
+                        border: '1px solid #E2E8F0',
+                        borderRadius: '8px',
+                        fontSize: '12px',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Close
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
       </div>
     </div>
   );

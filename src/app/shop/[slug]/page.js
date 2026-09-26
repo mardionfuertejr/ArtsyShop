@@ -73,8 +73,8 @@ export default async function ProductDetailPage({ params }) {
         if (b.is_cover) return 1;
         return (a.display_order || 0) - (b.display_order || 0);
       })
-      .map((p) => ({
-        id: p.id || Math.random().toString(),
+      .map((p, idx) => ({
+        id: p.id || `photo-${p.display_order ?? idx}`,
         url: p.url || (
           p.storage_path && supabaseUrl && supabaseUrl.startsWith('http') && !supabaseUrl.includes('placeholder')
             ? `${supabaseUrl}/storage/v1/object/public/product-photos/${p.storage_path}`

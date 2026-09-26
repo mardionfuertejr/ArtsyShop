@@ -20,10 +20,12 @@ export default function ShopClient({
   const [categories, setCategories] = useState(initialCategories);
   const [selectedCategory, setSelectedCategory] = useState(initialCategorySlug);
 
-  // Sync custom categories & products from localStorage on mount
+  // Sync custom categories & products from localStorage & admin changes
   useEffect(() => {
-    try {
-      if (typeof window !== 'undefined') {
+    const syncData = () => {
+      try {
+        if (typeof window === 'undefined') return;
+
         const localCats = localStorage.getItem('likha_custom_categories');
         if (localCats) {
           const parsed = JSON.parse(localCats);
@@ -43,38 +45,53 @@ export default function ShopClient({
           }
         }
 
+        const deletedIds = JSON.parse(localStorage.getItem('likha_deleted_products') || '[]');
         const localProds = localStorage.getItem('likha_custom_products');
-        if (localProds) {
-          const parsed = JSON.parse(localProds);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            const cleanCustom = parsed.filter((p) => p && p.id && !p.id.startsWith('prod-0') && !p.id.startsWith('prod-1') && !p.id.startsWith('prod-2') && !p.id.startsWith('prod-3'));
-            if (cleanCustom.length !== parsed.length) {
-              localStorage.setItem('likha_custom_products', JSON.stringify(cleanCustom));
+        
+        setProducts((prev) => {
+          const map = new Map();
+          (initialProducts || []).concat(prev || []).forEach((p) => {
+            if (p && !deletedIds.includes(p.id)) {
+              const key = String(p.id || p.slug || '').trim();
+              if (key) map.set(key, p);
             }
-            if (cleanCustom.length > 0) {
-              setProducts((prev) => {
-                const map = new Map();
-                (prev || []).forEach((p) => {
-                  const key = String(p.id || p.slug || '').trim();
-                  if (key) map.set(key, p);
-                });
+          });
+
+          if (localProds) {
+            try {
+              const parsed = JSON.parse(localProds);
+              if (Array.isArray(parsed) && parsed.length > 0) {
+                const cleanCustom = parsed.filter((p) => p && p.id && !deletedIds.includes(p.id) && !p.id.startsWith('prod-0') && !p.id.startsWith('prod-1') && !p.id.startsWith('prod-2') && !p.id.startsWith('prod-3'));
                 cleanCustom.forEach((p) => {
                   const key = String(p.id || p.slug || '').trim();
                   if (key) {
                     if (map.has(key)) {
-                      map.set(key, { ...p, ...map.get(key) });
+                      map.set(key, { ...map.get(key), ...p });
                     } else {
                       map.set(key, p);
                     }
                   }
                 });
-                return Array.from(map.values());
-              });
-            }
+              }
+            } catch {}
           }
-        }
-      }
-    } catch {}
+
+          return Array.from(map.values()).filter((p) => !deletedIds.includes(p.id));
+        });
+      } catch {}
+    };
+
+    syncData();
+
+    window.addEventListener('likha_products_updated', syncData);
+    window.addEventListener('likha_categories_updated', syncData);
+    window.addEventListener('storage', syncData);
+
+    return () => {
+      window.removeEventListener('likha_products_updated', syncData);
+      window.removeEventListener('likha_categories_updated', syncData);
+      window.removeEventListener('storage', syncData);
+    };
   }, []);
 
   // Compute all available categories from categories list and all products
@@ -228,7 +245,7 @@ export default function ShopClient({
 
         {/* Product Grid */}
         <section className="section" aria-label="Products">
-          <LazyProductGrid products={filteredProducts} initialCount={12} batchSize={12} />
+          <LazyProductGrid key={selectedCategory} products={filteredProducts} initialCount={12} batchSize={12} />
         </section>
 
         {/* Minimal End-of-Collection Footer with Custom Order Link */}

@@ -87,6 +87,7 @@ export default function AdminSettingsClient() {
     try {
       if (typeof window !== 'undefined') {
         localStorage.setItem('mm_studio_settings', JSON.stringify(settings));
+        window.dispatchEvent(new CustomEvent('likha_settings_updated', { detail: settings }));
       }
     } catch {}
 

@@ -8,7 +8,7 @@ export default function ToastPreviewPage() {
   const SAMPLE_TOASTS = [
     {
       id: 'cart-standard',
-      message: 'Flower Bouquet added to cart ✨',
+      message: 'Added to cart ✨',
       photo: 'https://images.unsplash.com/photo-1561181286-d3fee7d55364?auto=format&fit=crop&w=800&q=80',
       type: 'cart',
       quantity: 1,
@@ -19,7 +19,7 @@ export default function ToastPreviewPage() {
     },
     {
       id: 'cart-qty',
-      message: 'Flower Mirror updated in cart ✨',
+      message: 'Added to cart ✨',
       photo: 'https://images.unsplash.com/photo-1513519245088-0e12902e5a38?auto=format&fit=crop&w=800&q=80',
       type: 'cart',
       quantity: 2,
@@ -147,7 +147,7 @@ export default function ToastPreviewPage() {
             <button
               type="button"
               onClick={() => triggerToast({
-                message: 'Flower Bouquet added to cart ✨',
+                message: 'Added to cart ✨',
                 photo: 'https://images.unsplash.com/photo-1561181286-d3fee7d55364?auto=format&fit=crop&w=800&q=80',
                 type: 'cart',
                 quantity: 1,

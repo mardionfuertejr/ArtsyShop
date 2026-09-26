@@ -6,6 +6,7 @@ import { formatCurrencyCompact } from '@/lib/utils/formatCurrency';
 import { useCart } from '@/lib/hooks/useCart';
 import { openMessengerDirect } from '@/lib/utils/browserNav';
 import { triggerToast } from '@/components/common/GlobalToast';
+import { resolveProductPhoto } from '@/lib/utils/productImage';
 
 export default function ProductCard({ product, className = '', style = {} }) {
   const { cart, addItem, updateQty, removeItem } = useCart();
@@ -17,13 +18,7 @@ export default function ProductCard({ product, className = '', style = {} }) {
   );
   const inCartQty = inCartItems.reduce((sum, c) => sum + (c.quantity || 0), 0);
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const coverPhoto = product.product_photos?.find((p) => p.is_cover) || product.product_photos?.[0];
-  const photoUrl = coverPhoto?.url
-    ? coverPhoto.url
-    : (coverPhoto?.storage_path && supabaseUrl && supabaseUrl.startsWith('http') && !supabaseUrl.includes('placeholder'))
-      ? `${supabaseUrl}/storage/v1/object/public/product-photos/${coverPhoto.storage_path}`
-      : 'https://images.unsplash.com/photo-1561181286-d3fee7d55364?auto=format&fit=crop&w=800&q=80';
+  const photoUrl = resolveProductPhoto(product);
 
   const isSoldOut = Boolean(
     product.is_sold_out === true ||
@@ -139,7 +134,7 @@ export default function ProductCard({ product, className = '', style = {} }) {
     });
 
     triggerToast({
-      message: `${product.name} added to cart`,
+      message: 'Added to cart ✨',
       photo: photoUrl,
       type: 'cart',
       quantity: 1,

@@ -240,7 +240,7 @@ export default function ConfirmationClient({ order: serverOrder, referenceCode }
 
       ctx.fillStyle = '#64748B';
       ctx.font = '500 11px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
-      ctx.fillText('Handcrafted Gifts & Custom Floral Studio', width / 2, 68);
+      ctx.fillText('Handcrafted Gifts & Custom Florals', width / 2, 68);
 
       ctx.fillStyle = '#0F172A';
       ctx.font = '800 15px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
@@ -283,7 +283,7 @@ export default function ConfirmationClient({ order: serverOrder, referenceCode }
 
       drawRow('Customer:', order.customer_name || 'Customer', 168);
       drawRow('Contact No:', order.customer_phone || 'N/A', 188);
-      drawRow('Order Type:', order.order_type === 'delivery' ? `Delivery (${order.delivery_address || 'Address on file'})` : 'Studio Pickup', 208);
+      drawRow('Order Type:', order.order_type === 'delivery' ? `Delivery (${order.delivery_address || 'Address on file'})` : 'Pickup', 208);
       drawRow('Schedule:', formattedSchedule || 'As soon as crafted', 228);
       drawRow('Payment:', pMethod, 248);
 

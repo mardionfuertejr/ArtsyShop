@@ -189,9 +189,9 @@ export default function GlobalToast() {
           {/* Text Info - Ultra-concise single line */}
           <div className="likha-toast-text-wrap">
             <div className="likha-toast-header">
-              <span className="likha-toast-title" title={toast.message || toast.title}>
+              <span className="likha-toast-title" title={toast.type === 'cart' ? 'Added to cart ✨' : (toast.message || toast.title)}>
                 {toast.type === 'cart'
-                  ? (toast.message ? `${toast.message}` : toast.title)
+                  ? 'Added to cart ✨'
                   : (toast.message || toast.title)}
               </span>
               {toast.quantity && toast.quantity > 1 && (

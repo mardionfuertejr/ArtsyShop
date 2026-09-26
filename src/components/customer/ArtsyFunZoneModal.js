@@ -8,7 +8,7 @@ import {
 } from '@/lib/engine/voucherEngine';
 
 // ─────────────────────────────────────────────────────────────
-// Synthesized Web Audio Sound FX (Zero Lag, Instant Audio)
+// Synthesized Web Audio Sound FX (Zero Lag, Instant High-Energy Audio)
 // ─────────────────────────────────────────────────────────────
 class FunZoneAudio {
   constructor() {
@@ -29,12 +29,62 @@ class FunZoneAudio {
     } catch {}
   }
 
-  playTone(freq, type, duration, startVol = 0.12) {
+  playNoise(duration = 0.1, startVol = 0.15, filterFreq = 1000, filterType = 'lowpass') {
     if (this.muted || !this.ctx) return;
     try {
-      if (this.ctx.state === 'suspended') {
-        this.ctx.resume().catch(() => {});
+      if (this.ctx.state === 'suspended') this.ctx.resume().catch(() => {});
+      const bufferSize = Math.floor(this.ctx.sampleRate * duration);
+      const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < bufferSize; i++) {
+        data[i] = Math.random() * 2 - 1;
       }
+
+      const noise = this.ctx.createBufferSource();
+      noise.buffer = buffer;
+
+      const filter = this.ctx.createBiquadFilter();
+      filter.type = filterType;
+      filter.frequency.setValueAtTime(filterFreq, this.ctx.currentTime);
+      filter.frequency.exponentialRampToValueAtTime(80, this.ctx.currentTime + duration);
+
+      const gain = this.ctx.createGain();
+      gain.gain.setValueAtTime(startVol, this.ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
+
+      noise.connect(filter);
+      filter.connect(gain);
+      gain.connect(this.ctx.destination);
+
+      noise.start();
+      noise.stop(this.ctx.currentTime + duration);
+    } catch {}
+  }
+
+  playSweep(startFreq, endFreq, type = 'sine', duration = 0.1, startVol = 0.18) {
+    if (this.muted || !this.ctx) return;
+    try {
+      if (this.ctx.state === 'suspended') this.ctx.resume().catch(() => {});
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      osc.type = type;
+      osc.frequency.setValueAtTime(startFreq, this.ctx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(Math.max(20, endFreq), this.ctx.currentTime + duration);
+
+      gain.gain.setValueAtTime(startVol, this.ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
+
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+      osc.start();
+      osc.stop(this.ctx.currentTime + duration);
+    } catch {}
+  }
+
+  playTone(freq, type = 'sine', duration = 0.1, startVol = 0.15) {
+    if (this.muted || !this.ctx) return;
+    try {
+      if (this.ctx.state === 'suspended') this.ctx.resume().catch(() => {});
       const osc = this.ctx.createOscillator();
       const gain = this.ctx.createGain();
       osc.type = type;
@@ -48,34 +98,117 @@ class FunZoneAudio {
     } catch {}
   }
 
-  playPop() { this.playTone(560, 'sine', 0.08, 0.18); }
+  // 1. Crisp Vinyl Balloon Pop with air transient
+  playPop() {
+    this.playSweep(1050, 160, 'sine', 0.06, 0.28);
+    this.playNoise(0.05, 0.20, 3200, 'bandpass');
+  }
+
+  // 2. Upbeat Super Mario Coin Ding
   playCatch() {
-    this.playTone(520, 'sine', 0.08, 0.18);
-    setTimeout(() => this.playTone(680, 'sine', 0.1, 0.18), 35);
-  }
-  playSlice() {
-    this.playTone(840, 'sine', 0.05, 0.18);
-    setTimeout(() => this.playTone(1120, 'triangle', 0.06, 0.2), 20);
-  }
-  playStack() {
-    this.playTone(523.25, 'triangle', 0.08, 0.18);
-    setTimeout(() => this.playTone(659.25, 'triangle', 0.1, 0.2), 45);
-  }
-  playPerfect() {
     this.playTone(659.25, 'triangle', 0.08, 0.22);
-    setTimeout(() => this.playTone(880, 'triangle', 0.08, 0.22), 50);
-    setTimeout(() => this.playTone(1174.66, 'triangle', 0.12, 0.25), 100);
+    setTimeout(() => this.playTone(1046.50, 'triangle', 0.12, 0.25), 35);
   }
-  playMiss() { this.playTone(160, 'sawtooth', 0.14, 0.16); }
-  playBomb() {
-    this.playTone(110, 'sawtooth', 0.22, 0.28);
-    setTimeout(() => this.playTone(70, 'sawtooth', 0.28, 0.32), 45);
-  }
-  playWin() {
-    const notes = [523.25, 659.25, 783.99, 1046.5];
-    notes.forEach((note, i) => {
-      setTimeout(() => this.playTone(note, 'triangle', 0.2, 0.25), i * 80);
+
+  // 3. Shimmering Star / Special Power-up Arpeggio
+  playSpecialCatch() {
+    const notes = [587.33, 739.99, 880.00, 1174.66, 1479.98];
+    notes.forEach((freq, idx) => {
+      setTimeout(() => {
+        this.playTone(freq, 'triangle', 0.12, 0.24);
+        this.playTone(freq * 1.5, 'sine', 0.06, 0.12);
+      }, idx * 40);
     });
+  }
+
+  // 4. Swift Ribbon / Blade Slash Swoosh
+  playSlice() {
+    this.playSweep(2200, 420, 'triangle', 0.06, 0.25);
+    this.playNoise(0.07, 0.20, 4500, 'highpass');
+    setTimeout(() => this.playTone(1450, 'sine', 0.04, 0.16), 18);
+  }
+
+  // 5. Dynamic Combo Chimes (Pitch rises with combo streak)
+  playCombo(count = 2) {
+    const scales = [587.33, 739.99, 880.00, 1046.50, 1318.51, 1567.98, 1760.00];
+    const baseNote = scales[Math.min(count - 1, scales.length - 1)] || 1046.5;
+    this.playTone(baseNote, 'triangle', 0.14, 0.28);
+    this.playTone(baseNote * 1.25, 'sine', 0.10, 0.18);
+  }
+
+  // 6. Block Stack (Crisp wooden thud + harmonic chime)
+  playStack() {
+    this.playSweep(280, 80, 'sine', 0.05, 0.26);
+    this.playTone(587.33, 'triangle', 0.09, 0.24);
+  }
+
+  // 7. Perfect Alignment (Sparkling Major 7th Fanfare)
+  playPerfect() {
+    const notes = [523.25, 659.25, 783.99, 987.77, 1046.50];
+    notes.forEach((note, idx) => {
+      setTimeout(() => {
+        this.playTone(note, 'triangle', 0.14, 0.26);
+        this.playTone(note * 2, 'sine', 0.08, 0.15);
+      }, idx * 35);
+    });
+  }
+
+  // 8. Miss / Hazard Buzz (Cartoon Spring Boing)
+  playMiss() {
+    this.playSweep(420, 110, 'sawtooth', 0.18, 0.22);
+    setTimeout(() => this.playSweep(240, 75, 'sawtooth', 0.20, 0.24), 65);
+  }
+
+  // 9. Thunderous Bomb Explosion
+  playBomb() {
+    this.playSweep(180, 30, 'sawtooth', 0.38, 0.38);
+    this.playNoise(0.32, 0.35, 900, 'lowpass');
+    setTimeout(() => this.playSweep(95, 25, 'sine', 0.32, 0.32), 40);
+  }
+
+  // 10. Urgent Countdown Tick (Last 5 seconds)
+  playTick() {
+    this.playSweep(1500, 500, 'sine', 0.03, 0.18);
+  }
+
+  // 11. Energetic Game Start Jingle ("Ready... GO!")
+  playGameStart() {
+    const notes = [440, 554.37, 659.25, 880];
+    notes.forEach((note, idx) => {
+      setTimeout(() => this.playTone(note, 'triangle', 0.10, 0.22), idx * 60);
+    });
+  }
+
+  // 12. Triumphant Voucher Win Fanfare
+  playWin() {
+    const melody = [
+      { note: 523.25, delay: 0 },
+      { note: 659.25, delay: 85 },
+      { note: 783.99, delay: 170 },
+      { note: 1046.50, delay: 255 },
+      { note: 880.00, delay: 400 },
+      { note: 1046.50, delay: 500 },
+      { note: 1318.51, delay: 630 },
+    ];
+    melody.forEach(({ note, delay }) => {
+      setTimeout(() => {
+        this.playTone(note, 'triangle', 0.22, 0.30);
+        this.playTone(note * 0.5, 'sine', 0.18, 0.18);
+      }, delay);
+    });
+  }
+
+  // 13. Retro Game Over
+  playGameOver() {
+    const notes = [440, 392, 349.23, 293.66];
+    notes.forEach((note, idx) => {
+      setTimeout(() => this.playTone(note, 'sawtooth', 0.18, 0.18), idx * 90);
+    });
+  }
+
+  // 14. Tactile Arcade Menu / Button Pop
+  playClick() {
+    this.playSweep(850, 450, 'sine', 0.03, 0.15);
   }
 }
 
@@ -234,7 +367,10 @@ function PetalRushGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
   };
 
   const startRush = () => {
-    if (audio) audio.init();
+    if (audio) {
+      audio.init();
+      audio.playGameStart();
+    }
 
     // Clean any previous running game
     isPlayingRef.current = false;
@@ -264,6 +400,9 @@ function PetalRushGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
     timerIntervalRef.current = setInterval(() => {
       timeLeftRef.current -= 1;
       setTimeLeft(timeLeftRef.current);
+      if (audio && timeLeftRef.current <= 5 && timeLeftRef.current > 0) {
+        audio.playTick();
+      }
       if (timeLeftRef.current <= 0) {
         clearInterval(timerIntervalRef.current);
         finishRush();
@@ -326,7 +465,10 @@ function PetalRushGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
               scoreRef.current += gained;
               setScore(scoreRef.current);
               addFloatingText(`+${gained}`, basketPos, 290, item.type.isSpecial ? '#D97706' : '#16A34A');
-              if (audio) audio.playCatch();
+              if (audio) {
+                if (item.type.isSpecial) audio.playSpecialCatch();
+                else audio.playCatch();
+              }
             }
             continue;
           }
@@ -433,8 +575,8 @@ function PetalRushGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
         highScore: hsResult.highScore,
       });
       if (audio) {
-        if (finalScore >= 50) audio.playWin();
-        else audio.playMiss();
+        if (finalScore >= 100) audio.playWin();
+        else audio.playGameOver();
       }
     }
     setGameState('result');
@@ -744,7 +886,10 @@ function RibbonNinjaGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
   };
 
   const startNinja = () => {
-    if (audio) audio.init();
+    if (audio) {
+      audio.init();
+      audio.playGameStart();
+    }
 
     // Cleanup previous runs
     isPlayingRef.current = false;
@@ -775,6 +920,9 @@ function RibbonNinjaGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
     timerIntervalRef.current = setInterval(() => {
       timeLeftRef.current -= 1;
       setTimeLeft(timeLeftRef.current);
+      if (audio && timeLeftRef.current <= 5 && timeLeftRef.current > 0) {
+        audio.playTick();
+      }
       if (timeLeftRef.current <= 0) {
         clearInterval(timerIntervalRef.current);
         finishNinja();
@@ -935,7 +1083,10 @@ function RibbonNinjaGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
           const gained = t.type.points;
           scoreRef.current += gained;
           setScore(scoreRef.current);
-          if (audio) audio.playSlice();
+          if (audio) {
+            if (t.type.isSpecial) audio.playSpecialCatch();
+            else audio.playSlice();
+          }
         }
       }
     }
@@ -978,8 +1129,8 @@ function RibbonNinjaGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
         highScore: hsResult.highScore,
       });
       if (audio) {
-        if (finalScore >= 50) audio.playWin();
-        else audio.playMiss();
+        if (finalScore >= 100) audio.playWin();
+        else audio.playGameOver();
       }
     }
     setGameState('result');
@@ -1209,7 +1360,10 @@ function BloomStackerGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
   }, []);
 
   const startStacker = () => {
-    if (audio) audio.init();
+    if (audio) {
+      audio.init();
+      audio.playGameStart();
+    }
 
     // Clean previous run
     isPlayingRef.current = false;
@@ -1283,7 +1437,10 @@ function BloomStackerGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
       setCombo(comboRef.current);
       const perfectBonus = 15 + Math.min(25, comboRef.current * 6);
       scoreRef.current += perfectBonus;
-      if (audio) audio.playPerfect();
+      if (audio) {
+        if (comboRef.current > 1) audio.playCombo(comboRef.current);
+        else audio.playPerfect();
+      }
     } else if (mb.x + mb.width > topBlock.x && mb.x < topBlock.x + topBlock.width) {
       comboRef.current = 0;
       setCombo(0);
@@ -1297,6 +1454,7 @@ function BloomStackerGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
       scoreRef.current += 10;
       if (audio) audio.playStack();
     } else {
+      if (audio) audio.playBomb();
       finishStacker();
       return;
     }
@@ -1361,8 +1519,8 @@ function BloomStackerGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
         highScore: hsResult.highScore,
       });
       if (audio) {
-        if (finalScore >= 60) audio.playWin();
-        else audio.playMiss();
+        if (finalScore >= 100) audio.playWin();
+        else audio.playGameOver();
       }
     }
     setGameState('result');
@@ -1745,7 +1903,10 @@ function PetalPopGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
             color: b.type.isSpecial ? '#D97706' : '#059669',
             alpha: 1,
           });
-          if (audio) audio.playPop();
+          if (audio) {
+            if (b.type.isSpecial) audio.playSpecialCatch();
+            else audio.playPop();
+          }
         }
         break;
       }
@@ -1762,7 +1923,10 @@ function PetalPopGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
   };
 
   const startPop = () => {
-    if (audio) audio.init();
+    if (audio) {
+      audio.init();
+      audio.playGameStart();
+    }
 
     // Clean previous runs
     isPlayingRef.current = false;
@@ -1803,6 +1967,9 @@ function PetalPopGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
     timerIntervalRef.current = setInterval(() => {
       timeLeftRef.current -= 1;
       setTimeLeft(timeLeftRef.current);
+      if (audio && timeLeftRef.current <= 5 && timeLeftRef.current > 0) {
+        audio.playTick();
+      }
       if (timeLeftRef.current <= 0) {
         clearInterval(timerIntervalRef.current);
         finishPop();
@@ -1989,8 +2156,8 @@ function PetalPopGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
         highScore: hsResult.highScore,
       });
       if (audio) {
-        if (finalScore >= 40) audio.playWin();
-        else audio.playMiss();
+        if (finalScore >= 100) audio.playWin();
+        else audio.playGameOver();
       }
     }
     setGameState('result');
@@ -2236,9 +2403,22 @@ export default function ArtsyFunZoneModal({ isOpen, onClose }) {
 
   const toggleSound = () => {
     if (audioRef.current) {
-      audioRef.current.muted = !isMuted;
-      setIsMuted(!isMuted);
+      audioRef.current.init();
+      const nextMuted = !isMuted;
+      audioRef.current.muted = nextMuted;
+      setIsMuted(nextMuted);
+      if (!nextMuted) {
+        audioRef.current.playPop();
+      }
     }
+  };
+
+  const selectGame = (gameId) => {
+    if (audioRef.current) {
+      audioRef.current.init();
+      audioRef.current.playClick();
+    }
+    setActiveGameId(gameId);
   };
 
   if (!isOpen) return null;
@@ -2293,7 +2473,7 @@ export default function ArtsyFunZoneModal({ isOpen, onClose }) {
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             {activeGameId !== 'menu' && (
               <button
-                type="button" onClick={() => setActiveGameId('menu')}
+                type="button" onClick={() => selectGame('menu')}
                 style={{
                   background: '#FFF7ED',
                   border: 'none',
@@ -2391,7 +2571,7 @@ export default function ArtsyFunZoneModal({ isOpen, onClose }) {
                 {/* 1. Petal Rush */}
                 <button
                   type="button"
-                  onClick={() => setActiveGameId('rush')}
+                  onClick={() => selectGame('rush')}
                   className="arcade-game-card arcade-card-rush"
                 >
                   <div className="card-icon-wrap">
@@ -2408,7 +2588,7 @@ export default function ArtsyFunZoneModal({ isOpen, onClose }) {
                 {/* 2. Ribbon Ninja */}
                 <button
                   type="button"
-                  onClick={() => setActiveGameId('ninja')}
+                  onClick={() => selectGame('ninja')}
                   className="arcade-game-card arcade-card-ninja"
                 >
                   <div className="card-icon-wrap">
@@ -2425,7 +2605,7 @@ export default function ArtsyFunZoneModal({ isOpen, onClose }) {
                 {/* 3. Bloom Stacker */}
                 <button
                   type="button"
-                  onClick={() => setActiveGameId('stacker')}
+                  onClick={() => selectGame('stacker')}
                   className="arcade-game-card arcade-card-stacker"
                 >
                   <div className="card-icon-wrap">
@@ -2442,7 +2622,7 @@ export default function ArtsyFunZoneModal({ isOpen, onClose }) {
                 {/* 4. Petal Pop */}
                 <button
                   type="button"
-                  onClick={() => setActiveGameId('pop')}
+                  onClick={() => selectGame('pop')}
                   className="arcade-game-card arcade-card-pop"
                 >
                   <div className="card-icon-wrap">
@@ -2459,10 +2639,10 @@ export default function ArtsyFunZoneModal({ isOpen, onClose }) {
             </div>
           ) : (
             <div>
-              {activeGameId === 'rush' && <PetalRushGame audio={audioRef.current} onWinVoucher={setActiveVoucher} onBackToMenu={() => setActiveGameId('menu')} onClose={onClose} />}
-              {activeGameId === 'ninja' && <RibbonNinjaGame audio={audioRef.current} onWinVoucher={setActiveVoucher} onBackToMenu={() => setActiveGameId('menu')} onClose={onClose} />}
-              {activeGameId === 'stacker' && <BloomStackerGame audio={audioRef.current} onWinVoucher={setActiveVoucher} onBackToMenu={() => setActiveGameId('menu')} onClose={onClose} />}
-              {activeGameId === 'pop' && <PetalPopGame audio={audioRef.current} onWinVoucher={setActiveVoucher} onBackToMenu={() => setActiveGameId('menu')} onClose={onClose} />}
+              {activeGameId === 'rush' && <PetalRushGame audio={audioRef.current} onWinVoucher={setActiveVoucher} onBackToMenu={() => selectGame('menu')} onClose={onClose} />}
+              {activeGameId === 'ninja' && <RibbonNinjaGame audio={audioRef.current} onWinVoucher={setActiveVoucher} onBackToMenu={() => selectGame('menu')} onClose={onClose} />}
+              {activeGameId === 'stacker' && <BloomStackerGame audio={audioRef.current} onWinVoucher={setActiveVoucher} onBackToMenu={() => selectGame('menu')} onClose={onClose} />}
+              {activeGameId === 'pop' && <PetalPopGame audio={audioRef.current} onWinVoucher={setActiveVoucher} onBackToMenu={() => selectGame('menu')} onClose={onClose} />}
             </div>
           )}
         </div>

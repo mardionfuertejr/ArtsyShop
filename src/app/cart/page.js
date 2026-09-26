@@ -13,9 +13,12 @@ import { useCart } from '@/lib/hooks/useCart';
 import { createClient } from '@/lib/supabase/client';
 import { getMockProductBySlug } from '@/lib/mockData';
 import { formatCurrency } from '@/lib/utils/formatCurrency';
+import { resolveProductPhoto, getSmartFallbackImage } from '@/lib/utils/productImage';
+import ProductImage from '@/components/common/ProductImage';
 
 function CartItemImage({ photo, name }) {
   const [hasError, setHasError] = useState(false);
+  const resolved = resolveProductPhoto(photo, '', name);
 
   return (
     <div
@@ -26,20 +29,28 @@ function CartItemImage({ photo, name }) {
         justifyContent: 'center',
         background: 'var(--color-surface-warm, #FAF8F5)',
         flexShrink: 0,
+        overflow: 'hidden',
+        borderRadius: 'var(--radius-md)',
       }}
     >
-      {photo && !hasError ? (
+      {!hasError && resolved ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
-          src={photo}
+          src={resolved}
           alt={name || 'Handcrafted item'}
-          style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 'var(--radius-md)' }}
+          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
           onError={() => setHasError(true)}
         />
       ) : (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%', background: 'rgba(234, 88, 12, 0.05)' }}>
-          <i className="fa-solid fa-gift" style={{ color: 'var(--color-primary)', fontSize: '1.25rem', opacity: 0.85 }}></i>
-        </div>
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={getSmartFallbackImage('', name)}
+          alt={name || 'Handcrafted item'}
+          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+          onError={(e) => {
+            e.currentTarget.style.display = 'none';
+          }}
+        />
       )}
     </div>
   );
@@ -743,12 +754,11 @@ export default function CartPage() {
                 alignItems: 'center',
                 justifyContent: 'center',
               }}>
-                {viewingItem.photo ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={viewingItem.photo} alt={viewingItem.productName} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-                ) : (
-                  <i className="fa-solid fa-image" style={{ color: 'var(--color-primary)', fontSize: '20px' }}></i>
-                )}
+                <ProductImage
+                  src={viewingItem.photo}
+                  alt={viewingItem.productName}
+                  style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                />
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <h4 style={{ fontSize: '14px', fontWeight: '700', margin: '0 0 4px', color: 'var(--color-text)' }}>
@@ -900,12 +910,11 @@ export default function CartPage() {
                 alignItems: 'center',
                 justifyContent: 'center',
               }}>
-                {editingItem.photo ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={editingItem.photo} alt={editingItem.productName} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-                ) : (
-                  <i className="fa-solid fa-image" style={{ color: 'var(--color-primary)', fontSize: '18px' }}></i>
-                )}
+                <ProductImage
+                  src={editingItem.photo}
+                  alt={editingItem.productName}
+                  style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                />
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <h4 style={{ fontSize: '13.5px', fontWeight: '700', margin: '0 0 2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -1084,16 +1093,11 @@ export default function CartPage() {
                 alignItems: 'center',
                 justifyContent: 'center',
               }}>
-                {itemToDelete?.photo ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={itemToDelete.photo}
-                    alt={itemToDelete.productName || 'Product'}
-                    style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-                  />
-                ) : (
-                  <i className="fa-solid fa-image" style={{ color: 'var(--color-primary)' }} />
-                )}
+                <ProductImage
+                  src={itemToDelete?.photo}
+                  alt={itemToDelete?.productName || 'Product'}
+                  style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                />
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <p style={{ fontSize: '13px', fontWeight: '600', margin: '0 0 2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -1200,16 +1204,11 @@ export default function CartPage() {
                   alignItems: 'center',
                   justifyContent: 'center',
                 }}>
-                  {selectedItems[0].photo ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={selectedItems[0].photo}
-                      alt={selectedItems[0].productName || 'Product'}
-                      style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-                    />
-                  ) : (
-                    <i className="fa-solid fa-image" style={{ color: 'var(--color-primary)' }} />
-                  )}
+                  <ProductImage
+                    src={selectedItems[0].photo}
+                    alt={selectedItems[0].productName || 'Product'}
+                    style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                  />
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <p style={{ fontSize: '13px', fontWeight: '600', margin: '0 0 2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -1246,12 +1245,7 @@ export default function CartPage() {
                       overflow: 'hidden',
                       flexShrink: 0,
                     }}>
-                      {it.photo ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={it.photo} alt={it.productName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                      ) : (
-                        <i className="fa-solid fa-image" style={{ fontSize: '10px' }} />
-                      )}
+                      <ProductImage src={it.photo} alt={it.productName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                     </div>
                     <span style={{ fontSize: '12px', fontWeight: '600', flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       {it.productName}

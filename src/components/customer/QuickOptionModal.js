@@ -8,6 +8,7 @@ import QuantityControl from '@/components/customer/QuantityControl';
 import { useCart } from '@/lib/hooks/useCart';
 import { formatCurrency } from '@/lib/utils/formatCurrency';
 import { triggerToast } from '@/components/common/GlobalToast';
+import { resolveProductPhoto } from '@/lib/utils/productImage';
 
 // Smart category-based default options when product has no explicit options in DB
 const CATEGORY_DEFAULT_OPTIONS = {
@@ -243,9 +244,7 @@ export default function QuickOptionModal() {
   const handleAddToCart = () => {
     if (hasMissingOptions || added) return;
 
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const coverPhoto = product.product_photos?.find((p) => p.is_cover) || product.product_photos?.[0];
-    const resolvedPhoto = photoUrl || (coverPhoto?.url ? coverPhoto.url : (coverPhoto?.storage_path && supabaseUrl ? `${supabaseUrl}/storage/v1/object/public/product-photos/${coverPhoto.storage_path}` : null));
+    const resolvedPhoto = resolveProductPhoto(photoUrl || product);
 
     addItem({
       productId: product.id || `prod-${product.slug}`,
@@ -280,14 +279,8 @@ export default function QuickOptionModal() {
       }
     } catch {}
 
-    // Trigger Sleek Toast Notification with selected options
-    const selectedLabels = Object.values(selectedOptions)
-      .map((o) => o?.value)
-      .filter(Boolean)
-      .join(', ');
-
     triggerToast({
-      message: `${product.name}${selectedLabels ? ` (${selectedLabels})` : ''} added to cart`,
+      message: 'Added to cart ✨',
       photo: resolvedPhoto,
       type: 'cart',
       quantity,

@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useRef, useCallback } from 'react';
+import { resolveProductPhoto, getSmartFallbackImage } from '@/lib/utils/productImage';
 
-export default function PhotoCarousel({ photos = [], alt = 'Product photo' }) {
+export default function PhotoCarousel({ photos = [], alt = 'Product photo', fallbackCategory = '' }) {
   const [current, setCurrent] = useState(0);
   const startX = useRef(null);
   const trackRef = useRef(null);
@@ -51,19 +52,22 @@ export default function PhotoCarousel({ photos = [], alt = 'Product photo' }) {
         className="photo-carousel-track"
         style={{ transform: `translateX(-${current * 100}%)` }}
       >
-        {photos.map((photo, i) => (
-          <div key={i} className="photo-carousel-slide">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={photo.url || photo}
-              alt={`${alt} ${i + 1}`}
-              draggable={false}
-              onError={(e) => {
-                e.currentTarget.src = 'https://images.unsplash.com/photo-1561181286-d3fee7d55364?auto=format&fit=crop&w=800&q=80';
-              }}
-            />
-          </div>
-        ))}
+        {photos.map((photo, i) => {
+          const resolvedSrc = resolveProductPhoto(photo?.url || photo, fallbackCategory);
+          return (
+            <div key={i} className="photo-carousel-slide">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={resolvedSrc}
+                alt={`${alt} ${i + 1}`}
+                draggable={false}
+                onError={(e) => {
+                  e.currentTarget.src = getSmartFallbackImage(fallbackCategory, alt);
+                }}
+              />
+            </div>
+          );
+        })}
       </div>
 
       {photos.length > 1 && (

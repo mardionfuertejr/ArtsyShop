@@ -2,12 +2,37 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { MOCK_ORDERS } from '@/lib/mockData';
 import { createClient } from '@/lib/supabase/client';
 import { formatCurrency } from '@/lib/utils/formatCurrency';
 import { formatDate, formatDateShort, formatRelative, formatTime12Hour, isRushDate } from '@/lib/utils/formatDate';
 
+function isValidProofImage(url) {
+  if (!url || typeof url !== 'string') return false;
+  const trimmed = url.trim();
+  if (
+    !trimmed ||
+    trimmed === 'null' ||
+    trimmed === 'undefined' ||
+    trimmed === 'placeholder' ||
+    trimmed === 'none' ||
+    trimmed.length < 5
+  ) {
+    return false;
+  }
+  return (
+    trimmed.startsWith('data:image/') ||
+    trimmed.startsWith('http://') ||
+    trimmed.startsWith('https://') ||
+    trimmed.startsWith('blob:') ||
+    (trimmed.startsWith('/') && !trimmed.startsWith('/api/'))
+  );
+}
+
 export default function AdminOrdersClient({ initialOrders }) {
+  const router = useRouter();
+
   // Helper to preserve order status
   const resolveAutoStatus = (orderList) => {
     return (orderList || []).map((ord) => ord);
@@ -43,6 +68,7 @@ export default function AdminOrdersClient({ initialOrders }) {
   const [orderToDelete, setOrderToDelete] = useState(null);
   const [orderToCancel, setOrderToCancel] = useState(null);
   const [previewReceipt, setPreviewReceipt] = useState(null);
+  const [copiedRefModal, setCopiedRefModal] = useState(false);
   const filterRef = useRef(null);
   const actionMenuRef = useRef(null);
   const searchInputRef = useRef(null);
@@ -387,7 +413,7 @@ export default function AdminOrdersClient({ initialOrders }) {
   const renderNeededDate = (ord) => {
     if (!ord.preferred_date) {
       return (
-        <span style={{ fontSize: '11px', color: '#94a3b8' }}>
+        <span style={{ fontSize: '11px', color: '#94a3b8', whiteSpace: 'nowrap' }}>
           No date set
         </span>
       );
@@ -398,7 +424,7 @@ export default function AdminOrdersClient({ initialOrders }) {
     const isFinished = ord.status === 'completed' || ord.status === 'cancelled';
     if (isFinished) {
       return (
-        <span style={{ fontSize: '11px', color: '#64748b', fontWeight: '500', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+        <span style={{ fontSize: '11px', color: '#64748b', fontWeight: '500', display: 'inline-flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}>
           <i className="fa-regular fa-calendar-check" style={{ fontSize: '9.5px', color: '#94a3b8' }}></i>
           <span>Needed: {formatDateShort(ord.preferred_date)}{timeLabel}</span>
         </span>
@@ -413,7 +439,7 @@ export default function AdminOrdersClient({ initialOrders }) {
 
     if (diffDays === 0) {
       return (
-        <span style={{ fontSize: '11px', color: '#DC2626', fontWeight: '700', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+        <span style={{ fontSize: '11px', color: '#DC2626', fontWeight: '700', display: 'inline-flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}>
           <i className="fa-solid fa-fire" style={{ fontSize: '9.5px' }}></i>
           <span>Due Today ({formatDateShort(ord.preferred_date)}{timeLabel})</span>
         </span>
@@ -421,7 +447,7 @@ export default function AdminOrdersClient({ initialOrders }) {
     }
     if (diffDays === 1) {
       return (
-        <span style={{ fontSize: '11px', color: '#D97706', fontWeight: '700', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+        <span style={{ fontSize: '11px', color: '#D97706', fontWeight: '700', display: 'inline-flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}>
           <i className="fa-solid fa-clock" style={{ fontSize: '9.5px' }}></i>
           <span>Due Tomorrow ({formatDateShort(ord.preferred_date)}{timeLabel})</span>
         </span>
@@ -429,7 +455,7 @@ export default function AdminOrdersClient({ initialOrders }) {
     }
     if (diffDays < 0) {
       return (
-        <span style={{ fontSize: '11px', color: '#EF4444', fontWeight: '700', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+        <span style={{ fontSize: '11px', color: '#EF4444', fontWeight: '700', display: 'inline-flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}>
           <i className="fa-solid fa-triangle-exclamation" style={{ fontSize: '9.5px' }}></i>
           <span>Past due ({formatDateShort(ord.preferred_date)}{timeLabel})</span>
         </span>
@@ -437,7 +463,7 @@ export default function AdminOrdersClient({ initialOrders }) {
     }
 
     return (
-      <span style={{ fontSize: '11px', color: '#475569', fontWeight: '600', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+      <span style={{ fontSize: '11px', color: '#475569', fontWeight: '600', display: 'inline-flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}>
         <i className="fa-regular fa-calendar" style={{ fontSize: '9.5px', color: '#64748b' }}></i>
         <span>Needed: {formatDateShort(ord.preferred_date)}{timeLabel}</span>
       </span>
@@ -748,46 +774,46 @@ export default function AdminOrdersClient({ initialOrders }) {
 
       {/* Orders Data Table */}
       <div className="data-table-wrapper" style={{ background: '#ffffff', borderRadius: '12px', overflow: 'visible', margin: 0, border: 'none', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
-        <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
           <thead>
             <tr style={{ background: '#F8FAFC', borderBottom: '1.5px solid #E2E8F0' }}>
-              <th style={{ width: '22%', padding: '13px 18px', textAlign: 'left', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#334155', borderBottom: '1.5px solid #E2E8F0' }}>Order & Needed Date</th>
-              <th style={{ width: '20%', padding: '13px 18px', textAlign: 'left', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#334155', borderBottom: '1.5px solid #E2E8F0' }}>Customer</th>
-              <th style={{ width: '24%', padding: '13px 18px', textAlign: 'left', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#334155', borderBottom: '1.5px solid #E2E8F0' }}>Items</th>
-              <th style={{ width: '14%', padding: '13px 18px', textAlign: 'right', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#334155', borderBottom: '1.5px solid #E2E8F0' }}>Total</th>
-              <th style={{ width: '12%', padding: '13px 14px', textAlign: 'center', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#334155', borderBottom: '1.5px solid #E2E8F0' }}>Status</th>
-              <th style={{ width: '8%', padding: '13px 14px', textAlign: 'center', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#334155', borderBottom: '1.5px solid #E2E8F0' }}>Action</th>
+              <th style={{ width: '20%', padding: '13px 16px', textAlign: 'left', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#334155', borderBottom: '1.5px solid #E2E8F0' }}>Order & Needed Date</th>
+              <th style={{ width: '20%', padding: '13px 16px', textAlign: 'left', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#334155', borderBottom: '1.5px solid #E2E8F0' }}>Customer</th>
+              <th style={{ width: '28%', padding: '13px 16px', textAlign: 'left', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#334155', borderBottom: '1.5px solid #E2E8F0' }}>Items</th>
+              <th style={{ width: '14%', padding: '13px 16px', textAlign: 'left', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#334155', borderBottom: '1.5px solid #E2E8F0' }}>Total</th>
+              <th style={{ width: '12%', padding: '13px 12px', textAlign: 'center', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#334155', borderBottom: '1.5px solid #E2E8F0' }}>Status</th>
+              <th style={{ width: '6%', padding: '13px 12px', textAlign: 'center', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#334155', borderBottom: '1.5px solid #E2E8F0' }}>Action</th>
             </tr>
           </thead>
           <tbody key={`${statusFilter}-${searchQuery}-${currentPage}`} className="table-fade-enter">
             {!hasLoadedOnce && orders.length === 0 ? (
               [1, 2, 3, 4, 5].map((i) => (
                 <tr key={`skeleton-${i}`} style={{ borderBottom: '1px solid #F1F5F9' }}>
-                  <td style={{ padding: '16px 18px' }}>
+                  <td style={{ padding: '16px 16px', verticalAlign: 'top' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                       <div style={{ width: '120px', height: '14px', borderRadius: '4px', background: 'linear-gradient(90deg, #F1F5F9 25%, #E2E8F0 50%, #F1F5F9 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.2s infinite ease-in-out' }} />
                       <div style={{ width: '80px', height: '10px', borderRadius: '4px', background: '#F8FAFC' }} />
                     </div>
                   </td>
-                  <td style={{ padding: '16px 18px' }}>
+                  <td style={{ padding: '16px 16px', verticalAlign: 'top' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                       <div style={{ width: '100px', height: '14px', borderRadius: '4px', background: '#F1F5F9' }} />
                       <div style={{ width: '60px', height: '10px', borderRadius: '4px', background: '#F8FAFC' }} />
                     </div>
                   </td>
-                  <td style={{ padding: '16px 18px' }}>
+                  <td style={{ padding: '16px 16px', verticalAlign: 'top' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <div style={{ width: '32px', height: '32px', borderRadius: '6px', background: '#F1F5F9' }} />
                       <div style={{ width: '110px', height: '12px', borderRadius: '4px', background: '#F1F5F9' }} />
                     </div>
                   </td>
-                  <td style={{ padding: '16px 18px', textAlign: 'right' }}>
-                    <div style={{ width: '70px', height: '14px', borderRadius: '4px', background: '#F1F5F9', marginLeft: 'auto' }} />
+                  <td style={{ padding: '16px 16px', textAlign: 'left', verticalAlign: 'top' }}>
+                    <div style={{ width: '70px', height: '14px', borderRadius: '4px', background: '#F1F5F9' }} />
                   </td>
-                  <td style={{ padding: '16px 14px', textAlign: 'center' }}>
+                  <td style={{ padding: '16px 12px', textAlign: 'center', verticalAlign: 'top' }}>
                     <div style={{ width: '80px', height: '22px', borderRadius: '999px', background: '#F1F5F9', margin: '0 auto' }} />
                   </td>
-                  <td style={{ padding: '16px 14px', textAlign: 'center' }}>
+                  <td style={{ padding: '16px 12px', textAlign: 'center', verticalAlign: 'top' }}>
                     <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: '#F1F5F9', margin: '0 auto' }} />
                   </td>
                 </tr>
@@ -825,189 +851,169 @@ export default function AdminOrdersClient({ initialOrders }) {
                 return (
                   <tr
                     key={rowKey}
+                    onClick={() => router.push(`/admin/orders/${ord.id || ord.reference_code}`)}
                     style={{
                       borderBottom: '1px solid #E2E8F0',
                       transition: 'background 0.12s ease',
+                      cursor: 'pointer',
                     }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = '#F8FAFC')}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                   >
-                        <td style={{ padding: '14px 18px', verticalAlign: 'top', borderBottom: '1px solid #E2E8F0' }}>
-                          <Link href={`/admin/orders/${ord.id}`} style={{ display: 'block', marginBottom: '3px', fontWeight: '800', fontSize: '13px', color: '#0f172a', textDecoration: 'none' }}>
+                        <td style={{ padding: '14px 16px', verticalAlign: 'top', borderBottom: '1px solid #E2E8F0' }}>
+                          <span style={{ display: 'block', marginBottom: '4px', fontWeight: '800', fontSize: '13px', color: '#0f172a', lineHeight: '18px' }}>
                             {ord.reference_code}
-                          </Link>
-                          {renderNeededDate(ord)}
+                          </span>
+                          <div style={{ lineHeight: '16px' }}>
+                            {renderNeededDate(ord)}
+                          </div>
                         </td>
-                        <td style={{ padding: '14px 18px', verticalAlign: 'top', borderBottom: '1px solid #E2E8F0', maxWidth: '200px' }}>
+                        <td style={{ padding: '14px 16px', verticalAlign: 'top', borderBottom: '1px solid #E2E8F0' }}>
                           <p
                             style={{
                               fontWeight: '700',
                               color: '#0f172a',
-                              margin: '0 0 3px',
-                              fontSize: '13.5px',
+                              margin: '0 0 4px',
+                              fontSize: '13px',
                               whiteSpace: 'nowrap',
                               overflow: 'hidden',
                               textOverflow: 'ellipsis',
+                              lineHeight: '18px',
                             }}
                             title={ord.customer_name}
                           >
                             {ord.customer_name}
                           </p>
-                          {ord.order_type === 'delivery' && (
-                            <span style={{
-                              fontSize: '11px',
-                              color: 'var(--color-primary, #b45309)',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '4px',
-                              fontWeight: '600',
-                            }}>
-                              <i className="fa-solid fa-motorcycle" style={{ fontSize: '10px' }}></i>
-                              <span>Delivery</span>
-                            </span>
-                          )}
-                        </td>
-                        <td style={{ padding: '14px 18px', verticalAlign: 'top', textAlign: 'left', borderBottom: '1px solid #E2E8F0' }}>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-start' }}>
-                            {displayItems && displayItems.length > 0 ? (
-                              displayItems.map((it, itemIdx) => {
-                                const optList = it.options || it.order_item_options || [];
-                                return (
-                                  <div key={itemIdx} style={{ display: 'flex', flexDirection: 'column', gap: '3px', alignItems: 'flex-start' }}>
-                                    <div
-                                      style={{
-                                        display: 'inline-flex',
-                                        alignItems: 'center',
-                                        gap: '6px',
-                                        fontSize: '12.5px',
-                                      }}
-                                    >
-                                      <span
-                                        style={{
-                                          background: '#f1f5f9',
-                                          color: '#334155',
-                                          fontWeight: '700',
-                                          fontSize: '10.5px',
-                                          padding: '1px 5px',
-                                          borderRadius: '4px',
-                                          lineHeight: 1.2,
-                                          flexShrink: 0,
-                                        }}
-                                      >
-                                        {it.quantity}×
-                                      </span>
-                                      <span
-                                        style={{
-                                          color: '#1e293b',
-                                          fontWeight: '600',
-                                          whiteSpace: 'nowrap',
-                                          overflow: 'hidden',
-                                          textOverflow: 'ellipsis',
-                                        }}
-                                        title={it.product_name}
-                                      >
-                                        {it.product_name}
-                                      </span>
-                                    </div>
-                                    {optList.length > 0 && (
-                                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginLeft: '24px' }}>
-                                        {optList.map((opt, oIdx) => {
-                                          const label = formatOptionTag(opt);
-                                          if (!label) return null;
-                                          return (
-                                            <span
-                                              key={oIdx}
-                                              style={{
-                                                fontSize: '10px',
-                                                fontWeight: '600',
-                                                background: '#f8fafc',
-                                                color: '#475569',
-                                                padding: '1px 6px',
-                                                borderRadius: '4px',
-                                                border: '1px solid #e2e8f0',
-                                                lineHeight: 1.3,
-                                              }}
-                                            >
-                                              {label}
-                                            </span>
-                                          );
-                                        })}
-                                      </div>
-                                    )}
-                                  </div>
-                                );
-                              })
+                          <div style={{ lineHeight: '16px' }}>
+                            {ord.order_type === 'delivery' ? (
+                              <span style={{
+                                fontSize: '11px',
+                                color: 'var(--color-primary, #b45309)',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                fontWeight: '600',
+                              }}>
+                                <i className="fa-solid fa-motorcycle" style={{ fontSize: '10px' }}></i>
+                                <span>Delivery</span>
+                              </span>
                             ) : (
-                              <span style={{ fontSize: '12px', color: '#94a3b8', fontStyle: 'italic' }}>No items</span>
+                              <span style={{
+                                fontSize: '11px',
+                                color: '#166534',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                fontWeight: '600',
+                              }}>
+                                <i className="fa-solid fa-store" style={{ fontSize: '10px' }}></i>
+                                <span>Pickup</span>
+                              </span>
                             )}
                           </div>
                         </td>
-                        <td style={{ padding: '14px 18px', verticalAlign: 'top', textAlign: 'right', borderBottom: '1px solid #E2E8F0', whiteSpace: 'nowrap' }}>
-                          <div style={{ fontWeight: '800', fontSize: '13.5px', color: '#0f172a' }}>
-                            {formatCurrency(ord.total_amount || 0)}
-                          </div>
-                          {(ord.payment_method === 'gcash' || ord.paymentMethod === 'gcash') ? (
-                            <div style={{ marginTop: '4px', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '3px' }}>
-                              <span style={{
-                                fontSize: '10px',
-                                background: '#EFF6FF',
-                                color: '#1D4ED8',
-                                border: '1px solid #BFDBFE',
-                                padding: '1px 5px',
-                                borderRadius: '4px',
-                                fontWeight: '700',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '3px',
-                              }}>
-                                <i className="fa-solid fa-wallet" style={{ fontSize: '8.5px' }}></i> GCash
-                              </span>
-                              {(ord.gcash_reference_no || ord.gcashRefNo) && (
-                                <span style={{ fontSize: '9.5px', color: '#475569', fontFamily: 'monospace', fontWeight: '600' }} title="GCash Reference No.">
-                                  Ref: {ord.gcash_reference_no || ord.gcashRefNo}
-                                </span>
-                              )}
-                              {(ord.payment_proof_url || ord.paymentProofUrl) && (
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setPreviewReceipt({
-                                      url: ord.payment_proof_url || ord.paymentProofUrl,
-                                      refCode: ord.reference_code,
-                                      refNo: ord.gcash_reference_no || ord.gcashRefNo,
-                                      customerName: ord.customer_name,
-                                    });
-                                  }}
+                        <td style={{ padding: '14px 16px', verticalAlign: 'top', textAlign: 'left', borderBottom: '1px solid #E2E8F0' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'flex-start' }}>
+                            {displayItems && displayItems.length > 0 ? (
+                              displayItems.map((it, itemIdx) => (
+                                <div
+                                  key={itemIdx}
                                   style={{
-                                    background: '#ECFDF5',
-                                    border: '1px solid #A7F3D0',
-                                    color: '#047857',
-                                    fontSize: '9.5px',
-                                    fontWeight: '700',
-                                    padding: '1px 5px',
-                                    borderRadius: '4px',
-                                    cursor: 'pointer',
                                     display: 'inline-flex',
                                     alignItems: 'center',
-                                    gap: '3px',
-                                    marginTop: '1px',
+                                    gap: '6px',
+                                    fontSize: '12px',
+                                    lineHeight: '18px',
+                                    maxWidth: '100%',
                                   }}
-                                  title="Click to view full receipt"
                                 >
-                                  <i className="fa-solid fa-receipt" style={{ fontSize: '8.5px' }}></i> View Receipt
-                                </button>
-                              )}
-                            </div>
-                          ) : (
-                            <div style={{ fontSize: '10px', color: '#16A34A', marginTop: '2px', fontWeight: '600' }}>
-                              {ord.order_type === 'delivery' ? 'COD' : 'Cash (Pickup)'}
-                            </div>
-                          )}
+                                  <span
+                                    style={{
+                                      background: '#f1f5f9',
+                                      color: '#334155',
+                                      fontWeight: '700',
+                                      fontSize: '10.5px',
+                                      padding: '1px 5px',
+                                      minWidth: '22px',
+                                      borderRadius: '4px',
+                                      lineHeight: 1.2,
+                                      flexShrink: 0,
+                                      textAlign: 'center',
+                                    }}
+                                  >
+                                    {it.quantity}×
+                                  </span>
+                                  <span
+                                    style={{
+                                      color: '#1e293b',
+                                      fontWeight: '600',
+                                      whiteSpace: 'nowrap',
+                                      overflow: 'hidden',
+                                      textOverflow: 'ellipsis',
+                                    }}
+                                    title={it.product_name}
+                                  >
+                                    {it.product_name}
+                                  </span>
+                                </div>
+                              ))
+                            ) : (
+                              <span style={{ fontSize: '12px', color: '#94a3b8', fontStyle: 'italic', lineHeight: '18px' }}>No items</span>
+                            )}
+                          </div>
                         </td>
-                        <td style={{ padding: '14px 14px', verticalAlign: 'top', textAlign: 'center', whiteSpace: 'nowrap', borderBottom: '1px solid #E2E8F0' }}>
+                        <td style={{ padding: '14px 16px', verticalAlign: 'top', textAlign: 'left', borderBottom: '1px solid #E2E8F0', whiteSpace: 'nowrap' }}>
+                          <div style={{ fontWeight: '800', fontSize: '13.5px', color: '#0f172a', lineHeight: '18px', margin: '0 0 4px', textAlign: 'left' }}>
+                            {formatCurrency(ord.total_amount || 0)}
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'flex-start', alignItems: 'center', lineHeight: '16px' }}>
+                            {(ord.payment_method === 'gcash' || ord.paymentMethod === 'gcash') ? (
+                              <span style={{
+                                fontSize: '11px',
+                                color: '#1D4ED8',
+                                fontWeight: '600',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                              }}>
+                                <i className="fa-solid fa-wallet" style={{ fontSize: '9.5px' }}></i>
+                                <span>GCash</span>
+                                {isValidProofImage(ord.payment_proof_url || ord.paymentProofUrl) && (
+                                  <i className="fa-solid fa-circle-check" style={{ fontSize: '9.5px', color: '#10B981' }} title="Receipt Attached"></i>
+                                )}
+                              </span>
+                            ) : ord.order_type === 'delivery' ? (
+                              <span style={{
+                                fontSize: '11px',
+                                color: '#166534',
+                                fontWeight: '600',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                              }}>
+                                <i className="fa-solid fa-money-bill-wave" style={{ fontSize: '9.5px' }}></i>
+                                <span>COD</span>
+                              </span>
+                            ) : (
+                              <span style={{
+                                fontSize: '11px',
+                                color: '#475569',
+                                fontWeight: '600',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                              }}>
+                                <i className="fa-solid fa-store" style={{ fontSize: '9.5px' }}></i>
+                                <span>Cash (Pickup)</span>
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td style={{ padding: '14px 12px', verticalAlign: 'top', textAlign: 'center', whiteSpace: 'nowrap', borderBottom: '1px solid #E2E8F0' }}>
                           <span style={{
                             background: badge.bg,
                             color: badge.color,
-                            fontSize: '11px',
+                            fontSize: '10.5px',
                             fontWeight: '800',
                             letterSpacing: '0.04em',
                             padding: '0 8px',
@@ -1016,37 +1022,15 @@ export default function AdminOrdersClient({ initialOrders }) {
                             display: 'inline-flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            width: '96px',
+                            width: '92px',
                             boxSizing: 'border-box',
                             textAlign: 'center',
+                            margin: '0 auto',
                           }}>
                             {badge.label}
                           </span>
-                          {ord.status === 'pending' && (
-                            <div style={{
-                              marginTop: '4px',
-                              fontSize: '10px',
-                              fontWeight: '600',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              gap: '4px',
-                              color: (ord.messenger_opened_at || ord.sent_to_messenger) ? '#16A34A' : '#64748B',
-                            }}>
-                              <span style={{
-                                width: '5px',
-                                height: '5px',
-                                borderRadius: '50%',
-                                background: (ord.messenger_opened_at || ord.sent_to_messenger) ? '#16A34A' : '#CBD5E1',
-                                display: 'inline-block',
-                              }}></span>
-                              <span>
-                                {(ord.messenger_opened_at || ord.sent_to_messenger) ? 'Chat Opened' : 'Awaiting Chat'}
-                              </span>
-                            </div>
-                          )}
                         </td>
-                        <td style={{ padding: '14px 16px', verticalAlign: 'top', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                        <td style={{ padding: '12px 12px', verticalAlign: 'top', textAlign: 'center', whiteSpace: 'nowrap', borderBottom: '1px solid #E2E8F0' }}>
                           <div className="action-menu-dropdown-container" style={{ position: 'relative', display: 'inline-block' }}>
                             <button
                               type="button"
@@ -1580,7 +1564,7 @@ export default function AdminOrdersClient({ initialOrders }) {
         </div>
       )}
 
-      {/* GCash Receipt Preview Modal */}
+      {/* GCash Payment Verification & Receipt Modal */}
       {previewReceipt && (
         <div
           style={{
@@ -1602,7 +1586,7 @@ export default function AdminOrdersClient({ initialOrders }) {
               background: '#FFFFFF',
               borderRadius: '16px',
               padding: '20px',
-              maxWidth: '440px',
+              maxWidth: '460px',
               width: '100%',
               boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
               position: 'relative',
@@ -1615,7 +1599,9 @@ export default function AdminOrdersClient({ initialOrders }) {
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <span style={{ fontSize: '11px', fontWeight: '800', background: '#007DFE', color: '#FFF', padding: '2px 7px', borderRadius: '4px' }}>GCash</span>
-                  <span style={{ fontSize: '13.5px', fontWeight: '800', color: '#0F172A' }}>Proof of Payment</span>
+                  <span style={{ fontSize: '13.5px', fontWeight: '800', color: '#0F172A' }}>
+                    {previewReceipt.hasPhoto ? 'Proof of Payment' : 'Payment Verification'}
+                  </span>
                 </div>
                 <div style={{ fontSize: '11.5px', color: '#64748B', marginTop: '3px' }}>
                   Order: <strong style={{ color: '#0F172A' }}>{previewReceipt.refCode}</strong> · {previewReceipt.customerName}
@@ -1642,65 +1628,215 @@ export default function AdminOrdersClient({ initialOrders }) {
               </button>
             </div>
 
-            {/* Receipt Image */}
-            <div style={{
-              background: '#F8FAFC',
-              borderRadius: '12px',
-              border: '1px solid #E2E8F0',
-              padding: '10px',
-              display: 'flex',
-              justifyContent: 'center',
-              alignItems: 'center',
-              maxHeight: '55vh',
-              overflow: 'auto',
-            }}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={previewReceipt.url}
-                alt="Receipt"
-                style={{
-                  maxWidth: '100%',
-                  maxHeight: '52vh',
-                  objectFit: 'contain',
+            {/* Modal Body */}
+            {previewReceipt.hasPhoto ? (
+              /* Receipt Image */
+              <div style={{
+                background: '#0F172A',
+                borderRadius: '12px',
+                border: '1px solid #1E293B',
+                padding: '10px',
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                maxHeight: '55vh',
+                overflow: 'auto',
+              }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={previewReceipt.url}
+                  alt="Receipt"
+                  style={{
+                    maxWidth: '100%',
+                    maxHeight: '52vh',
+                    objectFit: 'contain',
+                    borderRadius: '8px',
+                    display: 'block',
+                    cursor: 'zoom-in',
+                  }}
+                  onClick={() => {
+                    if (typeof window !== 'undefined' && previewReceipt.url) {
+                      window.open(previewReceipt.url, '_blank');
+                    }
+                  }}
+                  title="Click to open full size"
+                />
+              </div>
+            ) : (
+              /* Reference Number Only Mode */
+              <div style={{
+                background: '#F8FAFC',
+                borderRadius: '12px',
+                border: '1px solid #E2E8F0',
+                padding: '24px 18px',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                textAlign: 'center',
+                gap: '14px',
+              }}>
+                <div style={{
+                  width: '54px',
+                  height: '54px',
+                  borderRadius: '16px',
+                  background: '#EFF6FF',
+                  color: '#007DFE',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '24px',
+                  border: '1px solid #BFDBFE',
+                }}>
+                  <i className="fa-solid fa-receipt"></i>
+                </div>
+
+                <div>
+                  <span style={{ fontSize: '11px', fontWeight: '800', color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                    GCash Reference Number
+                  </span>
+                  <div style={{
+                    fontSize: '20px',
+                    fontWeight: '800',
+                    color: '#007DFE',
+                    fontFamily: 'monospace',
+                    letterSpacing: '1px',
+                    marginTop: '4px',
+                    background: '#FFFFFF',
+                    padding: '8px 16px',
+                    borderRadius: '8px',
+                    border: '1.5px solid #BFDBFE',
+                    userSelect: 'all',
+                  }}>
+                    {previewReceipt.refNo || 'None specified'}
+                  </div>
+                </div>
+
+                <div style={{
+                  background: '#EFF6FF',
+                  border: '1px solid #DBEAFE',
                   borderRadius: '8px',
-                  display: 'block',
-                }}
-              />
-            </div>
+                  padding: '10px 12px',
+                  fontSize: '11.5px',
+                  color: '#1E40AF',
+                  textAlign: 'left',
+                  width: '100%',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '6px',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontWeight: '700' }}>
+                    <i className="fa-solid fa-circle-info"></i>
+                    <span>Receipt Screenshot Not Attached</span>
+                  </div>
+                  <p style={{ margin: 0, fontSize: '11px', color: '#334155', lineHeight: 1.4 }}>
+                    Customer paid via GCash and provided the <strong>Reference Number</strong> directly without uploading an image.
+                    Verify this reference in your GCash App or SMS alerts.
+                  </p>
+                  {previewReceipt.totalAmount && (
+                    <div style={{ fontSize: '11px', color: '#047857', fontWeight: '700', marginTop: '2px' }}>
+                      • Expected Total: ₱{parseFloat(previewReceipt.totalAmount).toLocaleString()}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Ref Number & Actions Footer */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '14px', flexWrap: 'wrap', gap: '8px' }}>
               <div style={{ fontSize: '12px', color: '#64748B' }}>
-                {previewReceipt.refNo ? (
-                  <span>Ref: <strong style={{ color: '#007DFE', fontFamily: 'monospace' }}>{previewReceipt.refNo}</strong></span>
-                ) : (
-                  <span style={{ fontStyle: 'italic', color: '#94A3B8' }}>No Ref No. specified</span>
+                {previewReceipt.hasPhoto && (
+                  previewReceipt.refNo ? (
+                    <span>Ref: <strong style={{ color: '#007DFE', fontFamily: 'monospace' }}>{previewReceipt.refNo}</strong></span>
+                  ) : (
+                    <span style={{ fontStyle: 'italic', color: '#94A3B8' }}>No Ref No. specified (Check photo)</span>
+                  )
                 )}
               </div>
 
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <a
-                  href={previewReceipt.url}
-                  download={`Receipt_${previewReceipt.refCode}.png`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{
-                    height: '34px',
-                    padding: '0 12px',
-                    background: '#007DFE',
-                    color: '#FFF',
-                    borderRadius: '8px',
-                    fontSize: '12px',
-                    fontWeight: '700',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '5px',
-                    textDecoration: 'none',
-                  }}
-                >
-                  <i className="fa-solid fa-download" style={{ fontSize: '11px' }}></i> Download
-                </a>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                {previewReceipt.refNo && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (typeof navigator !== 'undefined' && navigator.clipboard) {
+                        navigator.clipboard.writeText(previewReceipt.refNo);
+                        setCopiedRefModal(true);
+                        setTimeout(() => setCopiedRefModal(false), 2000);
+                      }
+                    }}
+                    style={{
+                      height: '34px',
+                      padding: '0 12px',
+                      background: copiedRefModal ? '#10B981' : '#F1F5F9',
+                      color: copiedRefModal ? '#FFFFFF' : '#1E293B',
+                      border: '1px solid #CBD5E1',
+                      borderRadius: '8px',
+                      fontSize: '12px',
+                      fontWeight: '700',
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    <i className={copiedRefModal ? 'fa-solid fa-check' : 'fa-regular fa-copy'}></i>
+                    <span>{copiedRefModal ? 'Copied Ref!' : 'Copy Ref'}</span>
+                  </button>
+                )}
+
+                {previewReceipt.hasPhoto && (
+                  <>
+                    <a
+                      href={previewReceipt.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        height: '34px',
+                        padding: '0 12px',
+                        background: '#EFF6FF',
+                        color: '#007DFE',
+                        border: '1px solid #BFDBFE',
+                        borderRadius: '8px',
+                        fontSize: '12px',
+                        fontWeight: '700',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '5px',
+                        textDecoration: 'none',
+                      }}
+                    >
+                      <i className="fa-solid fa-up-right-from-square" style={{ fontSize: '11px' }}></i>
+                      <span>Open</span>
+                    </a>
+
+                    <a
+                      href={previewReceipt.url}
+                      download={`Receipt_${previewReceipt.refCode}.png`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        height: '34px',
+                        padding: '0 12px',
+                        background: '#007DFE',
+                        color: '#FFF',
+                        borderRadius: '8px',
+                        fontSize: '12px',
+                        fontWeight: '700',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '5px',
+                        textDecoration: 'none',
+                      }}
+                    >
+                      <i className="fa-solid fa-download" style={{ fontSize: '11px' }}></i>
+                      <span>Download</span>
+                    </a>
+                  </>
+                )}
+
                 <button
                   type="button"
                   onClick={() => setPreviewReceipt(null)}

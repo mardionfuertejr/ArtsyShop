@@ -435,15 +435,15 @@ export default function AdminMaterialsClient({ initialMaterials = [] }) {
 
       {/* Materials Table Card */}
       <div className="data-table-wrapper" style={{ background: '#ffffff', borderRadius: '12px', overflow: 'visible', margin: 0, border: 'none', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
-        <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
           <thead>
             <tr style={{ background: '#F8FAFC', borderBottom: '1.5px solid #E2E8F0' }}>
-              <th style={{ width: '30%', padding: '13px 18px', textAlign: 'left', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#334155', borderBottom: '1.5px solid #E2E8F0' }}>Material Name</th>
+              <th style={{ width: '28%', padding: '13px 18px', textAlign: 'left', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#334155', borderBottom: '1.5px solid #E2E8F0' }}>Material Name</th>
               <th style={{ width: '18%', padding: '13px 16px', textAlign: 'left', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#334155', borderBottom: '1.5px solid #E2E8F0' }}>Category</th>
               <th style={{ width: '18%', padding: '13px 16px', textAlign: 'left', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#334155', borderBottom: '1.5px solid #E2E8F0' }}>Current Stock</th>
               <th style={{ width: '14%', padding: '13px 16px', textAlign: 'left', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#334155', borderBottom: '1.5px solid #E2E8F0' }}>Unit Cost</th>
-              <th style={{ width: '12%', padding: '13px 14px', textAlign: 'center', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#334155', borderBottom: '1.5px solid #E2E8F0' }}>Status</th>
-              <th style={{ width: '8%', padding: '13px 14px', textAlign: 'center', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#334155', borderBottom: '1.5px solid #E2E8F0' }}>Action</th>
+              <th style={{ width: '15%', padding: '13px 14px', textAlign: 'center', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#334155', borderBottom: '1.5px solid #E2E8F0' }}>Status</th>
+              <th style={{ width: '7%', padding: '13px 14px', textAlign: 'center', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#334155', borderBottom: '1.5px solid #E2E8F0' }}>Action</th>
             </tr>
           </thead>
           <tbody key={`${activeCategory}-${searchQuery}-${currentPage}`} className="table-fade-enter">
@@ -465,7 +465,7 @@ export default function AdminMaterialsClient({ initialMaterials = [] }) {
                     <div style={{ width: '65px', height: '14px', borderRadius: '4px', background: '#F1F5F9' }} />
                   </td>
                   <td style={{ padding: '13px 14px', textAlign: 'center', verticalAlign: 'middle' }}>
-                    <div style={{ width: '80px', height: '22px', borderRadius: '999px', background: '#F1F5F9', margin: '0 auto' }} />
+                    <div style={{ width: '90px', height: '22px', borderRadius: '999px', background: '#F1F5F9', margin: '0 auto' }} />
                   </td>
                   <td style={{ padding: '13px 14px', textAlign: 'center', verticalAlign: 'middle' }}>
                     <div style={{ width: '28px', height: '28px', borderRadius: '6px', background: '#F8FAFC', margin: '0 auto' }} />
@@ -513,15 +513,15 @@ export default function AdminMaterialsClient({ initialMaterials = [] }) {
                     </td>
                     <td style={{ padding: '13px 14px', textAlign: 'center' }}>
                       {isOut ? (
-                        <span style={{ background: '#FEE2E2', color: '#991B1B', fontSize: '11px', fontWeight: '800', letterSpacing: '0.04em', padding: '0 8px', height: '24px', borderRadius: '9999px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '96px', boxSizing: 'border-box', textAlign: 'center' }}>
+                        <span style={{ background: '#FEE2E2', color: '#991B1B', fontSize: '10.5px', fontWeight: '800', letterSpacing: '0.03em', padding: '0 10px', height: '24px', borderRadius: '9999px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '105px', boxSizing: 'border-box', textAlign: 'center', whiteSpace: 'nowrap', margin: '0 auto' }}>
                           OUT OF STOCK
                         </span>
                       ) : isLow ? (
-                        <span style={{ background: '#FEF3C7', color: '#92400E', fontSize: '11px', fontWeight: '800', letterSpacing: '0.04em', padding: '0 8px', height: '24px', borderRadius: '9999px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '96px', boxSizing: 'border-box', textAlign: 'center' }}>
+                        <span style={{ background: '#FEF3C7', color: '#92400E', fontSize: '10.5px', fontWeight: '800', letterSpacing: '0.03em', padding: '0 10px', height: '24px', borderRadius: '9999px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '105px', boxSizing: 'border-box', textAlign: 'center', whiteSpace: 'nowrap', margin: '0 auto' }}>
                           LOW STOCK
                         </span>
                       ) : (
-                        <span style={{ background: '#DCFCE7', color: '#166534', fontSize: '11px', fontWeight: '800', letterSpacing: '0.04em', padding: '0 8px', height: '24px', borderRadius: '9999px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '96px', boxSizing: 'border-box', textAlign: 'center' }}>
+                        <span style={{ background: '#DCFCE7', color: '#166534', fontSize: '10.5px', fontWeight: '800', letterSpacing: '0.03em', padding: '0 10px', height: '24px', borderRadius: '9999px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '105px', boxSizing: 'border-box', textAlign: 'center', whiteSpace: 'nowrap', margin: '0 auto' }}>
                           IN STOCK
                         </span>
                       )}

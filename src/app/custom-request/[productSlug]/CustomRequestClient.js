@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import Link from 'next/link';
 import { getProductCustomOrderTemplate, getProductCustomOrderMessengerUrl } from '@/lib/constants/customPrompts';
 import { openMessengerDirect } from '@/lib/utils/browserNav';
+import ProductImage from '@/components/common/ProductImage';
 
 export default function CustomRequestClient({ product }) {
   const prodName = product?.name || 'Custom Handmade Craft';
@@ -61,21 +62,18 @@ export default function CustomRequestClient({ product }) {
               textAlign: 'left',
             }}
           >
-            {product.product_photos?.[0]?.url && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={product.product_photos[0].url}
-                alt={prodName}
-                style={{
-                  width: 52,
-                  height: 52,
-                  borderRadius: 'var(--radius-md)',
-                  objectFit: 'cover',
-                  background: '#ffffff',
-                  flexShrink: 0,
-                }}
-              />
-            )}
+            <ProductImage
+              product={product}
+              alt={prodName}
+              style={{
+                width: 52,
+                height: 52,
+                borderRadius: 'var(--radius-md)',
+                objectFit: 'cover',
+                background: '#ffffff',
+                flexShrink: 0,
+              }}
+            />
             <div style={{ minWidth: 0, flex: 1 }}>
               <p style={{ fontSize: '11px', color: 'var(--color-text-muted)', margin: 0, fontWeight: '600', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                 Custom Order Request

@@ -16,6 +16,7 @@ import BrandLogo from '@/components/common/BrandLogo';
 import { useCart } from '@/lib/hooks/useCart';
 import { formatCurrency } from '@/lib/utils/formatCurrency';
 import { triggerToast, clearToast } from '@/components/common/GlobalToast';
+import { resolveProductPhoto, getSmartFallbackImage } from '@/lib/utils/productImage';
 
 export default function ProductDetailClient({ product: initialProduct, photos: initialPhotos, slug }) {
   const router = useRouter();
@@ -40,6 +41,7 @@ export default function ProductDetailClient({ product: initialProduct, photos: i
   // Helper to build photo list
   const buildPhotoList = (prod) => {
     if (!prod) return [];
+    const catSlug = prod.category?.slug || prod.category?.name || '';
     if (Array.isArray(prod.product_photos) && prod.product_photos.length > 0) {
       return [...prod.product_photos]
         .sort((a, b) => {
@@ -47,18 +49,18 @@ export default function ProductDetailClient({ product: initialProduct, photos: i
           if (b.is_cover) return 1;
           return (a.display_order || 0) - (b.display_order || 0);
         })
-        .map((p) => ({
-          id: p.id || Math.random().toString(),
-          url: p.url || (
-            p.storage_path && supabaseUrl && supabaseUrl.startsWith('http') && !supabaseUrl.includes('placeholder')
+        .map((p, idx) => ({
+          id: p.id || `photo-${p.display_order ?? idx}`,
+          url: resolveProductPhoto(p.url || (
+            p.storage_path && supabaseUrl && supabaseUrl.startsWith('http') && !p.storage_path.startsWith('placeholder')
               ? `${supabaseUrl}/storage/v1/object/public/product-photos/${p.storage_path}`
-              : (p.storage_path || 'https://images.unsplash.com/photo-1561181286-d3fee7d55364?auto=format&fit=crop&w=800&q=80')
-          ),
+              : null
+          ), catSlug),
         }));
     }
     return [{
       id: 'ph-default',
-      url: 'https://images.unsplash.com/photo-1561181286-d3fee7d55364?auto=format&fit=crop&w=800&q=80',
+      url: getSmartFallbackImage(catSlug, prod.name),
     }];
   };
 
@@ -67,67 +69,76 @@ export default function ProductDetailClient({ product: initialProduct, photos: i
     const targetSlug = (slug || '').toLowerCase().trim();
     const targetSlugClean = targetSlug.replace(/-/g, '');
 
-    // 1. If initialProduct is present from server, use it directly
-    if (initialProduct) {
-      setCurrentProduct(initialProduct);
-      if (!photos || photos.length === 0) {
-        setPhotos(buildPhotoList(initialProduct));
-      }
-      setLoading(false);
-      return;
-    }
+    const syncProductData = () => {
+      let activeProduct = initialProduct ? { ...initialProduct } : null;
 
-    // 2. Check localStorage for purely user-created custom products
-    try {
-      const local = localStorage.getItem('likha_custom_products');
-      if (local) {
-        const parsed = JSON.parse(local);
-        if (Array.isArray(parsed)) {
-          const match = parsed.find((p) => {
-            const pSlug = (p.slug || '').toLowerCase().trim();
-            const pId = (p.id || '').toLowerCase().trim();
-            return (
-              pSlug === targetSlug ||
-              pId === targetSlug ||
-              pSlug.replace(/-/g, '') === targetSlugClean
-            );
-          });
-
-          if (match) {
-            setCurrentProduct(match);
-            setPhotos(buildPhotoList(match));
-            setLoading(false);
-            return;
-          }
-        }
-      }
-    } catch {}
-
-    // 3. Fallback: Fetch /api/products from server
-    async function fetchFromApi() {
+      // Check localStorage for admin-created or updated products
       try {
-        const res = await fetch('/api/products');
-        if (res.ok) {
-          const data = await res.json();
-          if (data && Array.isArray(data.products)) {
-            const match = data.products.find((p) => {
+        const local = localStorage.getItem('likha_custom_products');
+        if (local) {
+          const parsed = JSON.parse(local);
+          if (Array.isArray(parsed)) {
+            const match = parsed.find((p) => {
               const pSlug = (p.slug || '').toLowerCase().trim();
               const pId = (p.id || '').toLowerCase().trim();
-              return pSlug === targetSlug || pId === targetSlug || pSlug.replace(/-/g, '') === targetSlugClean;
+              return (
+                (initialProduct && (p.id === initialProduct.id || pSlug === (initialProduct.slug || '').toLowerCase())) ||
+                pSlug === targetSlug ||
+                pId === targetSlug ||
+                pSlug.replace(/-/g, '') === targetSlugClean
+              );
             });
+
             if (match) {
-              setCurrentProduct(match);
-              setPhotos(buildPhotoList(match));
-              setLoading(false);
-              return;
+              activeProduct = activeProduct ? { ...activeProduct, ...match } : match;
             }
           }
         }
       } catch {}
-      setLoading(false);
-    }
 
-    fetchFromApi();
+      if (activeProduct) {
+        setCurrentProduct(activeProduct);
+        setPhotos(buildPhotoList(activeProduct));
+        setLoading(false);
+        return;
+      }
+
+      // Fallback: Fetch /api/products from server
+      async function fetchFromApi() {
+        try {
+          const res = await fetch('/api/products');
+          if (res.ok) {
+            const data = await res.json();
+            if (data && Array.isArray(data.products)) {
+              const match = data.products.find((p) => {
+                const pSlug = (p.slug || '').toLowerCase().trim();
+                const pId = (p.id || '').toLowerCase().trim();
+                return pSlug === targetSlug || pId === targetSlug || pSlug.replace(/-/g, '') === targetSlugClean;
+              });
+              if (match) {
+                setCurrentProduct(match);
+                setPhotos(buildPhotoList(match));
+                setLoading(false);
+                return;
+              }
+            }
+          }
+        } catch {}
+        setLoading(false);
+      }
+
+      fetchFromApi();
+    };
+
+    syncProductData();
+
+    window.addEventListener('likha_products_updated', syncProductData);
+    window.addEventListener('storage', syncProductData);
+
+    return () => {
+      window.removeEventListener('likha_products_updated', syncProductData);
+      window.removeEventListener('storage', syncProductData);
+    };
   }, [slug, initialProduct]);
 
   // Smart category-based default options when product has no explicit options
@@ -451,7 +462,7 @@ export default function ProductDetailClient({ product: initialProduct, photos: i
       return;
     }
 
-    const photoUrl = photos[0]?.url || (photos[0]?.storage_path && supabaseUrl ? `${supabaseUrl}/storage/v1/object/public/product-photos/${photos[0].storage_path}` : null);
+    const photoUrl = resolveProductPhoto(photos[0]?.url || currentProduct);
 
     addItem({
       productId: currentProduct.id,
@@ -466,13 +477,8 @@ export default function ProductDetailClient({ product: initialProduct, photos: i
     setAdded(true);
     setTimeout(() => setAdded(false), 1200);
 
-    const selectedLabels = Object.values(selectedOptions)
-      .map((o) => o?.value)
-      .filter(Boolean)
-      .join(', ');
-
     triggerToast({
-      message: `${currentProduct.name}${selectedLabels ? ` (${selectedLabels})` : ''} added to cart`,
+      message: 'Added to cart ✨',
       photo: photoUrl,
       type: 'cart',
       quantity,
@@ -518,7 +524,7 @@ export default function ProductDetailClient({ product: initialProduct, photos: i
 
     clearToast();
 
-    const photoUrl = photos[0]?.url || (photos[0]?.storage_path && supabaseUrl ? `${supabaseUrl}/storage/v1/object/public/product-photos/${photos[0].storage_path}` : null);
+    const photoUrl = resolveProductPhoto(photos[0]?.url || currentProduct);
 
     const directItem = {
       cartItemId: `direct-${Date.now()}`,

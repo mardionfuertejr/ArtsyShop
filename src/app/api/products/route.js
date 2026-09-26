@@ -73,17 +73,45 @@ export async function POST(request) {
           base_price: parseFloat(saved.base_price) || 0,
           description: saved.description || '',
           is_available: saved.is_available !== false,
+          is_ready_made: Boolean(saved.is_ready_made),
+          ready_made_stock: parseInt(saved.ready_made_stock, 10) || 0,
+          is_on_sale: Boolean(saved.is_on_sale),
+          sale_price: saved.sale_price ? parseFloat(saved.sale_price) : null,
+          sale_tag: saved.sale_tag || null,
+          is_sold_out: Boolean(saved.is_sold_out),
+          is_bestseller: Boolean(saved.is_bestseller),
         };
 
         if (isUUID(saved.id)) {
           prodData.id = saved.id;
         }
 
-        const { data: upsertedProd } = await supabase
-          .from('products')
-          .upsert(prodData, { onConflict: 'slug' })
-          .select('id')
-          .single();
+        let upsertedProd = null;
+        try {
+          const { data } = await supabase
+            .from('products')
+            .upsert(prodData, { onConflict: 'slug' })
+            .select('id')
+            .single();
+          upsertedProd = data;
+        } catch {
+          // Fallback if specific extended columns are missing in custom schema
+          const coreData = {
+            name: saved.name,
+            slug: saved.slug,
+            category_id: isUUID(saved.category_id) ? saved.category_id : null,
+            base_price: parseFloat(saved.base_price) || 0,
+            description: saved.description || '',
+            is_available: saved.is_available !== false,
+          };
+          if (isUUID(saved.id)) coreData.id = saved.id;
+          const { data } = await supabase
+            .from('products')
+            .upsert(coreData, { onConflict: 'slug' })
+            .select('id')
+            .single();
+          upsertedProd = data;
+        }
 
         const actualProdId = upsertedProd?.id || (isUUID(saved.id) ? saved.id : null);
 

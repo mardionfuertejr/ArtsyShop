@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { getMockProducts, getMockCategories, saveMockProduct, deleteMockProduct } from '@/lib/mockData';
 import { formatCurrency } from '@/lib/utils/formatCurrency';
+import { resolveProductPhoto } from '@/lib/utils/productImage';
 
 export default function AdminProductsClient({ initialProducts, categories = [] }) {
   const [products, setProducts] = useState(initialProducts || []);
@@ -221,6 +222,7 @@ export default function AdminProductsClient({ initialProducts, categories = [] }
     try {
       if (typeof window !== 'undefined') {
         localStorage.setItem('likha_custom_categories', JSON.stringify(nextCats));
+        window.dispatchEvent(new CustomEvent('likha_categories_updated', { detail: nextCats }));
       }
     } catch {}
 
@@ -277,6 +279,7 @@ export default function AdminProductsClient({ initialProducts, categories = [] }
     try {
       if (typeof window !== 'undefined') {
         localStorage.setItem('likha_custom_categories', JSON.stringify(updatedList));
+        window.dispatchEvent(new CustomEvent('likha_categories_updated', { detail: updatedList }));
       }
     } catch {}
 
@@ -324,6 +327,7 @@ export default function AdminProductsClient({ initialProducts, categories = [] }
     try {
       if (typeof window !== 'undefined') {
         localStorage.setItem('likha_custom_categories', JSON.stringify(nextCats));
+        window.dispatchEvent(new CustomEvent('likha_categories_updated', { detail: nextCats }));
       }
     } catch {}
 
@@ -503,6 +507,12 @@ export default function AdminProductsClient({ initialProducts, categories = [] }
       }
     } catch {}
 
+    try {
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('likha_products_updated', { detail: updatedProd }));
+      }
+    } catch {}
+
     showToast(`Updated ${prod.name} to ${updatedStatus ? 'Available' : 'Disabled'}`);
   };
 
@@ -518,6 +528,11 @@ export default function AdminProductsClient({ initialProducts, categories = [] }
     try {
       if (typeof window !== 'undefined') {
         localStorage.setItem('likha_custom_products', JSON.stringify(nextProducts));
+        const existingDeleted = JSON.parse(localStorage.getItem('likha_deleted_products') || '[]');
+        if (!existingDeleted.includes(prodId)) {
+          existingDeleted.push(prodId);
+          localStorage.setItem('likha_deleted_products', JSON.stringify(existingDeleted));
+        }
       }
     } catch {}
 
@@ -531,6 +546,12 @@ export default function AdminProductsClient({ initialProducts, categories = [] }
       const supabase = createClient();
       if (supabase) {
         await supabase.from('products').delete().eq('id', prodId);
+      }
+    } catch {}
+
+    try {
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('likha_products_updated', { detail: { deletedId: prodId } }));
       }
     } catch {}
 
@@ -765,6 +786,13 @@ export default function AdminProductsClient({ initialProducts, categories = [] }
           localList.unshift(saved);
         }
         localStorage.setItem('likha_custom_products', JSON.stringify(localList));
+
+        // Ensure not marked as deleted
+        const existingDeleted = JSON.parse(localStorage.getItem('likha_deleted_products') || '[]');
+        if (existingDeleted.includes(saved.id)) {
+          const filtered = existingDeleted.filter((id) => id !== saved.id);
+          localStorage.setItem('likha_deleted_products', JSON.stringify(filtered));
+        }
       }
     } catch {}
 
@@ -786,16 +814,44 @@ export default function AdminProductsClient({ initialProducts, categories = [] }
           base_price: saved.base_price,
           description: saved.description,
           is_available: saved.is_available,
+          is_ready_made: Boolean(saved.is_ready_made),
+          ready_made_stock: parseInt(saved.ready_made_stock, 10) || 0,
+          is_on_sale: Boolean(saved.is_on_sale),
+          sale_price: saved.sale_price ? parseFloat(saved.sale_price) : null,
+          sale_tag: saved.sale_tag || null,
+          is_sold_out: Boolean(saved.is_sold_out),
+          is_bestseller: Boolean(saved.is_bestseller),
         };
         if (isValidUUID(saved.id)) {
           dbProduct.id = saved.id;
         }
 
-        const { data: upserted } = await supabase
-          .from('products')
-          .upsert(dbProduct, { onConflict: 'slug' })
-          .select('id')
-          .single();
+        let upserted = null;
+        try {
+          const { data } = await supabase
+            .from('products')
+            .upsert(dbProduct, { onConflict: 'slug' })
+            .select('id')
+            .single();
+          upserted = data;
+        } catch {
+          // Fallback if specific extended columns are missing in custom schema
+          const coreDb = {
+            name: saved.name,
+            slug: saved.slug,
+            category_id: isValidUUID(saved.category_id) ? saved.category_id : null,
+            base_price: saved.base_price,
+            description: saved.description,
+            is_available: saved.is_available,
+          };
+          if (isValidUUID(saved.id)) coreDb.id = saved.id;
+          const { data } = await supabase
+            .from('products')
+            .upsert(coreDb, { onConflict: 'slug' })
+            .select('id')
+            .single();
+          upserted = data;
+        }
 
         const actualId = upserted?.id || (isValidUUID(saved.id) ? saved.id : null);
 
@@ -826,6 +882,12 @@ export default function AdminProductsClient({ initialProducts, categories = [] }
             });
           }
         }
+      }
+    } catch {}
+
+    try {
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('likha_products_updated', { detail: saved }));
       }
     } catch {}
 
@@ -912,10 +974,7 @@ export default function AdminProductsClient({ initialProducts, categories = [] }
   const startIndex = (safeCurrentPage - 1) * pageSize;
   const paginatedProducts = filteredProducts.slice(startIndex, startIndex + pageSize);
 
-  const coverPhotoPreview =
-    formData.product_photos.find((p) => p.is_cover)?.url ||
-    formData.product_photos[0]?.url ||
-    'https://images.unsplash.com/photo-1561181286-d3fee7d55364?auto=format&fit=crop&w=400&q=80';
+  const coverPhotoPreview = resolveProductPhoto(formData);
 
   return (
     <div style={{ width: '100%', maxWidth: '1160px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -1278,10 +1337,7 @@ export default function AdminProductsClient({ initialProducts, categories = [] }
                     paginatedProducts.map((p, idx) => {
                     const rowKey = `${p.id || p.slug || 'prod'}-${idx}`;
                     const isNearBottom = paginatedProducts.length <= 3 ? idx >= 1 : idx >= paginatedProducts.length - 2;
-                    const coverPhoto =
-                      p.product_photos?.find((ph) => ph.is_cover)?.url ||
-                      p.product_photos?.[0]?.url ||
-                      'https://images.unsplash.com/photo-1561181286-d3fee7d55364?auto=format&fit=crop&w=400&q=80';
+                    const coverPhoto = resolveProductPhoto(p);
 
                     return (
                       <tr key={rowKey} style={{ borderBottom: '1px solid #E2E8F0', transition: 'background 0.12s ease' }}>
@@ -1695,9 +1751,6 @@ export default function AdminProductsClient({ initialProducts, categories = [] }
                 <h1 style={{ margin: 0, fontSize: '16.5px', fontWeight: '800', color: '#0f172a' }}>
                   {editingProduct ? `Edit Product: ${editingProduct.name}` : 'Create New Product'}
                 </h1>
-                <p style={{ margin: 0, fontSize: '11px', color: '#64748b' }}>
-                  {editingProduct ? `ID: ${editingProduct.id}` : 'Fill in the information below'}
-                </p>
               </div>
             </div>
 

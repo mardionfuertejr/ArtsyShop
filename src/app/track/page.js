@@ -593,7 +593,7 @@ function TrackContent() {
         </nav>
 
         {/* Action Controls */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '8px' }}>
           <HeaderSearchBar />
           <CartIconBtn />
         </div>

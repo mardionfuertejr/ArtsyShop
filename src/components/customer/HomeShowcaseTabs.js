@@ -12,26 +12,44 @@ export default function HomeShowcaseTabs({ allProducts = [] }) {
 
   // Merge custom products / updates on mount or props change
   useEffect(() => {
-    try {
-      const local = localStorage.getItem('likha_custom_products');
-      if (local) {
-        const parsed = JSON.parse(local);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          const merged = [...allProducts];
-          for (const p of parsed) {
-            const idx = merged.findIndex((m) => m.id === p.id || m.slug === p.slug);
-            if (idx >= 0) {
-              merged[idx] = { ...p, ...merged[idx] };
-            } else {
-              merged.unshift(p);
+    const syncProducts = () => {
+      try {
+        const deletedIds = JSON.parse(localStorage.getItem('likha_deleted_products') || '[]');
+        const local = localStorage.getItem('likha_custom_products');
+        let baseList = [...allProducts].filter((p) => !deletedIds.includes(p.id) && p.is_available !== false);
+
+        if (local) {
+          const parsed = JSON.parse(local);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            const merged = [...baseList];
+            for (const p of parsed) {
+              if (deletedIds.includes(p.id) || p.is_available === false) continue;
+              const idx = merged.findIndex((m) => m.id === p.id || m.slug === p.slug);
+              if (idx >= 0) {
+                merged[idx] = { ...merged[idx], ...p };
+              } else {
+                merged.unshift(p);
+              }
             }
+            setItems(merged);
+            return;
           }
-          setItems(merged);
-          return;
         }
+        setItems(baseList);
+      } catch {
+        setItems(allProducts.filter((p) => p.is_available !== false));
       }
-    } catch {}
-    setItems(allProducts);
+    };
+
+    syncProducts();
+
+    window.addEventListener('likha_products_updated', syncProducts);
+    window.addEventListener('storage', syncProducts);
+
+    return () => {
+      window.removeEventListener('likha_products_updated', syncProducts);
+      window.removeEventListener('storage', syncProducts);
+    };
   }, [allProducts]);
 
   // Pick a random fun prompt on mount

@@ -1,17 +1,32 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import ArtsyFunZoneModal from './ArtsyFunZoneModal';
 
 export default function GameFloatingBadge() {
-  const pathname = usePathname();
+  const pathname = usePathname() || '';
   const [isOpen, setIsOpen] = useState(false);
 
-  // Show ONLY on customer Home page to keep product and checkout clean and distraction-free
-  const isAllowedPage = pathname === '/';
+  // Listen for global custom trigger events to launch games from anywhere
+  useEffect(() => {
+    const handleOpen = () => setIsOpen(true);
+    window.addEventListener('likha_open_games', handleOpen);
+    window.addEventListener('open_arcade', handleOpen);
+    return () => {
+      window.removeEventListener('likha_open_games', handleOpen);
+      window.removeEventListener('open_arcade', handleOpen);
+    };
+  }, []);
 
-  if (!isAllowedPage) {
+  // Exclude strictly on checkout, confirmation, login, and admin to maintain distraction-free workflows
+  const isExcluded =
+    pathname.startsWith('/checkout') ||
+    pathname.startsWith('/confirmation') ||
+    pathname.startsWith('/admin') ||
+    pathname.startsWith('/login');
+
+  if (isExcluded) {
     return null;
   }
 

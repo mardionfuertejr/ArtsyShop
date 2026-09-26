@@ -42,6 +42,9 @@ export const metadata = {
     statusBarStyle: 'default',
     title: "M&M's Artsy",
   },
+  formatDetection: {
+    telephone: false,
+  },
   openGraph: {
     title: "M&M's Artsy | Handcrafted Flowers & Custom Gifts",
     description: 'Turning sweet thoughts into timeless gifts. Order handcrafted bouquets and handmade artisan products from M&M\'s Artsy.',
@@ -54,10 +57,6 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en" data-scroll-behavior="smooth" suppressHydrationWarning>
       <head>
-        <link rel="icon" type="image/png" href="/images/m&m_favicon.png?v=2" />
-        <link rel="icon" href="/favicon.ico?v=2" sizes="any" />
-        <link rel="shortcut icon" href="/images/m&m_favicon.png?v=2" />
-        <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=2" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
@@ -68,10 +67,6 @@ export default function RootLayout({ children }) {
           rel="stylesheet"
           href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
         />
-        <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-        <meta name="format-detection" content="telephone=no" />
-        <meta name="mobile-web-app-capable" content="yes" />
       </head>
       <body suppressHydrationWarning>
         <GlobalLoadingScreen />

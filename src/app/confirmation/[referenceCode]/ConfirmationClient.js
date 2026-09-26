@@ -403,22 +403,22 @@ export default function ConfirmationClient({ order: serverOrder, referenceCode }
 
   return (
     <div className="customer-shell">
-      {/* Top App Bar */}
+      {/* Top App Bar with safe-area spacing */}
       <header className="top-bar">
         <Link href="/" className="top-bar-action" aria-label="Back to home">
           <i className="fa-solid fa-house"></i>
         </Link>
-        <span className="top-bar-title" style={{ flex: 1, margin: 0 }}>
+        <span className="top-bar-title" style={{ flex: 1, textAlign: 'center', fontSize: '1rem', fontWeight: '800', letterSpacing: '-0.01em', margin: 0 }}>
           Order Confirmation
         </span>
         <div style={{ width: 40 }} />
       </header>
 
-      <main className="page-content page-enter" style={{ maxWidth: '580px', width: '100%', margin: '0 auto', padding: 'var(--space-4) var(--page-padding) var(--space-16)', boxSizing: 'border-box', overflowX: 'hidden' }}>
+      <main className="page-content page-enter" style={{ maxWidth: '580px', width: '100%', margin: '0 auto', padding: 'var(--space-3) var(--page-padding) var(--space-16)', boxSizing: 'border-box', overflowX: 'hidden' }}>
         {/* Top Hero Status */}
         <div style={{
           textAlign: 'center',
-          padding: 'var(--space-4) var(--space-2) var(--space-4)',
+          padding: '16px 8px 18px',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
@@ -426,73 +426,103 @@ export default function ConfirmationClient({ order: serverOrder, referenceCode }
           boxSizing: 'border-box',
         }}>
           <div style={{
-            width: '54px',
-            height: '54px',
+            width: '56px',
+            height: '56px',
             borderRadius: '50%',
-            background: 'rgba(16, 185, 129, 0.12)',
-            color: '#10B981',
+            background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+            color: '#FFFFFF',
             display: 'inline-flex',
             alignItems: 'center',
             justifyContent: 'center',
             fontSize: '24px',
-            marginBottom: '10px',
-            boxShadow: '0 4px 14px rgba(16, 185, 129, 0.25)',
+            marginBottom: '12px',
+            boxShadow: '0 6px 16px rgba(16, 185, 129, 0.3)',
           }}>
             <i className="fa-solid fa-check"></i>
           </div>
 
           <h1 style={{
             fontFamily: 'var(--font-heading)',
-            fontSize: '1.4rem',
-            fontWeight: '800',
+            fontSize: '1.45rem',
+            fontWeight: '900',
             color: 'var(--color-text)',
             margin: '0 0 4px',
+            letterSpacing: '-0.02em',
           }}>
             Order Received!
           </h1>
-          <p style={{ fontSize: '13px', color: 'var(--color-text-secondary)', margin: '0 0 12px', lineHeight: 1.4 }}>
+          <p style={{ fontSize: '13px', color: 'var(--color-text-secondary)', margin: '0 0 14px', lineHeight: 1.4 }}>
             Salamat, <strong>{order.customer_name}</strong>! Na-save na ang iyong order request.
           </p>
 
-          {/* Clean Reference Pill */}
+          {/* Clean Reference Pill with 1-Tap Copy */}
           <div style={{
-            background: 'var(--color-surface-warm)',
-            border: '1px solid var(--color-border)',
-            borderRadius: 'var(--radius-full)',
-            padding: '6px 18px',
+            background: '#FFF7ED',
+            border: '1.5px solid #FED7AA',
+            borderRadius: '999px',
+            padding: '6px 16px',
             display: 'inline-flex',
             alignItems: 'center',
             justifyContent: 'center',
             gap: '8px',
             fontSize: '13px',
-            color: 'var(--color-text)',
+            color: '#C2410C',
             maxWidth: '100%',
             boxSizing: 'border-box',
-            flexWrap: 'wrap',
+            boxShadow: '0 2px 8px rgba(234, 88, 12, 0.08)',
           }}>
-            <span style={{ color: 'var(--color-text-muted)', fontSize: '11px', fontWeight: '700', textTransform: 'uppercase' }}>
+            <span style={{ color: '#9A3412', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
               Reference No:
             </span>
-            <span style={{ color: 'var(--color-primary)', fontWeight: '800', fontFamily: 'monospace', fontSize: '14px', letterSpacing: '0.03em' }}>
+            <span style={{ color: '#EA580C', fontWeight: '900', fontFamily: 'monospace', fontSize: '14.5px', letterSpacing: '0.04em' }}>
               {order.reference_code}
             </span>
+            <button
+              type="button"
+              onClick={() => {
+                copyToClipboard(order.reference_code);
+                if (typeof window !== 'undefined') {
+                  window.dispatchEvent(
+                    new CustomEvent('likha_toast', {
+                      detail: {
+                        type: 'success',
+                        title: 'Reference Copied! 📋',
+                        message: order.reference_code,
+                        duration: 2500,
+                      },
+                    })
+                  );
+                }
+              }}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: '#EA580C',
+                fontSize: '12px',
+                cursor: 'pointer',
+                padding: '2px 4px',
+                marginLeft: '2px',
+              }}
+              title="Copy Reference Code"
+            >
+              <i className="fa-regular fa-copy"></i>
+            </button>
           </div>
 
           {formattedSchedule && (
             <div style={{
-              marginTop: '8px',
-              fontSize: '12px',
+              marginTop: '10px',
+              fontSize: '12.5px',
               color: 'var(--color-text-secondary)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               gap: '6px',
               fontWeight: '500',
-              whiteSpace: 'nowrap',
-              flexWrap: 'nowrap',
             }}>
+              <i className="fa-regular fa-calendar" style={{ color: 'var(--color-primary)', fontSize: '12px' }}></i>
               <span>Target Schedule:</span>
-              <span style={{ color: 'var(--color-text)', fontWeight: '700' }}>{formattedSchedule}</span>
+              <span style={{ color: 'var(--color-text)', fontWeight: '800' }}>{formattedSchedule}</span>
             </div>
           )}
         </div>
@@ -510,17 +540,17 @@ export default function ConfirmationClient({ order: serverOrder, referenceCode }
         }}>
           <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', marginBottom: '14px' }}>
             <div style={{
-              width: '40px',
-              height: '40px',
+              width: '42px',
+              height: '42px',
               borderRadius: '50%',
-              background: 'rgba(8, 102, 255, 0.1)',
-              color: '#0866FF',
+              background: 'linear-gradient(135deg, #0084FF 0%, #00C6FF 100%)',
+              color: '#FFFFFF',
               display: 'inline-flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontSize: '20px',
+              fontSize: '22px',
               flexShrink: 0,
-              marginTop: '1px',
+              boxShadow: '0 4px 12px rgba(0, 132, 255, 0.3)',
             }}>
               <i className="fa-brands fa-facebook-messenger"></i>
             </div>
@@ -529,7 +559,7 @@ export default function ConfirmationClient({ order: serverOrder, referenceCode }
                 I-send ang Order sa Messenger
               </h2>
               <p style={{ fontSize: '12px', color: 'var(--color-text-secondary)', margin: 0, lineHeight: 1.4 }}>
-                Automatic nang naka-type ang buong resibo — pindutin lang para i-send agad.
+                Automatic nang naka-type ang buong resibo — pindutin lang para i-send agad sa aming Facebook page.
               </p>
             </div>
           </div>
@@ -540,32 +570,33 @@ export default function ConfirmationClient({ order: serverOrder, referenceCode }
             className="btn btn-primary btn-full ripple"
             id="messenger-btn"
             style={{
-              background: '#0866FF',
+              background: 'linear-gradient(135deg, #0866FF 0%, #0052CC 100%)',
               color: '#FFFFFF',
               display: 'inline-flex',
               alignItems: 'center',
               justifyContent: 'center',
               gap: '8px',
-              height: '46px',
+              height: '48px',
               padding: '0 16px',
               fontSize: '14px',
-              fontWeight: 'var(--weight-bold)',
+              fontWeight: '800',
               borderRadius: 'var(--radius-xl)',
-              boxShadow: '0 4px 14px rgba(8, 102, 255, 0.3)',
+              boxShadow: '0 4px 16px rgba(8, 102, 255, 0.35)',
               cursor: 'pointer',
               textDecoration: 'none',
               width: '100%',
               boxSizing: 'border-box',
+              border: 'none',
             }}
           >
-            <i className="fa-brands fa-facebook-messenger" style={{ fontSize: '18px' }}></i>
+            <i className="fa-brands fa-facebook-messenger" style={{ fontSize: '19px' }}></i>
             <span>Open Messenger & Send Receipt</span>
           </button>
 
           {copiedReceipt && (
             <div style={{
               marginTop: '10px',
-              padding: '8px 12px',
+              padding: '9px 14px',
               background: 'rgba(16, 185, 129, 0.1)',
               border: '1px solid rgba(16, 185, 129, 0.3)',
               borderRadius: 'var(--radius-lg)',
@@ -583,7 +614,7 @@ export default function ConfirmationClient({ order: serverOrder, referenceCode }
               animation: 'fadeIn 0.2s ease',
             }}>
               <i className="fa-solid fa-circle-check" style={{ color: '#10B981', fontSize: '13px', flexShrink: 0 }}></i>
-              <span>Naka-type na sa Messenger! Pindutin lang ang Send.</span>
+              <span>Naka-copy na ang resibo! Pindutin lang ang Send sa Messenger.</span>
             </div>
           )}
 
@@ -607,100 +638,109 @@ export default function ConfirmationClient({ order: serverOrder, referenceCode }
           background: 'var(--color-surface)',
           border: '1px solid var(--color-border-light)',
           borderRadius: 'var(--radius-2xl)',
-          padding: '16px',
+          padding: '18px 16px',
           marginBottom: 'var(--space-4)',
           width: '100%',
           boxSizing: 'border-box',
+          boxShadow: '0 2px 10px rgba(0,0,0,0.02)',
         }}>
           <h2 style={{
-            fontSize: '14px',
-            fontWeight: '700',
+            fontSize: '14.5px',
+            fontWeight: '800',
             color: 'var(--color-text)',
-            margin: '0 0 12px',
+            margin: '0 0 14px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
           }}>
             <span>Order Summary</span>
-            <span style={{ fontSize: '12px', fontWeight: '600', color: 'var(--color-primary)' }}>
+            <span style={{ fontSize: '12px', fontWeight: '700', color: 'var(--color-primary)', background: '#FFF7ED', padding: '2px 8px', borderRadius: '999px', border: '1px solid #FED7AA' }}>
               {order.order_items?.length || 0} {order.order_items?.length === 1 ? 'item' : 'items'}
             </span>
           </h2>
 
           {/* Items List */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '14px' }}>
-            {order.order_items?.map((item, i) => (
-              <div
-                key={i}
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'flex-start',
-                  paddingBottom: i < order.order_items.length - 1 ? '10px' : '0',
-                  borderBottom: i < order.order_items.length - 1 ? '1px solid var(--color-border-light)' : 'none',
-                }}
-              >
-                <div style={{ flex: 1, paddingRight: '12px', minWidth: 0, overflow: 'hidden' }}>
-                  <p
-                    style={{
-                      fontWeight: '600',
-                      fontSize: '13.5px',
-                      color: 'var(--color-text)',
-                      margin: 0,
-                      whiteSpace: 'nowrap',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                    }}
-                    title={item.product_name}
-                  >
-                    {item.product_name}
-                    {item.quantity > 1 && (
-                      <span style={{ color: 'var(--color-primary)', fontWeight: '700' }}> ×{item.quantity}</span>
-                    )}
-                  </p>
-                  {item.order_item_options?.length > 0 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '14px' }}>
+            {order.order_items?.map((item, i) => {
+              const formattedOpts = item.order_item_options
+                ?.filter(Boolean)
+                .map((o) => o?.option_value || o?.optionValue)
+                .filter((val) => Boolean(val) && val.trim().toLowerCase() !== (item.product_name || '').trim().toLowerCase())
+                .join(' · ');
+
+              return (
+                <div
+                  key={i}
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'flex-start',
+                    paddingBottom: i < order.order_items.length - 1 ? '12px' : '0',
+                    borderBottom: i < order.order_items.length - 1 ? '1px solid var(--color-border-light)' : 'none',
+                  }}
+                >
+                  <div style={{ flex: 1, paddingRight: '12px', minWidth: 0, overflow: 'hidden' }}>
                     <p
                       style={{
-                        fontSize: '11.5px',
-                        color: 'var(--color-text-secondary)',
-                        margin: '3px 0 0',
+                        fontWeight: '700',
+                        fontSize: '13.5px',
+                        color: 'var(--color-text)',
+                        margin: 0,
                         whiteSpace: 'nowrap',
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
                       }}
-                      title={item.order_item_options.filter(Boolean).map(o => o?.option_value || o?.optionValue).filter(Boolean).join(' · ')}
+                      title={item.product_name}
                     >
-                      {item.order_item_options.filter(Boolean).map(o => o?.option_value || o?.optionValue).filter(Boolean).join(' · ')}
+                      {item.product_name}
+                      {item.quantity > 1 && (
+                        <span style={{ color: 'var(--color-primary)', fontWeight: '800' }}> ×{item.quantity}</span>
+                      )}
                     </p>
-                  )}
+                    {formattedOpts ? (
+                      <p
+                        style={{
+                          fontSize: '11.5px',
+                          color: 'var(--color-text-secondary)',
+                          margin: '3px 0 0',
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                        }}
+                        title={formattedOpts}
+                      >
+                        {formattedOpts}
+                      </p>
+                    ) : null}
+                  </div>
+                  <p style={{ fontWeight: '800', fontSize: '13.5px', color: 'var(--color-text)', margin: 0, whiteSpace: 'nowrap' }}>
+                    {formatCurrency(item.total_price)}
+                  </p>
                 </div>
-                <p style={{ fontWeight: '700', fontSize: '13.5px', color: 'var(--color-text)', margin: 0, whiteSpace: 'nowrap' }}>
-                  {formatCurrency(item.total_price)}
-                </p>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
-          <hr className="divider" style={{ margin: '0 0 10px' }} />
+          <hr className="divider" style={{ margin: '0 0 12px' }} />
 
           {/* Price Breakdown */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '13px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '7px', fontSize: '13px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--color-text-secondary)' }}>
               <span>Subtotal</span>
-              <span>{formatCurrency(order.subtotal)}</span>
+              <span style={{ fontWeight: '600' }}>{formatCurrency(order.subtotal)}</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--color-text-secondary)' }}>
               <span>Delivery Fee</span>
-              <span>{order.order_type === 'pickup' ? 'Free (Pickup)' : formatCurrency(order.delivery_fee)}</span>
+              <span style={{ fontWeight: '600' }}>{order.order_type === 'pickup' ? 'Free (Pickup)' : formatCurrency(order.delivery_fee)}</span>
             </div>
             {rushFee > 0 && (
-              <div style={{ display: 'flex', justifyContent: 'space-between', color: '#EA580C', fontWeight: '600' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', color: '#EA580C', fontWeight: '700' }}>
                 <span>Rush Fee</span>
                 <span>+{formatCurrency(rushFee)}</span>
               </div>
             )}
             {Math.max(0, (parseFloat(order.subtotal || 0) + (order.order_type === 'pickup' ? 0 : parseFloat(order.delivery_fee || 0))) - parseFloat(order.total_amount || 0)) > 0 && (
-              <div style={{ display: 'flex', justifyContent: 'space-between', color: '#16A34A', fontWeight: '600' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', color: '#16A34A', fontWeight: '700' }}>
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                   <i className="fa-solid fa-tag" style={{ fontSize: '11px' }}></i> Voucher Discount
                 </span>
@@ -711,14 +751,15 @@ export default function ConfirmationClient({ order: serverOrder, referenceCode }
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center',
-              fontWeight: '800',
+              fontWeight: '900',
               fontSize: '15px',
               color: 'var(--color-text)',
-              paddingTop: '6px',
+              paddingTop: '8px',
+              marginTop: '2px',
               borderTop: '1px dashed var(--color-border-light)',
             }}>
               <span>Total Amount</span>
-              <span style={{ color: 'var(--color-primary)', fontSize: '17px' }}>
+              <span style={{ color: 'var(--color-primary)', fontSize: '18px', fontWeight: '900' }}>
                 {formatCurrency(order.total_amount)}
               </span>
             </div>

@@ -553,11 +553,17 @@ export default function CartPage() {
                     {/* Item Info (Single line with ellipsis, clean & no extra descriptions) */}
                     <div className="cart-item-info">
                       <p className="cart-item-name" title={item.productName}>{item.productName}</p>
-                      {item.options?.length > 0 && (
-                        <p className="cart-item-options" title={item.options.map((o) => o?.optionValue || '').filter(Boolean).join(' · ')}>
-                          {item.options.map((o) => o?.optionValue || '').filter(Boolean).join(' · ')}
-                        </p>
-                      )}
+                      {item.options?.length > 0 && (() => {
+                        const formattedOpts = item.options
+                          .map((o) => o?.optionValue || '')
+                          .filter((val) => Boolean(val) && val.trim().toLowerCase() !== (item.productName || '').trim().toLowerCase())
+                          .join(' · ');
+                        return formattedOpts ? (
+                          <p className="cart-item-options" title={formattedOpts}>
+                            {formattedOpts}
+                          </p>
+                        ) : null;
+                      })()}
 
                       {/* Quantity Controls & Price */}
                       <div className="cart-item-footer">

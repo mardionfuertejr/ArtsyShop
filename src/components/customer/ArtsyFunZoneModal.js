@@ -2152,15 +2152,20 @@ function PetalPopGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
 
     if (hadVoucherChanceRef.current && tierKey) {
       const res = issueVoucherForTier(tierKey);
+      const hasVoucher = !!(res && res.voucher);
       setResultData({
-        won: true,
-        voucher: res.voucher,
+        won: hasVoucher,
+        voucher: res?.voucher || null,
+        message: res?.message,
         score: finalScore,
         isNewHighScore: hsResult.isNew,
         highScore: hsResult.highScore,
       });
-      if (audio) audio.playWin();
-      if (onWinVoucher) onWinVoucher(res.voucher);
+      if (audio) {
+        if (hasVoucher) audio.playWin();
+        else audio.playGameOver();
+      }
+      if (hasVoucher && onWinVoucher) onWinVoucher(res.voucher);
     } else {
       setResultData({
         won: false,
@@ -2307,15 +2312,15 @@ function PetalPopGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
 
         {gameState === 'result' && resultData && (
           <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px 20px', textAlign: 'center', gap: '14px', background: 'rgba(255,253,249,0.98)' }}>
-            {resultData.won ? (
+            {resultData.won && resultData.voucher ? (
               <>
                 <div style={{ background: '#ECFDF5', border: '1.5px solid #10B981', borderRadius: '16px', padding: '14px 20px', width: '100%', maxWidth: '280px', boxShadow: '0 4px 12px rgba(16, 185, 129, 0.12)' }}>
                   <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#047857', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Voucher Unlocked</span>
-                  <span style={{ fontSize: '1.5rem', fontWeight: 900, color: '#059669', display: 'block', margin: '4px 0 2px' }}>₱{resultData.voucher.discount} OFF</span>
+                  <span style={{ fontSize: '1.5rem', fontWeight: 900, color: '#059669', display: 'block', margin: '4px 0 2px' }}>₱{resultData.voucher?.discount || 0} OFF</span>
                   <div style={{ fontSize: '0.78rem', color: '#1E1E24', fontWeight: 700, fontFamily: 'monospace', background: '#A7F3D0', padding: '3px 10px', borderRadius: '6px', display: 'inline-block', marginTop: '4px' }}>
-                    {resultData.voucher.code}
+                    {resultData.voucher?.code || ''}
                   </div>
-                  <span style={{ fontSize: '0.7rem', color: '#78716C', display: 'block', marginTop: '6px', fontWeight: 500 }}>Min. spend ₱{resultData.voucher.minSpend}</span>
+                  <span style={{ fontSize: '0.7rem', color: '#78716C', display: 'block', marginTop: '6px', fontWeight: 500 }}>Min. spend ₱{resultData.voucher?.minSpend || 0}</span>
                 </div>
 
                 <div style={{ display: 'flex', gap: '10px', marginTop: '4px' }}>
@@ -2564,10 +2569,10 @@ export default function ArtsyFunZoneModal({ isOpen, onClose }) {
             }}
           >
             <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#C2410C' }}>
-              ₱{activeVoucher.discount} OFF Active
+              ₱{activeVoucher?.discount || 0} OFF Active
             </span>
             <span style={{ fontSize: '0.72rem', color: '#78716C', fontWeight: 600 }}>
-              Min. spend ₱{activeVoucher.minSpend}
+              Min. spend ₱{activeVoucher?.minSpend || 0}
             </span>
           </div>
         )}

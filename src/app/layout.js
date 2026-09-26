@@ -53,6 +53,8 @@ export const metadata = {
   },
 };
 
+import ErrorBoundary from '@/components/common/ErrorBoundary';
+
 export default function RootLayout({ children }) {
   return (
     <html lang="en" data-scroll-behavior="smooth" suppressHydrationWarning>
@@ -69,12 +71,27 @@ export default function RootLayout({ children }) {
         />
       </head>
       <body suppressHydrationWarning>
-        <GlobalLoadingScreen />
+        <ErrorBoundary silent>
+          <GlobalLoadingScreen />
+        </ErrorBoundary>
+
         {children}
-        <GameFloatingBadge />
-        <GlobalFlyingCart />
-        <GlobalToast />
-        <QuickOptionModal />
+
+        <ErrorBoundary silent>
+          <GameFloatingBadge />
+        </ErrorBoundary>
+
+        <ErrorBoundary silent>
+          <GlobalFlyingCart />
+        </ErrorBoundary>
+
+        <ErrorBoundary silent>
+          <GlobalToast />
+        </ErrorBoundary>
+
+        <ErrorBoundary silent>
+          <QuickOptionModal />
+        </ErrorBoundary>
       </body>
     </html>
   );

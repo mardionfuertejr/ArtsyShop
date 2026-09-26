@@ -8,6 +8,8 @@ import AdminNotepad from '@/components/admin/AdminNotepad';
 import DashboardFinancialWidget from '@/components/admin/DashboardFinancialWidget';
 import DashboardSalesAnalyticsChart from '@/components/admin/DashboardSalesAnalyticsChart';
 
+import ErrorBoundary from '@/components/common/ErrorBoundary';
+
 export default function AdminDashboardClient({ initialOrders = [], initialMaterials = [] }) {
   const router = useRouter();
   // Helper to resolve 1-hour auto transition to Crafting (preparing)
@@ -161,13 +163,17 @@ export default function AdminDashboardClient({ initialOrders = [], initialMateri
       </div>
 
       {/* Financial Overview: Kita vs. Gastos with interactive adjustments */}
-      <DashboardFinancialWidget
-        initialSales={calculatedSales || 0}
-        initialExpenses={calculatedExpenses || 0}
-      />
+      <ErrorBoundary>
+        <DashboardFinancialWidget
+          initialSales={calculatedSales || 0}
+          initialExpenses={calculatedExpenses || 0}
+        />
+      </ErrorBoundary>
 
       {/* Sales & Product Analytics Line Graph */}
-      <DashboardSalesAnalyticsChart orders={orders} />
+      <ErrorBoundary>
+        <DashboardSalesAnalyticsChart orders={orders} />
+      </ErrorBoundary>
 
       {/* Low Stock / Out of Stock Materials Alert */}
       {lowStockMaterials && lowStockMaterials.length > 0 && (

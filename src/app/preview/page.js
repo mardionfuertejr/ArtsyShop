@@ -22,7 +22,7 @@ export default function PreviewPage() {
       {
         product_name: 'mardion',
         quantity: 1,
-        total_price: 189.64,
+        total_price: 250,
         order_item_options: [
           { option_name: 'Option', option_value: 'Standard Option1' },
         ],

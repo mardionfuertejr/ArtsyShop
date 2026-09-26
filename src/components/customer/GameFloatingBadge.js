@@ -19,11 +19,12 @@ export default function GameFloatingBadge() {
     };
   }, []);
 
-  // Exclude strictly on cart, checkout, confirmation, login, and admin to maintain distraction-free workflows
+  // Exclude strictly on cart, checkout, confirmation, preview, login, and admin to maintain distraction-free workflows
   const isExcluded =
     pathname.startsWith('/cart') ||
     pathname.startsWith('/checkout') ||
     pathname.startsWith('/confirmation') ||
+    pathname.startsWith('/preview') ||
     pathname.startsWith('/admin') ||
     pathname.startsWith('/login');
 

@@ -11,7 +11,7 @@ export default function DashboardSalesAnalyticsChart({ orders = [] }) {
   // 1. Filter and aggregate order data
   const { chartData, totalSales, totalOrdersCount } = useMemo(() => {
     const now = new Date();
-    const validOrders = orders.filter((o) => o.status !== 'cancelled');
+    const validOrders = (orders || []).filter((o) => o && o.status !== 'cancelled');
 
     let startDate = new Date();
     let dayCount = 30;

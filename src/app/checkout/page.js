@@ -133,6 +133,21 @@ export default function CheckoutPage() {
     } catch {}
   }, []);
 
+  // Lock body scroll and interactions when submitting to prevent accidental clicks/scrolling
+  useEffect(() => {
+    if (submitting) {
+      document.body.style.overflow = 'hidden';
+      document.body.style.touchAction = 'none';
+    } else {
+      document.body.style.overflow = '';
+      document.body.style.touchAction = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+      document.body.style.touchAction = '';
+    };
+  }, [submitting]);
+
   // Filter items to checkout
   const checkoutCart = isDirectCheckout && directItem
     ? [directItem]
@@ -2216,6 +2231,68 @@ export default function CheckoutPage() {
           </div>
         </form>
       </main>
+
+      {/* ── FULLSCREEN SUBMISSION OVERLAY (NON-CLICKABLE & NON-SCROLLABLE) ── */}
+      {submitting && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 999999,
+            background: 'rgba(15, 23, 42, 0.75)',
+            backdropFilter: 'blur(8px)',
+            WebkitBackdropFilter: 'blur(8px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '20px',
+            pointerEvents: 'auto',
+            touchAction: 'none',
+          }}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Submitting order"
+        >
+          <div
+            style={{
+              background: '#FFFFFF',
+              borderRadius: '20px',
+              padding: '28px 22px',
+              maxWidth: '340px',
+              width: '100%',
+              textAlign: 'center',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.35)',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: '14px',
+            }}
+          >
+            <div style={{ position: 'relative', width: '54px', height: '54px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  borderRadius: '50%',
+                  border: '3px solid #F1F5F9',
+                  borderTopColor: '#EA580C',
+                  animation: 'spin 0.8s linear infinite',
+                }}
+              />
+              <i className="fa-solid fa-bag-shopping" style={{ color: '#EA580C', fontSize: '18px' }}></i>
+            </div>
+
+            <div>
+              <h3 style={{ margin: '0 0 6px', fontSize: '1.1rem', fontWeight: 800, color: '#0F172A' }}>
+                Placing Your Order...
+              </h3>
+              <p style={{ margin: 0, fontSize: '0.84rem', color: '#64748B', lineHeight: 1.4 }}>
+                Please wait a moment while we process your request.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -556,15 +556,20 @@ function PetalRushGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
 
     if (hadVoucherChanceRef.current && tierKey) {
       const res = issueVoucherForTier(tierKey);
+      const hasVoucher = !!(res && res.voucher);
       setResultData({
-        won: true,
-        voucher: res.voucher,
+        won: hasVoucher,
+        voucher: res?.voucher || null,
+        message: res?.message,
         score: finalScore,
         isNewHighScore: hsResult.isNew,
         highScore: hsResult.highScore,
       });
-      if (audio) audio.playWin();
-      if (onWinVoucher) onWinVoucher(res.voucher);
+      if (audio) {
+        if (hasVoucher) audio.playWin();
+        else audio.playGameOver();
+      }
+      if (hasVoucher && onWinVoucher) onWinVoucher(res.voucher);
     } else {
       setResultData({
         won: false,
@@ -722,15 +727,15 @@ function PetalRushGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
 
         {gameState === 'result' && resultData && (
           <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px 20px', textAlign: 'center', gap: '14px', background: 'rgba(255,253,249,0.98)' }}>
-            {resultData.won ? (
+            {resultData.won && resultData.voucher ? (
               <>
                 <div style={{ background: '#FFF7ED', border: '1.5px solid #F97316', borderRadius: '16px', padding: '14px 20px', width: '100%', maxWidth: '280px', boxShadow: '0 4px 12px rgba(234, 88, 12, 0.12)' }}>
                   <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#C2410C', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Voucher Unlocked</span>
-                  <span style={{ fontSize: '1.5rem', fontWeight: 900, color: '#EA580C', display: 'block', margin: '4px 0 2px' }}>₱{resultData.voucher.discount} OFF</span>
+                  <span style={{ fontSize: '1.5rem', fontWeight: 900, color: '#EA580C', display: 'block', margin: '4px 0 2px' }}>₱{resultData.voucher?.discount || 0} OFF</span>
                   <div style={{ fontSize: '0.78rem', color: '#1E1E24', fontWeight: 700, fontFamily: 'monospace', background: '#FED7AA', padding: '3px 10px', borderRadius: '6px', display: 'inline-block', marginTop: '4px' }}>
-                    {resultData.voucher.code}
+                    {resultData.voucher?.code || ''}
                   </div>
-                  <span style={{ fontSize: '0.7rem', color: '#78716C', display: 'block', marginTop: '6px', fontWeight: 500 }}>Min. spend ₱{resultData.voucher.minSpend}</span>
+                  <span style={{ fontSize: '0.7rem', color: '#78716C', display: 'block', marginTop: '6px', fontWeight: 500 }}>Min. spend ₱{resultData.voucher?.minSpend || 0}</span>
                 </div>
 
                 <div style={{ display: 'flex', gap: '10px', marginTop: '4px' }}>
@@ -1110,15 +1115,20 @@ function RibbonNinjaGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
 
     if (hadVoucherChanceRef.current && tierKey) {
       const res = issueVoucherForTier(tierKey);
+      const hasVoucher = !!(res && res.voucher);
       setResultData({
-        won: true,
-        voucher: res.voucher,
+        won: hasVoucher,
+        voucher: res?.voucher || null,
+        message: res?.message,
         score: finalScore,
         isNewHighScore: hsResult.isNew,
         highScore: hsResult.highScore,
       });
-      if (audio) audio.playWin();
-      if (onWinVoucher) onWinVoucher(res.voucher);
+      if (audio) {
+        if (hasVoucher) audio.playWin();
+        else audio.playGameOver();
+      }
+      if (hasVoucher && onWinVoucher) onWinVoucher(res.voucher);
     } else {
       setResultData({
         won: false,
@@ -1272,15 +1282,15 @@ function RibbonNinjaGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
 
         {gameState === 'result' && resultData && (
           <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px 20px', textAlign: 'center', gap: '14px', background: 'rgba(255,253,249,0.98)' }}>
-            {resultData.won ? (
+            {resultData.won && resultData.voucher ? (
               <>
                 <div style={{ background: '#FFF1F2', border: '1.5px solid #F43F5E', borderRadius: '16px', padding: '14px 20px', width: '100%', maxWidth: '280px', boxShadow: '0 4px 12px rgba(225, 29, 72, 0.12)' }}>
                   <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#BE123C', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Voucher Unlocked</span>
-                  <span style={{ fontSize: '1.5rem', fontWeight: 900, color: '#E11D48', display: 'block', margin: '4px 0 2px' }}>₱{resultData.voucher.discount} OFF</span>
+                  <span style={{ fontSize: '1.5rem', fontWeight: 900, color: '#E11D48', display: 'block', margin: '4px 0 2px' }}>₱{resultData.voucher?.discount || 0} OFF</span>
                   <div style={{ fontSize: '0.78rem', color: '#1E1E24', fontWeight: 700, fontFamily: 'monospace', background: '#FECDD3', padding: '3px 10px', borderRadius: '6px', display: 'inline-block', marginTop: '4px' }}>
-                    {resultData.voucher.code}
+                    {resultData.voucher?.code || ''}
                   </div>
-                  <span style={{ fontSize: '0.7rem', color: '#78716C', display: 'block', marginTop: '6px', fontWeight: 500 }}>Min. spend ₱{resultData.voucher.minSpend}</span>
+                  <span style={{ fontSize: '0.7rem', color: '#78716C', display: 'block', marginTop: '6px', fontWeight: 500 }}>Min. spend ₱{resultData.voucher?.minSpend || 0}</span>
                 </div>
 
                 <div style={{ display: 'flex', gap: '10px', marginTop: '4px' }}>
@@ -1498,16 +1508,21 @@ function BloomStackerGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
 
     if (hadVoucherChanceRef.current && tierKey) {
       const res = issueVoucherForTier(tierKey);
+      const hasVoucher = !!(res && res.voucher);
       setResultData({
-        won: true,
-        voucher: res.voucher,
+        won: hasVoucher,
+        voucher: res?.voucher || null,
+        message: res?.message,
         score: finalScore,
         height: stackRef.current.length,
         isNewHighScore: hsResult.isNew,
         highScore: hsResult.highScore,
       });
-      if (audio) audio.playWin();
-      if (onWinVoucher) onWinVoucher(res.voucher);
+      if (audio) {
+        if (hasVoucher) audio.playWin();
+        else audio.playGameOver();
+      }
+      if (hasVoucher && onWinVoucher) onWinVoucher(res.voucher);
     } else {
       setResultData({
         won: false,
@@ -1702,15 +1717,15 @@ function BloomStackerGame({ audio, onWinVoucher, onBackToMenu, onClose }) {
 
         {gameState === 'result' && resultData && (
           <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px 20px', textAlign: 'center', gap: '14px', background: 'rgba(255,253,249,0.98)' }}>
-            {resultData.won ? (
+            {resultData.won && resultData.voucher ? (
               <>
                 <div style={{ background: '#FAF5FF', border: '1.5px solid #9333EA', borderRadius: '16px', padding: '14px 20px', width: '100%', maxWidth: '280px', boxShadow: '0 4px 12px rgba(147, 51, 234, 0.12)' }}>
                   <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#7E22CE', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Voucher Unlocked</span>
-                  <span style={{ fontSize: '1.5rem', fontWeight: 900, color: '#9333EA', display: 'block', margin: '4px 0 2px' }}>₱{resultData.voucher.discount} OFF</span>
+                  <span style={{ fontSize: '1.5rem', fontWeight: 900, color: '#9333EA', display: 'block', margin: '4px 0 2px' }}>₱{resultData.voucher?.discount || 0} OFF</span>
                   <div style={{ fontSize: '0.78rem', color: '#1E1E24', fontWeight: 700, fontFamily: 'monospace', background: '#E9D5FF', padding: '3px 10px', borderRadius: '6px', display: 'inline-block', marginTop: '4px' }}>
-                    {resultData.voucher.code}
+                    {resultData.voucher?.code || ''}
                   </div>
-                  <span style={{ fontSize: '0.7rem', color: '#78716C', display: 'block', marginTop: '6px', fontWeight: 500 }}>Min. spend ₱{resultData.voucher.minSpend}</span>
+                  <span style={{ fontSize: '0.7rem', color: '#78716C', display: 'block', marginTop: '6px', fontWeight: 500 }}>Min. spend ₱{resultData.voucher?.minSpend || 0}</span>
                 </div>
 
                 <div style={{ display: 'flex', gap: '10px', marginTop: '4px' }}>

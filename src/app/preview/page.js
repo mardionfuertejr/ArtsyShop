@@ -5,7 +5,7 @@ import ConfirmationClient from '../confirmation/[referenceCode]/ConfirmationClie
 export default function PreviewPage() {
   const mockOrder = {
     reference_code: 'M&M-260926-002',
-    customer_name: 'Mardion Jr. Cordeta Fuerte',
+    customer_name: 'Mardion Jr.',
     customer_phone: '09171234567',
     order_type: 'delivery',
     delivery_address: 'Barangay Central, Metro Manila',

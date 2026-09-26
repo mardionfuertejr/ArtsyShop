@@ -452,7 +452,7 @@ export default function ConfirmationClient({ order: serverOrder, referenceCode }
             Order Received!
           </h1>
           <p style={{ fontSize: '13px', color: 'var(--color-text-secondary)', margin: '0 0 14px', lineHeight: 1.4 }}>
-            Salamat, <strong>{order.customer_name}</strong>! Na-save na ang iyong order request.
+            Salamat, <strong>{order.customer_name}</strong>!
           </p>
 
           {/* Clean Reference Pill with 1-Tap Copy */}
@@ -471,11 +471,8 @@ export default function ConfirmationClient({ order: serverOrder, referenceCode }
             boxSizing: 'border-box',
             boxShadow: '0 2px 8px rgba(234, 88, 12, 0.08)',
           }}>
-            <span style={{ color: '#9A3412', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-              Reference No:
-            </span>
             <span style={{ color: '#EA580C', fontWeight: '900', fontFamily: 'monospace', fontSize: '14.5px', letterSpacing: '0.04em' }}>
-              {order.reference_code}
+              #{order.reference_code}
             </span>
             <button
               type="button"
@@ -521,7 +518,7 @@ export default function ConfirmationClient({ order: serverOrder, referenceCode }
               fontWeight: '500',
             }}>
               <i className="fa-regular fa-calendar" style={{ color: 'var(--color-primary)', fontSize: '12px' }}></i>
-              <span>Target Schedule:</span>
+              <span>Target:</span>
               <span style={{ color: 'var(--color-text)', fontWeight: '800' }}>{formattedSchedule}</span>
             </div>
           )}
@@ -556,10 +553,10 @@ export default function ConfirmationClient({ order: serverOrder, referenceCode }
             </div>
             <div>
               <h2 style={{ fontSize: '14.5px', fontWeight: '800', color: 'var(--color-text)', margin: '0 0 3px' }}>
-                I-send ang Order sa Messenger
+                Send Order to Messenger
               </h2>
               <p style={{ fontSize: '12px', color: 'var(--color-text-secondary)', margin: 0, lineHeight: 1.4 }}>
-                Automatic nang naka-type ang buong resibo — pindutin lang para i-send agad sa aming Facebook page.
+                Naka-type na ang resibo — pindutin lang para ma-send sa Messenger.
               </p>
             </div>
           </div>
@@ -629,7 +626,7 @@ export default function ConfirmationClient({ order: serverOrder, referenceCode }
             gap: '5px',
           }}>
             <i className="fa-solid fa-circle-info" style={{ color: 'var(--color-primary, #EA580C)', fontSize: '11px', flexShrink: 0 }}></i>
-            <span>Magsisimula ang pag-craft kapag nai-send na ang resibo sa Messenger.</span>
+            <span>Magsisimula ang pag-craft pagkasend sa Messenger.</span>
           </p>
         </div>
 

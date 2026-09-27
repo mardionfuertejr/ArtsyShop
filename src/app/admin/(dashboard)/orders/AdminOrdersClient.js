@@ -38,23 +38,7 @@ export default function AdminOrdersClient({ initialOrders }) {
     return (orderList || []).map((ord) => ord);
   };
 
-  const [orders, setOrders] = useState(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const local = localStorage.getItem('likha_admin_orders');
-        if (local) {
-          const parsed = JSON.parse(local);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            return resolveAutoStatus(parsed);
-          }
-        }
-      } catch {}
-    }
-    if (Array.isArray(initialOrders) && initialOrders.length > 0) {
-      return resolveAutoStatus(initialOrders);
-    }
-    return resolveAutoStatus(MOCK_ORDERS);
-  });
+  const [orders, setOrders] = useState(() => resolveAutoStatus(initialOrders || MOCK_ORDERS));
   const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
   const [verificationTab, setVerificationTab] = useState('verified'); // 'verified' | 'unsent' | 'all'
   const [statusFilter, setStatusFilter] = useState('all');
@@ -259,10 +243,10 @@ export default function AdminOrdersClient({ initialOrders }) {
     window.addEventListener('storage', handleNewOrder);
     window.addEventListener('likha_order_placed', handleNewOrder);
 
-    // Periodic auto-sync every 8 seconds to catch orders placed on other devices / browsers
+    // Periodic auto-sync every 15 seconds to catch orders placed on other devices / browsers
     const interval = setInterval(() => {
       syncOrders();
-    }, 8000);
+    }, 15000);
 
     // Supabase Realtime subscription
     let channel = null;

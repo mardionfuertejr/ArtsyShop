@@ -6,6 +6,7 @@ import { MOCK_CUSTOM_REQUESTS } from '@/lib/mockData';
 import { createClient } from '@/lib/supabase/client';
 import { formatCurrency } from '@/lib/utils/formatCurrency';
 import { formatRelative, formatDate } from '@/lib/utils/formatDate';
+import { openMessengerDirect } from '@/lib/utils/browserNav';
 
 export default function AdminCustomRequestsClient() {
   const [requests, setRequests] = useState(MOCK_CUSTOM_REQUESTS);
@@ -146,29 +147,91 @@ export default function AdminCustomRequestsClient() {
     setQuotingRequest(req);
     setQuotePrice(req.quoted_price || req.budget || 350);
     setQuoteDays(3);
-    setQuoteNotes(`Hi ${req.customer_name}! We reviewed your custom request (${req.reference_code}). Estimated crafting time is 3 days.`);
+    setQuoteNotes(`Hi ${req.customer_name}! 🌸\nWe reviewed your custom request #${req.reference_code}.\n💰 Quoted Price: ₱${req.quoted_price || req.budget || 350}\n⏳ Production Time: 3 days\n📝 Notes: Ready to craft your handmade piece!`);
   };
 
-  const handleSaveQuote = (e) => {
-    e.preventDefault();
+  const handleSaveQuote = async (e, sendToMessenger = false) => {
+    if (e && e.preventDefault) e.preventDefault();
     if (!quotingRequest) return;
 
+    const parsedPrice = parseFloat(quotePrice) || 0;
+    const reqId = quotingRequest.id;
+    const refCode = quotingRequest.reference_code;
+
+    // 1. Update State
     setRequests(prev =>
       prev.map(r =>
-        r.id === quotingRequest.id
-          ? { ...r, status: 'quoted', quoted_price: parseFloat(quotePrice) || 0 }
+        (r.id === reqId || r.reference_code === refCode)
+          ? { ...r, status: 'quoted', quoted_price: parsedPrice }
           : r
       )
     );
 
-    showToast(`Quotation of ₱${quotePrice} recorded for ${quotingRequest.reference_code}! 💌`);
+    // 2. Update LocalStorage
+    try {
+      const local = JSON.parse(localStorage.getItem('likha_custom_requests') || '[]');
+      const updated = local.map(r =>
+        (r.id === reqId || r.reference_code === refCode)
+          ? { ...r, status: 'quoted', quoted_price: parsedPrice }
+          : r
+      );
+      localStorage.setItem('likha_custom_requests', JSON.stringify(updated));
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('storage'));
+      }
+    } catch {}
+
+    // 3. Update Supabase
+    try {
+      const supabase = createClient();
+      if (supabase) {
+        await supabase
+          .from('custom_requests')
+          .update({
+            status: 'quoted',
+            quoted_price: parsedPrice,
+          })
+          .or(`id.eq.${reqId},reference_code.eq.${refCode}`);
+      }
+    } catch {}
+
+    if (sendToMessenger) {
+      const msg = `Hi ${quotingRequest.customer_name}! 🌸\nHere is your official quotation for Custom Request #${refCode}:\n\n💰 Quoted Price: ₱${parsedPrice.toLocaleString()}\n⏳ Production Time: ${quoteDays} days\n📝 Description: ${quotingRequest.description || 'Custom Handmade Craft'}\n\n🔍 Track & Confirm Your Order: https://mmartsyshop.com/track?ref=${encodeURIComponent(refCode)}`;
+      try {
+        if (typeof navigator !== 'undefined' && navigator.clipboard) {
+          navigator.clipboard.writeText(msg).catch(() => {});
+        }
+      } catch {}
+      openMessengerDirect(msg);
+      showToast(`Quotation sent to Messenger for ${refCode}! 💬`);
+    } else {
+      showToast(`Quotation of ₱${parsedPrice} saved for ${refCode}! 💌`);
+    }
+
     setQuotingRequest(null);
   };
 
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (!requestToDelete) return;
-    setRequests(prev => prev.filter(r => r.id !== requestToDelete.id));
-    showToast(`Deleted request ${requestToDelete.reference_code}`);
+    const reqId = requestToDelete.id;
+    const refCode = requestToDelete.reference_code;
+
+    setRequests(prev => prev.filter(r => r.id !== reqId && r.reference_code !== refCode));
+
+    try {
+      const local = JSON.parse(localStorage.getItem('likha_custom_requests') || '[]');
+      const updated = local.filter(r => r.id !== reqId && r.reference_code !== refCode);
+      localStorage.setItem('likha_custom_requests', JSON.stringify(updated));
+    } catch {}
+
+    try {
+      const supabase = createClient();
+      if (supabase) {
+        await supabase.from('custom_requests').delete().or(`id.eq.${reqId},reference_code.eq.${refCode}`);
+      }
+    } catch {}
+
+    showToast(`Deleted request ${refCode}`);
     setRequestToDelete(null);
   };
 
@@ -834,21 +897,44 @@ export default function AdminCustomRequestsClient() {
                 />
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '6px' }}>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: '8px', marginTop: '8px', flexWrap: 'wrap' }}>
                 <button
                   type="button"
                   onClick={() => setQuotingRequest(null)}
                   className="btn btn-secondary btn-sm"
-                  style={{ borderRadius: '8px', padding: '0 14px', height: '34px', fontSize: '12px', border: 'none', background: '#f1f5f9' }}
+                  style={{ borderRadius: '8px', padding: '0 14px', height: '36px', fontSize: '12px', border: '1px solid #E2E8F0', background: '#F8FAFC' }}
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="btn btn-primary btn-sm"
-                  style={{ borderRadius: '8px', padding: '0 18px', height: '34px', fontSize: '12px', fontWeight: '800', border: 'none' }}
+                  className="btn btn-secondary btn-sm"
+                  style={{ borderRadius: '8px', padding: '0 16px', height: '36px', fontSize: '12px', fontWeight: '700', border: '1px solid #CBD5E1', background: '#FFFFFF', color: '#0F172A' }}
                 >
                   Save Quote
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => handleSaveQuote(e, true)}
+                  className="btn btn-primary btn-sm"
+                  style={{
+                    borderRadius: '8px',
+                    padding: '0 16px',
+                    height: '36px',
+                    fontSize: '12px',
+                    fontWeight: '800',
+                    border: 'none',
+                    background: 'linear-gradient(135deg, #0084FF 0%, #0062E0 100%)',
+                    color: '#FFFFFF',
+                    boxShadow: '0 2px 8px rgba(0, 132, 255, 0.3)',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <i className="fa-brands fa-facebook-messenger"></i>
+                  <span>Send Quote via Messenger</span>
                 </button>
               </div>
             </form>

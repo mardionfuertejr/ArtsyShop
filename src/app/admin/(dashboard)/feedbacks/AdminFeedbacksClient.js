@@ -110,6 +110,23 @@ export default function AdminFeedbacksClient() {
     showToast(newStatus ? 'Review is now visible on storefront' : 'Review hidden from storefront');
   };
 
+  // Toggle Feedback Storefront Visibility (Hide / Unhide)
+  const handleToggleFeedbackVisibility = async (feedback) => {
+    const newHidden = !feedback.is_hidden;
+    try {
+      const supabase = createClient();
+      if (supabase && feedback.id) {
+        await supabase.from('feedbacks').update({ is_hidden: newHidden }).eq('id', feedback.id);
+      }
+    } catch {}
+
+    toggleMockFeedbackVisibility(feedback.id);
+    setFeedbacks((prev) =>
+      prev.map((f) => (f.id === feedback.id ? { ...f, is_hidden: newHidden } : f))
+    );
+    showToast(newHidden ? 'Feedback is now hidden' : 'Feedback is now visible');
+  };
+
   const handleDeleteFeedback = async (id) => {
     try {
       const supabase = createClient();
@@ -653,23 +670,23 @@ export default function AdminFeedbacksClient() {
         {activeTab === 'feedbacks' ? (
           /* ── FEEDBACKS TABLE ── */
           <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', tableLayout: 'auto' }}>
               <thead>
                 <tr style={{ background: '#F8FAFC', borderBottom: '1.5px solid #E2E8F0' }}>
-                  <th style={{ width: '16%', padding: '13px 18px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#475569' }}>
+                  <th style={{ width: '15%', padding: '13px 16px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#475569' }}>
                     Date
                   </th>
                   <th style={{ width: '22%', padding: '13px 16px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#475569' }}>
                     Customer
                   </th>
-                  <th style={{ width: '12%', padding: '13px 16px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#475569', textAlign: 'center' }}>
+                  <th style={{ width: '13%', padding: '13px 16px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#475569' }}>
                     Rating
                   </th>
-                  <th style={{ width: '42%', padding: '13px 18px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#475569' }}>
+                  <th style={{ width: '38%', padding: '13px 16px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#475569' }}>
                     Feedback Message
                   </th>
-                  <th style={{ width: '8%', padding: '13px 18px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#475569', textAlign: 'center' }}>
-                    Action
+                  <th style={{ width: '12%', padding: '13px 16px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#475569', textAlign: 'center' }}>
+                    Storefront
                   </th>
                 </tr>
               </thead>
@@ -677,20 +694,20 @@ export default function AdminFeedbacksClient() {
                 {loading ? (
                   [1, 2, 3, 4, 5].map((i) => (
                     <tr key={`skel-fb-${i}`} style={{ borderBottom: '1px solid #F1F5F9' }}>
-                      <td style={{ padding: '14px 18px' }}>
+                      <td style={{ padding: '14px 16px' }}>
                         <div style={{ width: '90px', height: '13px', borderRadius: '4px', background: 'linear-gradient(90deg, #F1F5F9 25%, #E2E8F0 50%, #F1F5F9 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.2s infinite ease-in-out' }} />
                       </td>
                       <td style={{ padding: '14px 16px' }}>
                         <div style={{ width: '130px', height: '13px', borderRadius: '4px', background: '#F1F5F9' }} />
                       </td>
-                      <td style={{ padding: '14px 16px', textAlign: 'center' }}>
-                        <div style={{ width: '70px', height: '14px', borderRadius: '4px', background: '#F1F5F9', margin: '0 auto' }} />
+                      <td style={{ padding: '14px 16px' }}>
+                        <div style={{ width: '70px', height: '14px', borderRadius: '4px', background: '#F1F5F9' }} />
                       </td>
-                      <td style={{ padding: '14px 18px' }}>
+                      <td style={{ padding: '14px 16px' }}>
                         <div style={{ width: '85%', height: '13px', borderRadius: '4px', background: '#F1F5F9' }} />
                       </td>
-                      <td style={{ padding: '14px 18px' }}>
-                        <div style={{ width: '30px', height: '13px', borderRadius: '4px', background: '#F1F5F9', margin: '0 auto' }} />
+                      <td style={{ padding: '14px 16px', textAlign: 'center' }}>
+                        <div style={{ width: '50px', height: '22px', borderRadius: '999px', background: '#F1F5F9', margin: '0 auto' }} />
                       </td>
                     </tr>
                   ))
@@ -728,112 +745,144 @@ export default function AdminFeedbacksClient() {
                     </td>
                   </tr>
                 ) : (
-                  paginatedItems.map((fb, idx) => (
-                    <tr
-                      key={fb.id || idx}
-                      style={{
-                        borderBottom: '1px solid #F1F5F9',
-                        transition: 'background-color 0.12s ease',
-                      }}
-                      onMouseEnter={(e) => (e.currentTarget.style.background = '#FAFBFD')}
-                      onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-                    >
-                      {/* Date */}
-                      <td style={{ padding: '13px 18px', verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
-                        <span style={{ fontSize: '12.5px', fontWeight: '800', color: '#0F172A', display: 'block' }}>
-                          {formatDate(fb.created_at)}
-                        </span>
-                        <span style={{ fontSize: '11px', color: '#64748B' }}>
-                          {formatRelative(fb.created_at)}
-                        </span>
-                      </td>
+                  paginatedItems.map((fb, idx) => {
+                    const isVisible = !fb.is_hidden;
 
-                      {/* Customer */}
-                      <td style={{ padding: '13px 16px', verticalAlign: 'middle' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '9px' }}>
-                          <div style={{
-                            width: '32px',
-                            height: '32px',
-                            borderRadius: '50%',
-                            background: 'linear-gradient(135deg, #FFF5F2 0%, #FED7AA 100%)',
-                            color: 'var(--color-primary, #EA580C)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            fontSize: '12px',
-                            fontWeight: '800',
-                            flexShrink: 0,
-                            boxShadow: '0 1px 3px rgba(234, 88, 12, 0.15)',
-                          }}>
-                            {(fb.customer_name || 'C').charAt(0).toUpperCase()}
-                          </div>
-                          <div>
-                            <span style={{ fontWeight: '800', color: '#0F172A', fontSize: '13px', display: 'block', lineHeight: 1.2 }}>
-                              {fb.customer_name || 'Anonymous Customer'}
-                            </span>
-                            <span style={{
-                              fontSize: '10.5px',
-                              fontWeight: '700',
-                              color: fb.customer_name?.startsWith('Customer #') ? '#64748B' : '#16A34A',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '3px',
-                              marginTop: '2px',
-                            }}>
-                              <i className={fb.customer_name?.startsWith('Customer #') ? 'fa-solid fa-user-tag' : 'fa-solid fa-circle-check'} style={{ fontSize: '9px' }}></i>
-                              {fb.customer_name?.startsWith('Customer #') ? 'Guest Feedback' : 'Verified Buyer'}
-                            </span>
-                          </div>
-                        </div>
-                      </td>
-
-                      {/* Rating */}
-                      <td style={{ padding: '13px 16px', verticalAlign: 'middle', textAlign: 'center' }}>
-                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                          <div style={{ display: 'inline-flex', gap: '2px', color: '#F59E0B', fontSize: '11px' }}>
-                            {[...Array(fb.rating || 5)].map((_, i) => (
-                              <i key={i} className="fa-solid fa-star" />
-                            ))}
-                          </div>
-                          <span style={{ fontSize: '12px', fontWeight: '800', color: '#0F172A' }}>
-                            {fb.rating || 5}.0
+                    return (
+                      <tr
+                        key={fb.id || idx}
+                        style={{
+                          borderBottom: '1px solid #F1F5F9',
+                          transition: 'background-color 0.12s ease',
+                          opacity: isVisible ? 1 : 0.65,
+                          background: isVisible ? 'transparent' : '#FAFAFA',
+                        }}
+                        onMouseEnter={(e) => (e.currentTarget.style.background = isVisible ? '#FAFBFD' : '#F5F5F5')}
+                        onMouseLeave={(e) => (e.currentTarget.style.background = isVisible ? 'transparent' : '#FAFAFA')}
+                      >
+                        {/* Date */}
+                        <td style={{ padding: '13px 16px', verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
+                          <span style={{ fontSize: '12.5px', fontWeight: '800', color: '#0F172A', display: 'block' }}>
+                            {formatDate(fb.created_at)}
                           </span>
-                        </div>
-                      </td>
+                          <span style={{ fontSize: '11px', color: '#64748B' }}>
+                            {formatRelative(fb.created_at)}
+                          </span>
+                        </td>
 
-                      {/* Message */}
-                      <td style={{ padding: '13px 18px', verticalAlign: 'middle' }}>
-                        <span style={{ fontSize: '12.5px', color: '#334155', lineHeight: 1.45, display: 'block' }}>
-                          {fb.message}
-                        </span>
-                      </td>
+                        {/* Customer */}
+                        <td style={{ padding: '13px 16px', verticalAlign: 'middle' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '9px' }}>
+                            <div style={{
+                              width: '32px',
+                              height: '32px',
+                              borderRadius: '50%',
+                              background: 'linear-gradient(135deg, #FFF5F2 0%, #FED7AA 100%)',
+                              color: 'var(--color-primary, #EA580C)',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: '12px',
+                              fontWeight: '800',
+                              flexShrink: 0,
+                              boxShadow: '0 1px 3px rgba(234, 88, 12, 0.15)',
+                            }}>
+                              {(fb.customer_name || 'C').charAt(0).toUpperCase()}
+                            </div>
+                            <div>
+                              <span style={{ fontWeight: '800', color: '#0F172A', fontSize: '13px', display: 'block', lineHeight: 1.2 }}>
+                                {fb.customer_name || 'Anonymous Customer'}
+                              </span>
+                              <span style={{
+                                fontSize: '10.5px',
+                                fontWeight: '700',
+                                color: fb.customer_name?.startsWith('Customer #') ? '#64748B' : '#16A34A',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '3px',
+                                marginTop: '2px',
+                              }}>
+                                <i className={fb.customer_name?.startsWith('Customer #') ? 'fa-solid fa-user-tag' : 'fa-solid fa-circle-check'} style={{ fontSize: '9px' }}></i>
+                                {fb.customer_name?.startsWith('Customer #') ? 'Guest Feedback' : 'Verified Buyer'}
+                              </span>
+                            </div>
+                          </div>
+                        </td>
 
-                      {/* Action */}
-                      <td style={{ padding: '13px 18px', verticalAlign: 'middle', textAlign: 'center' }}>
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteFeedback(fb.id)}
-                          style={{
-                            width: '30px',
-                            height: '30px',
-                            borderRadius: '8px',
-                            background: '#FEE2E2',
-                            color: '#DC2626',
-                            border: 'none',
-                            cursor: 'pointer',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            fontSize: '12px',
-                            transition: 'all 0.15s ease',
-                          }}
-                          title="Delete feedback"
-                        >
-                          <i className="fa-regular fa-trash-can" />
-                        </button>
-                      </td>
-                    </tr>
-                  ))
+                        {/* Rating */}
+                        <td style={{ padding: '13px 16px', verticalAlign: 'middle' }}>
+                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                            <div style={{ display: 'inline-flex', gap: '2px', color: '#F59E0B', fontSize: '11px' }}>
+                              {[...Array(fb.rating || 5)].map((_, i) => (
+                                <i key={i} className="fa-solid fa-star" />
+                              ))}
+                            </div>
+                            <span style={{ fontSize: '12px', fontWeight: '800', color: '#0F172A' }}>
+                              {fb.rating || 5}.0
+                            </span>
+                          </div>
+                        </td>
+
+                        {/* Message */}
+                        <td style={{ padding: '13px 16px', verticalAlign: 'middle' }}>
+                          <span style={{ fontSize: '12.5px', color: '#334155', lineHeight: 1.45, display: 'block' }}>
+                            {fb.message}
+                          </span>
+                        </td>
+
+                        {/* Storefront Visibility & Actions */}
+                        <td style={{ padding: '13px 16px', verticalAlign: 'middle', textAlign: 'center' }}>
+                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
+                            <button
+                              type="button"
+                              onClick={() => handleToggleFeedbackVisibility(fb)}
+                              style={{
+                                border: isVisible ? '1px solid #86EFAC' : '1px solid #CBD5E1',
+                                background: isVisible ? '#DCFCE7' : '#F1F5F9',
+                                color: isVisible ? '#166534' : '#64748B',
+                                padding: '4px 10px',
+                                borderRadius: '9999px',
+                                fontSize: '11px',
+                                fontWeight: '800',
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                transition: 'all 0.15s ease',
+                                whiteSpace: 'nowrap',
+                              }}
+                              title={isVisible ? 'Click to hide from store' : 'Click to unhide / show on store'}
+                            >
+                              <i className={isVisible ? 'fa-solid fa-eye' : 'fa-solid fa-eye-slash'} style={{ fontSize: '10px' }}></i>
+                              <span>{isVisible ? 'Live' : 'Hidden'}</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteFeedback(fb.id)}
+                              style={{
+                                width: '28px',
+                                height: '28px',
+                                borderRadius: '7px',
+                                background: '#FEE2E2',
+                                color: '#DC2626',
+                                border: 'none',
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontSize: '11px',
+                                transition: 'all 0.15s ease',
+                              }}
+                              title="Delete feedback"
+                            >
+                              <i className="fa-regular fa-trash-can" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
@@ -841,25 +890,25 @@ export default function AdminFeedbacksClient() {
         ) : (
           /* ── PRODUCT REVIEWS TABLE ── */
           <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', tableLayout: 'auto' }}>
               <thead>
                 <tr style={{ background: '#F8FAFC', borderBottom: '1.5px solid #E2E8F0' }}>
-                  <th style={{ width: '16%', padding: '13px 18px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#475569' }}>
+                  <th style={{ width: '15%', padding: '13px 16px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#475569' }}>
                     Date
                   </th>
-                  <th style={{ width: '22%', padding: '13px 16px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#475569' }}>
+                  <th style={{ width: '20%', padding: '13px 16px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#475569' }}>
                     Customer
                   </th>
-                  <th style={{ width: '20%', padding: '13px 16px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#475569' }}>
+                  <th style={{ width: '18%', padding: '13px 16px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#475569' }}>
                     Product
                   </th>
-                  <th style={{ width: '12%', padding: '13px 16px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#475569', textAlign: 'center' }}>
+                  <th style={{ width: '13%', padding: '13px 16px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#475569' }}>
                     Rating
                   </th>
                   <th style={{ width: '22%', padding: '13px 16px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#475569' }}>
                     Review Comment
                   </th>
-                  <th style={{ width: '8%', padding: '13px 18px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#475569', textAlign: 'center' }}>
+                  <th style={{ width: '12%', padding: '13px 16px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#475569', textAlign: 'center' }}>
                     Storefront
                   </th>
                 </tr>

@@ -987,6 +987,16 @@ export function deleteMockFeedback(id) {
   return localFeedbacks;
 }
 
+export function toggleMockFeedbackVisibility(id) {
+  localFeedbacks = localFeedbacks.map((f) => {
+    if (f.id === id) {
+      return { ...f, is_hidden: !f.is_hidden };
+    }
+    return f;
+  });
+  return localFeedbacks;
+}
+
 export function addMockFeedback(feedback) {
   const newFeedback = {
     id: `fb-${Date.now()}`,

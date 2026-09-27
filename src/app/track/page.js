@@ -1420,47 +1420,49 @@ function TrackContent() {
                   </div>
                 )}
 
-                {/* Awaiting Messenger Confirmation Notice (Only show when pending/unconfirmed and not yet verified) */}
+                {/* Awaiting Messenger Confirmation Notice (Clean 1-Liner) */}
                 {(order.status === 'pending' && order.verification_status !== 'verified' && !order.sent_to_messenger && !order.messenger_opened_at) && (
                   <div style={{
                     background: '#EFF6FF',
                     border: '1px solid #BFDBFE',
-                    borderRadius: 'var(--radius-lg, 12px)',
-                    padding: '10px 14px',
-                    marginBottom: '14px',
+                    borderRadius: 'var(--radius-full, 9999px)',
+                    height: '40px',
+                    padding: '0 6px 0 12px',
+                    marginBottom: '12px',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
-                    gap: '10px',
-                    flexWrap: 'wrap',
+                    gap: '8px',
+                    boxSizing: 'border-box',
                   }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '9px', minWidth: 0, flex: 1 }}>
-                      <i className="fa-brands fa-facebook-messenger" style={{ color: '#0866FF', fontSize: '18px', flexShrink: 0 }}></i>
-                      <span style={{ fontSize: '12px', color: '#1E40AF', fontWeight: '700', lineHeight: 1.35 }}>
-                        Send receipt to Messenger to confirm
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flex: 1 }}>
+                      <i className="fa-brands fa-facebook-messenger" style={{ color: '#0866FF', fontSize: '16px', flexShrink: 0 }}></i>
+                      <span style={{ fontSize: '12px', color: '#1E40AF', fontWeight: '700', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        Send receipt on Messenger
                       </span>
                     </div>
                     <Link
                       href={`/confirmation/${order.reference_code}`}
                       className="btn-press"
                       style={{
-                        padding: '6px 12px',
+                        height: '28px',
+                        padding: '0 10px',
                         background: '#0866FF',
                         color: '#FFFFFF',
                         borderRadius: 'var(--radius-full, 9999px)',
-                        fontSize: '11.5px',
+                        fontSize: '11px',
                         fontWeight: '700',
                         textDecoration: 'none',
                         display: 'inline-flex',
                         alignItems: 'center',
-                        gap: '5px',
+                        gap: '4px',
                         flexShrink: 0,
                         whiteSpace: 'nowrap',
-                        boxShadow: '0 2px 6px rgba(8, 102, 255, 0.25)',
+                        boxShadow: '0 1px 3px rgba(8, 102, 255, 0.25)',
                       }}
                     >
                       <span>Send Now</span>
-                      <i className="fa-solid fa-arrow-right" style={{ fontSize: '9px' }}></i>
+                      <i className="fa-solid fa-arrow-right" style={{ fontSize: '8.5px' }}></i>
                     </Link>
                   </div>
                 )}

@@ -241,6 +241,7 @@ function TrackContent() {
           .select(`
             reference_code, customer_name, status, order_type,
             total_amount, subtotal, delivery_fee, preferred_date, preferred_time, notes, created_at,
+            sent_to_messenger, messenger_opened_at,
             order_items(product_name, quantity, total_price,
               order_item_options(option_value)
             )
@@ -522,6 +523,126 @@ function TrackContent() {
       setItemComments((prev) => ({ ...prev, ...comments }));
     } catch {}
   }, [order]);
+
+  // Silent refresh order to update status and timeline without reloading UI
+  const silentRefreshOrder = async (code) => {
+    if (!code) return;
+    try {
+      const supabase = createClient();
+      if (supabase) {
+        const { data, error: err } = await supabase
+          .from('orders')
+          .select(`
+            reference_code, customer_name, status, order_type,
+            total_amount, subtotal, delivery_fee, preferred_date, preferred_time, notes, created_at,
+            sent_to_messenger, messenger_opened_at,
+            order_items(product_name, quantity, total_price,
+              order_item_options(option_value)
+            )
+          `)
+          .eq('reference_code', code)
+          .single();
+
+        if (!err && data) {
+          let parsedNotes = data.notes || '';
+          let paymentMethod = 'cod';
+          let gcashRefNo = '';
+          let paymentProofUrl = '';
+          if (parsedNotes.includes('[PAYMENT_META:')) {
+            try {
+              const metaMatch = parsedNotes.match(/\[PAYMENT_META:([\s\S]*?)\]/);
+              if (metaMatch && metaMatch[1]) {
+                const parsed = JSON.parse(metaMatch[1]);
+                paymentMethod = parsed.payment_method || paymentMethod;
+                gcashRefNo = parsed.gcash_reference_no || '';
+                paymentProofUrl = parsed.payment_proof_url || '';
+              }
+              parsedNotes = parsedNotes.replace(/\[PAYMENT_META:[\s\S]*?\]/, '').trim();
+            } catch {}
+          }
+          setOrder((prev) => {
+            if (!prev) return data;
+            return {
+              ...prev,
+              ...data,
+              notes: parsedNotes,
+              payment_method: paymentMethod,
+              gcash_reference_no: gcashRefNo,
+              payment_proof_url: paymentProofUrl,
+            };
+          });
+          return;
+        }
+      }
+    } catch {}
+
+    // Fallback check local storage
+    try {
+      const localAdminOrders = JSON.parse(localStorage.getItem('likha_admin_orders') || '[]');
+      const match = localAdminOrders.find((o) => o.reference_code === code);
+      if (match) {
+        setOrder((prev) => (prev ? { ...prev, status: match.status } : match));
+      }
+    } catch {}
+  };
+
+  // Live subscription & auto-sync for the active order
+  useEffect(() => {
+    const code = order?.reference_code;
+    if (!code) return;
+
+    const interval = setInterval(() => {
+      silentRefreshOrder(code);
+    }, 6000);
+
+    const handleStorageOrUpdate = () => {
+      silentRefreshOrder(code);
+    };
+
+    window.addEventListener('storage', handleStorageOrUpdate);
+    window.addEventListener('likha_order_updated', handleStorageOrUpdate);
+    window.addEventListener('likha_order_placed', handleStorageOrUpdate);
+
+    let channel = null;
+    try {
+      const supabase = createClient();
+      if (supabase) {
+        channel = supabase
+          .channel(`public:track:${code}`)
+          .on(
+            'postgres_changes',
+            { event: 'UPDATE', schema: 'public', table: 'orders', filter: `reference_code=eq.${code}` },
+            (payload) => {
+              if (payload?.new) {
+                setOrder((prev) => {
+                  if (!prev) return prev;
+                  return {
+                    ...prev,
+                    status: payload.new.status || prev.status,
+                    sent_to_messenger: payload.new.sent_to_messenger !== undefined ? payload.new.sent_to_messenger : prev.sent_to_messenger,
+                    messenger_opened_at: payload.new.messenger_opened_at || prev.messenger_opened_at,
+                  };
+                });
+              }
+            }
+          )
+          .subscribe();
+      }
+    } catch {}
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('storage', handleStorageOrUpdate);
+      window.removeEventListener('likha_order_updated', handleStorageOrUpdate);
+      window.removeEventListener('likha_order_placed', handleStorageOrUpdate);
+      if (channel) {
+        try {
+          const supabase = createClient();
+          if (supabase) supabase.removeChannel(channel);
+        } catch {}
+      }
+    };
+  }, [order?.reference_code]);
 
   const handleReviewSubmit = async (itemIndex, item, commentText = '') => {
     const rating = itemRatings[itemIndex] || 5;
@@ -1180,22 +1301,47 @@ function TrackContent() {
                   </div>
                 )}
 
-                {/* Awaiting Messenger Confirmation Notice */}
+                {/* Awaiting Messenger Confirmation Notice (Clean One-Liner) */}
                 {(!order.sent_to_messenger && !order.messenger_opened_at && order.status !== 'confirmed' && order.status !== 'completed' && order.status !== 'ready' && order.status !== 'cancelled') && (
                   <div style={{
                     background: '#EFF6FF',
                     border: '1px solid #BFDBFE',
                     borderRadius: 'var(--radius-lg)',
-                    padding: '10px 14px',
+                    padding: '8px 12px',
                     marginBottom: '12px',
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '10px',
+                    justifyContent: 'space-between',
+                    gap: '8px',
+                    flexWrap: 'nowrap',
                   }}>
-                    <i className="fa-brands fa-facebook-messenger" style={{ color: '#0866FF', fontSize: '20px', flexShrink: 0 }}></i>
-                    <div style={{ fontSize: '11.5px', color: '#1E40AF', fontWeight: '600', lineHeight: 1.35 }}>
-                      Please send your order receipt to our Facebook page so our crafting team can verify and confirm your order.
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '7px', minWidth: 0, flex: 1 }}>
+                      <i className="fa-brands fa-facebook-messenger" style={{ color: '#0866FF', fontSize: '16px', flexShrink: 0 }}></i>
+                      <span style={{ fontSize: '11.5px', color: '#1E40AF', fontWeight: '700', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        Send receipt to Messenger to confirm
+                      </span>
                     </div>
+                    <Link
+                      href={`/confirmation/${order.reference_code}`}
+                      className="btn-press"
+                      style={{
+                        padding: '4px 10px',
+                        background: '#0866FF',
+                        color: '#FFFFFF',
+                        borderRadius: 'var(--radius-full)',
+                        fontSize: '11px',
+                        fontWeight: '700',
+                        textDecoration: 'none',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        flexShrink: 0,
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      <span>Send Now</span>
+                      <i className="fa-solid fa-arrow-right" style={{ fontSize: '8.5px' }}></i>
+                    </Link>
                   </div>
                 )}
 

@@ -450,17 +450,55 @@ export default function OrderDetailClient({ order: initialOrder }) {
     setStatus(newStatus);
     setOrder((prev) => ({ ...prev, status: newStatus }));
 
-    // 1. Update in localStorage
+    // 1. Update in localStorage across all stores
     try {
+      const refCode = order.reference_code;
+      const orderId = order.id;
+
+      // likha_admin_orders
       const localPlaced = JSON.parse(localStorage.getItem('likha_admin_orders') || '[]');
       const updated = localPlaced.map((o) =>
-        (o.id === order.id || o.reference_code === order.reference_code)
+        (o.id === orderId || o.reference_code === refCode)
           ? { ...o, status: newStatus }
           : o
       );
       localStorage.setItem('likha_admin_orders', JSON.stringify(updated));
+
+      // likha_my_orders (Customer Tracking History)
+      const myOrdersRaw = localStorage.getItem('likha_my_orders');
+      if (myOrdersRaw) {
+        const myOrders = JSON.parse(myOrdersRaw);
+        const myIdx = myOrders.findIndex(o => (o.referenceCode || o.reference_code) === refCode);
+        if (myIdx !== -1) {
+          myOrders[myIdx].status = newStatus;
+          localStorage.setItem('likha_my_orders', JSON.stringify(myOrders));
+        }
+      }
+
+      // likha_last_order_${refCode}
+      if (refCode) {
+        const lastOrderRaw = localStorage.getItem(`likha_last_order_${refCode}`);
+        if (lastOrderRaw) {
+          const lastOrder = JSON.parse(lastOrderRaw);
+          lastOrder.status = newStatus;
+          localStorage.setItem(`likha_last_order_${refCode}`, JSON.stringify(lastOrder));
+        }
+      }
+
+      // likha_mock_orders
+      const mockRaw = localStorage.getItem('likha_mock_orders');
+      if (mockRaw) {
+        const mockList = JSON.parse(mockRaw);
+        const mIdx = mockList.findIndex(o => o.reference_code === refCode || o.id === orderId);
+        if (mIdx !== -1) {
+          mockList[mIdx].status = newStatus;
+          localStorage.setItem('likha_mock_orders', JSON.stringify(mockList));
+        }
+      }
+
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new Event('storage'));
+        window.dispatchEvent(new CustomEvent('likha_order_updated', { detail: { ...order, status: newStatus } }));
         window.dispatchEvent(new CustomEvent('likha_order_placed', { detail: { ...order, status: newStatus } }));
       }
     } catch {}
@@ -469,7 +507,7 @@ export default function OrderDetailClient({ order: initialOrder }) {
     try {
       const supabase = createClient();
       if (supabase) {
-        if (order.id && !order.id.startsWith('ord-')) {
+        if (order.id && !String(order.id).startsWith('ord-')) {
           await supabase.from('orders').update({ status: newStatus }).eq('id', order.id);
         } else if (order.reference_code) {
           await supabase.from('orders').update({ status: newStatus }).eq('reference_code', order.reference_code);

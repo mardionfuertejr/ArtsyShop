@@ -269,7 +269,7 @@ export default function AdminCustomRequestsClient() {
 
       {/* Requests Table Card */}
       <div className="data-table-wrapper" style={{ background: '#ffffff', borderRadius: '12px', overflow: 'visible', margin: 0, border: 'none', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
-        <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <table className="data-table" style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
           <thead>
             <tr style={{ background: '#F8FAFC', borderBottom: '1.5px solid #E2E8F0' }}>
               <th style={{ width: '20%', padding: '13px 18px', textAlign: 'left', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#334155', borderBottom: '1.5px solid #E2E8F0' }}>Ref & Date</th>

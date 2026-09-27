@@ -61,6 +61,7 @@ export default function AdminOrdersClient({ initialOrders }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [toastMsg, setToastMsg] = useState('');
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [isVerificationOpen, setIsVerificationOpen] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -71,6 +72,7 @@ export default function AdminOrdersClient({ initialOrders }) {
   const [previewReceipt, setPreviewReceipt] = useState(null);
   const [copiedRefModal, setCopiedRefModal] = useState(false);
   const filterRef = useRef(null);
+  const verificationRef = useRef(null);
   const actionMenuRef = useRef(null);
   const searchInputRef = useRef(null);
 
@@ -289,21 +291,16 @@ export default function AdminOrdersClient({ initialOrders }) {
     };
   }, [syncOrders]);
 
-  const statuses = [
-    { key: 'all', label: 'All Orders', count: orders.length, color: '#64748b' },
-    { key: 'submitted', label: 'Submitted', count: orders.filter(o => o.status === 'submitted' || o.status === 'pending' || o.status === 'for_confirmation').length, color: '#b45309' },
-    { key: 'confirmed', label: 'Confirmed', count: orders.filter(o => o.status === 'confirmed').length, color: '#4f46e5' },
-    { key: 'preparing', label: 'Crafting', count: orders.filter(o => o.status === 'preparing').length, color: '#db2777' },
-    { key: 'ready', label: 'Ready', count: orders.filter(o => o.status === 'ready').length, color: '#16a34a' },
-    { key: 'completed', label: 'Completed', count: orders.filter(o => o.status === 'completed').length, color: '#059669' },
-    { key: 'cancelled', label: 'Cancelled', count: orders.filter(o => o.status === 'cancelled').length, color: '#dc2626' },
-  ];
+
 
   // Close dropdowns on outside click
   useEffect(() => {
     function handleClickOutside(event) {
       if (filterRef.current && !filterRef.current.contains(event.target)) {
         setIsFilterOpen(false);
+      }
+      if (verificationRef.current && !verificationRef.current.contains(event.target)) {
+        setIsVerificationOpen(false);
       }
       if (!event.target.closest('.action-menu-dropdown-container')) {
         setActiveMenuOrderId(null);
@@ -391,13 +388,65 @@ export default function AdminOrdersClient({ initialOrders }) {
   const unsentCount = orders.filter(isOrderUnsent).length;
   const verifiedCount = orders.filter(o => !isOrderUnsent(o)).length;
 
-  const filteredOrders = orders.filter((o) => {
-    // 1. Messenger Verification Gatekeep
+  const verificationOptions = [
+    {
+      key: 'verified',
+      label: 'Verified',
+      shortLabel: 'Verified',
+      description: 'Sent to Messenger',
+      count: verifiedCount,
+      icon: 'fa-solid fa-circle-check',
+      iconColor: '#10B981',
+      pillBg: '#ECFDF5',
+      pillColor: '#047857',
+    },
+    {
+      key: 'unsent',
+      label: 'Unsent / Drafts',
+      shortLabel: 'Unsent',
+      description: 'Not sent to Messenger',
+      count: unsentCount,
+      icon: 'fa-brands fa-facebook-messenger',
+      iconColor: '#EA580C',
+      pillBg: '#FFF7ED',
+      pillColor: '#C2410C',
+    },
+    {
+      key: 'all',
+      label: 'All Orders',
+      shortLabel: 'All',
+      description: 'Verified + Unsent',
+      count: orders.length,
+      icon: 'fa-solid fa-layer-group',
+      iconColor: 'var(--color-primary, #b45309)',
+      pillBg: '#FEF3C7',
+      pillColor: '#92400E',
+    },
+  ];
+
+  const activeVerificationObj = verificationOptions.find(v => v.key === verificationTab) || verificationOptions[0];
+
+  const currentTabOrders = orders.filter((o) => {
     const unverified = isOrderUnsent(o);
     if (verificationTab === 'verified' && unverified) return false;
     if (verificationTab === 'unsent' && !unverified) return false;
+    return true;
+  });
 
-    // 2. Status Filter
+  const statuses = [
+    { key: 'all', label: 'All Statuses', count: currentTabOrders.length, color: '#475569', dot: '#94A3B8' },
+    { key: 'submitted', label: 'Submitted', count: currentTabOrders.filter(o => o.status === 'submitted' || o.status === 'pending' || o.status === 'for_confirmation').length, color: '#B45309', dot: '#F59E0B' },
+    { key: 'confirmed', label: 'Confirmed', count: currentTabOrders.filter(o => o.status === 'confirmed').length, color: '#4338CA', dot: '#6366F1' },
+    { key: 'preparing', label: 'Crafting', count: currentTabOrders.filter(o => o.status === 'preparing').length, color: '#BE185D', dot: '#EC4899' },
+    { key: 'ready', label: 'Ready', count: currentTabOrders.filter(o => o.status === 'ready').length, color: '#15803D', dot: '#22C55E' },
+    { key: 'completed', label: 'Completed', count: currentTabOrders.filter(o => o.status === 'completed').length, color: '#047857', dot: '#10B981' },
+    { key: 'cancelled', label: 'Cancelled', count: currentTabOrders.filter(o => o.status === 'cancelled').length, color: '#B91C1C', dot: '#EF4444' },
+  ];
+
+  const activeStatusObj = statuses.find((s) => s.key === statusFilter) || statuses[0];
+
+  const filteredOrders = currentTabOrders.filter((o) => {
+    // Status Filter
     const matchesStatus =
       statusFilter === 'all' ||
       (statusFilter === 'submitted' && (o.status === 'submitted' || o.status === 'pending' || o.status === 'for_confirmation')) ||
@@ -591,130 +640,52 @@ export default function AdminOrdersClient({ initialOrders }) {
         </div>
       )}
 
-      {/* Header Row: Title on Left, Combined Search/Filter + Sync on Right */}
+      {/* Header Row: Title on Left, Dropdown Controls + Search on Right */}
       <div style={{ marginBottom: '18px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '14px', flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
-              <h1 className="admin-page-title" style={{ margin: 0, fontSize: '22px', fontWeight: '800' }}>
-                Orders Management
-              </h1>
-              <span style={{
-                background: 'rgba(180, 83, 9, 0.1)',
-                color: 'var(--color-primary, #b45309)',
-                fontSize: '12px',
-                fontWeight: '700',
-                padding: '2px 9px',
-                borderRadius: '9999px',
-                minWidth: '65px',
-                textAlign: 'center',
-                display: 'inline-block',
-              }}>
-                {filteredOrders.length} {filteredOrders.length === 1 ? 'Order' : 'Orders'}
-              </span>
-            </div>
-
-            {/* Messenger Verification Toggle Tabs */}
-            <div style={{
-              display: 'inline-flex',
-              background: '#F1F5F9',
-              padding: '3px',
-              borderRadius: '10px',
-              gap: '2px',
+          {/* Title & Total count on left */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
+            <h1 className="admin-page-title" style={{ margin: 0, fontSize: '22px', fontWeight: '800' }}>
+              Orders Management
+            </h1>
+            <span style={{
+              background: 'rgba(180, 83, 9, 0.1)',
+              color: 'var(--color-primary, #b45309)',
+              fontSize: '12px',
+              fontWeight: '700',
+              padding: '2px 9px',
+              borderRadius: '9999px',
+              minWidth: '65px',
+              textAlign: 'center',
+              display: 'inline-block',
             }}>
-              <button
-                type="button"
-                onClick={() => setVerificationTab('verified')}
-                style={{
-                  border: 'none',
-                  background: verificationTab === 'verified' ? '#FFFFFF' : 'transparent',
-                  color: verificationTab === 'verified' ? '#0F172A' : '#64748B',
-                  fontWeight: verificationTab === 'verified' ? '700' : '600',
-                  fontSize: '12px',
-                  padding: '5px 12px',
-                  borderRadius: '7px',
-                  boxShadow: verificationTab === 'verified' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
-                  cursor: 'pointer',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  transition: 'all 0.15s ease',
-                }}
-              >
-                <i className="fa-solid fa-check-circle" style={{ color: verificationTab === 'verified' ? '#10B981' : '#94A3B8', fontSize: '11px' }}></i>
-                <span>Verified ({verifiedCount})</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setVerificationTab('unsent')}
-                style={{
-                  border: 'none',
-                  background: verificationTab === 'unsent' ? '#FFFFFF' : 'transparent',
-                  color: verificationTab === 'unsent' ? '#EA580C' : '#64748B',
-                  fontWeight: verificationTab === 'unsent' ? '700' : '600',
-                  fontSize: '12px',
-                  padding: '5px 12px',
-                  borderRadius: '7px',
-                  boxShadow: verificationTab === 'unsent' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
-                  cursor: 'pointer',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  transition: 'all 0.15s ease',
-                }}
-              >
-                <i className="fa-brands fa-facebook-messenger" style={{ color: verificationTab === 'unsent' ? '#EA580C' : '#94A3B8', fontSize: '11px' }}></i>
-                <span>Unsent / Drafts ({unsentCount})</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setVerificationTab('all')}
-                style={{
-                  border: 'none',
-                  background: verificationTab === 'all' ? '#FFFFFF' : 'transparent',
-                  color: verificationTab === 'all' ? '#0F172A' : '#64748B',
-                  fontWeight: verificationTab === 'all' ? '700' : '600',
-                  fontSize: '12px',
-                  padding: '5px 12px',
-                  borderRadius: '7px',
-                  boxShadow: verificationTab === 'all' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
-                  cursor: 'pointer',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  transition: 'all 0.15s ease',
-                }}
-              >
-                <span>All ({orders.length})</span>
-              </button>
-            </div>
+              {filteredOrders.length} {filteredOrders.length === 1 ? 'Order' : 'Orders'}
+            </span>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-            {/* Unified Search Box with embedded Category/Status Filter Button */}
+          {/* Right Controls: Search + Verification Dropdown + Status Filter Dropdown */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+            {/* 1. Search Box */}
             <div
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',
-                background: '#ffffff',
-                border: isFocused ? '1.5px solid var(--color-primary, #b45309)' : '1px solid #e2e8f0',
-                borderRadius: '10px',
-                height: '38px',
-                padding: '0 4px 0 12px',
-                width: '320px',
+                background: '#FFFFFF',
+                border: isFocused ? '1.5px solid var(--color-primary, #b45309)' : '1px solid #E2E8F0',
+                borderRadius: '9px',
+                height: '36px',
+                padding: '0 10px',
+                width: '240px',
                 maxWidth: '100%',
                 boxSizing: 'border-box',
                 boxShadow: isFocused ? '0 0 0 3px rgba(180, 83, 9, 0.12)' : '0 1px 2px rgba(0,0,0,0.03)',
                 transition: 'all 0.15s ease',
-                position: 'relative',
               }}
             >
               <i
                 className="fa-solid fa-magnifying-glass"
                 style={{
-                  color: isFocused ? 'var(--color-primary, #b45309)' : '#94a3b8',
+                  color: isFocused ? 'var(--color-primary, #b45309)' : '#94A3B8',
                   fontSize: '12px',
                   marginRight: '8px',
                   transition: 'color 0.15s ease',
@@ -733,13 +704,12 @@ export default function AdminOrdersClient({ initialOrders }) {
                   border: 'none',
                   background: 'transparent',
                   outline: 'none',
-                  fontSize: '13px',
-                  color: '#0f172a',
+                  fontSize: '12.5px',
+                  color: '#0F172A',
                   width: '100%',
                   padding: 0,
                 }}
               />
-
               {searchQuery && (
                 <button
                   type="button"
@@ -750,81 +720,333 @@ export default function AdminOrdersClient({ initialOrders }) {
                   style={{
                     background: 'none',
                     border: 'none',
-                    color: '#94a3b8',
+                    color: '#94A3B8',
                     cursor: 'pointer',
-                    padding: '4px',
-                    marginRight: '4px',
+                    padding: '2px',
                     display: 'inline-flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     fontSize: '12px',
+                    transition: 'color 0.15s ease',
                   }}
+                  onMouseEnter={(e) => { e.currentTarget.style.color = '#0F172A'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.color = '#94A3B8'; }}
                   title="Clear search"
                 >
                   <i className="fa-solid fa-circle-xmark" />
                 </button>
               )}
+            </div>
 
-              {/* Dividing separator inside the capsule */}
-              <div style={{ width: '1px', height: '20px', background: '#e2e8f0', margin: '0 4px' }} />
-
-              {/* Status Selector dropdown button inside search capsule */}
-              <div ref={filterRef} style={{ position: 'relative' }}>
-                <button
-                  type="button"
-                  onClick={() => setIsFilterOpen(!isFilterOpen)}
+            {/* 2. Verification Filter Dropdown */}
+            <div ref={verificationRef} style={{ position: 'relative' }}>
+              <button
+                type="button"
+                onClick={() => setIsVerificationOpen(!isVerificationOpen)}
+                style={{
+                  height: '36px',
+                  padding: '0 12px',
+                  borderRadius: '9px',
+                  border: verificationTab !== 'verified' ? '1.5px solid rgba(234, 88, 12, 0.4)' : '1px solid #E2E8F0',
+                  background: verificationTab !== 'verified' ? 'rgba(234, 88, 12, 0.06)' : '#FFFFFF',
+                  color: verificationTab !== 'verified' ? '#C2410C' : '#334155',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '7px',
+                  cursor: 'pointer',
+                  fontSize: '12.5px',
+                  fontWeight: '700',
+                  whiteSpace: 'nowrap',
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
+                  transition: 'all 0.15s ease',
+                }}
+                onMouseEnter={(e) => {
+                  if (verificationTab === 'verified') e.currentTarget.style.background = '#F8FAFC';
+                }}
+                onMouseLeave={(e) => {
+                  if (verificationTab === 'verified') e.currentTarget.style.background = '#FFFFFF';
+                }}
+              >
+                <i
+                  className={activeVerificationObj.icon}
                   style={{
-                    height: '30px',
-                    padding: '0 10px',
-                    borderRadius: '7px',
-                    border: 'none',
-                    background: statusFilter !== 'all' ? 'rgba(180, 83, 9, 0.12)' : 'transparent',
-                    color: statusFilter !== 'all' ? 'var(--color-primary, #b45309)' : '#64748b',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    cursor: 'pointer',
-                    fontSize: '12px',
-                    fontWeight: '700',
-                    whiteSpace: 'nowrap',
-                    transition: 'all 0.15s ease',
+                    fontSize: '11px',
+                    color: activeVerificationObj.iconColor,
+                  }}
+                />
+                <span>{activeVerificationObj.shortLabel}</span>
+                <span
+                  style={{
+                    fontSize: '10px',
+                    fontWeight: '800',
+                    padding: '1px 6px',
+                    borderRadius: '999px',
+                    background: activeVerificationObj.pillBg,
+                    color: activeVerificationObj.pillColor,
                   }}
                 >
-                  {statusFilter !== 'all' && (
-                    <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--color-primary, #b45309)', display: 'inline-block', flexShrink: 0 }} />
-                  )}
-                  <span>{statusFilter === 'all' ? 'Status' : activeStatusObj.label}</span>
-                  <i
-                    className="fa-solid fa-chevron-down"
-                    style={{
-                      fontSize: '9.5px',
-                      color: statusFilter !== 'all' ? 'var(--color-primary, #b45309)' : '#94a3b8',
-                      transition: 'transform 0.2s ease',
-                      transform: isFilterOpen ? 'rotate(180deg)' : 'rotate(0deg)',
-                    }}
-                  />
-                </button>
+                  {activeVerificationObj.count}
+                </span>
+                <i
+                  className="fa-solid fa-chevron-down"
+                  style={{
+                    fontSize: '9.5px',
+                    color: '#94A3B8',
+                    transition: 'transform 0.2s ease',
+                    transform: isVerificationOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                    marginLeft: '2px',
+                  }}
+                />
+              </button>
 
-                {/* Filter Dropdown */}
-                {isFilterOpen && (
+              {/* Verification Dropdown Card */}
+              {isVerificationOpen && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: 'calc(100% + 6px)',
+                    right: 0,
+                    background: '#FFFFFF',
+                    borderRadius: '12px',
+                    boxShadow: '0 12px 32px rgba(15, 23, 42, 0.12), 0 4px 6px rgba(15, 23, 42, 0.04)',
+                    border: '1px solid #E2E8F0',
+                    padding: '6px',
+                    zIndex: 50,
+                    minWidth: '240px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '2px',
+                  }}
+                >
                   <div
                     style={{
-                      position: 'absolute',
-                      top: 'calc(100% + 6px)',
-                      right: 0,
-                      background: '#ffffff',
-                      borderRadius: '10px',
-                      boxShadow: '0 10px 30px rgba(0, 0, 0, 0.1)',
-                      border: 'none',
-                      padding: '4px',
-                      zIndex: 50,
-                      minWidth: '190px',
                       display: 'flex',
-                      flexDirection: 'column',
-                      gap: '2px',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '6px 8px 8px',
+                      borderBottom: '1px solid #F1F5F9',
+                      marginBottom: '2px',
                     }}
                   >
-                    {statuses.map((s) => (
+                    <span style={{ fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748B' }}>
+                      Order Verification
+                    </span>
+                    {verificationTab !== 'verified' && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setVerificationTab('verified');
+                          setIsVerificationOpen(false);
+                        }}
+                        style={{
+                          fontSize: '11px',
+                          fontWeight: '700',
+                          color: 'var(--color-primary, #b45309)',
+                          border: 'none',
+                          background: 'none',
+                          cursor: 'pointer',
+                          padding: 0,
+                        }}
+                      >
+                        Default
+                      </button>
+                    )}
+                  </div>
+
+                  {verificationOptions.map((opt) => {
+                    const isSelected = verificationTab === opt.key;
+                    return (
+                      <button
+                        key={opt.key}
+                        type="button"
+                        onClick={() => {
+                          setVerificationTab(opt.key);
+                          setIsVerificationOpen(false);
+                        }}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          width: '100%',
+                          padding: '8px 10px',
+                          borderRadius: '7px',
+                          border: 'none',
+                          background: isSelected ? 'rgba(180, 83, 9, 0.08)' : 'transparent',
+                          color: isSelected ? 'var(--color-primary, #b45309)' : '#334155',
+                          cursor: 'pointer',
+                          textAlign: 'left',
+                          transition: 'background 0.12s ease',
+                        }}
+                        onMouseEnter={(e) => {
+                          if (!isSelected) e.currentTarget.style.background = '#F8FAFC';
+                        }}
+                        onMouseLeave={(e) => {
+                          if (!isSelected) e.currentTarget.style.background = 'transparent';
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <i
+                            className={opt.icon}
+                            style={{
+                              color: opt.iconColor,
+                              fontSize: '12px',
+                              width: '14px',
+                              textAlign: 'center',
+                            }}
+                          />
+                          <div>
+                            <div style={{ fontSize: '12px', fontWeight: isSelected ? '700' : '600', color: isSelected ? '#0F172A' : '#334155' }}>
+                              {opt.label}
+                            </div>
+                            <div style={{ fontSize: '10.5px', color: '#64748B', marginTop: '1px' }}>
+                              {opt.description}
+                            </div>
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginLeft: '10px' }}>
+                          <span
+                            style={{
+                              fontSize: '10.5px',
+                              fontWeight: '800',
+                              padding: '1px 6px',
+                              borderRadius: '999px',
+                              background: opt.pillBg,
+                              color: opt.pillColor,
+                            }}
+                          >
+                            {opt.count}
+                          </span>
+                          {isSelected && (
+                            <i className="fa-solid fa-check" style={{ fontSize: '10px', color: 'var(--color-primary, #b45309)' }} />
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* 3. Status Filter Dropdown */}
+            <div ref={filterRef} style={{ position: 'relative' }}>
+              <button
+                type="button"
+                onClick={() => setIsFilterOpen(!isFilterOpen)}
+                style={{
+                  height: '36px',
+                  padding: '0 12px',
+                  borderRadius: '9px',
+                  border: statusFilter !== 'all' ? '1.5px solid rgba(180, 83, 9, 0.4)' : '1px solid #E2E8F0',
+                  background: statusFilter !== 'all' ? 'rgba(180, 83, 9, 0.06)' : '#FFFFFF',
+                  color: statusFilter !== 'all' ? 'var(--color-primary, #b45309)' : '#475569',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '7px',
+                  cursor: 'pointer',
+                  fontSize: '12.5px',
+                  fontWeight: statusFilter !== 'all' ? '700' : '600',
+                  whiteSpace: 'nowrap',
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
+                  transition: 'all 0.15s ease',
+                }}
+                onMouseEnter={(e) => {
+                  if (statusFilter === 'all') e.currentTarget.style.background = '#F8FAFC';
+                }}
+                onMouseLeave={(e) => {
+                  if (statusFilter === 'all') e.currentTarget.style.background = '#FFFFFF';
+                }}
+              >
+                <i
+                  className="fa-solid fa-sliders"
+                  style={{
+                    fontSize: '11px',
+                    color: statusFilter !== 'all' ? 'var(--color-primary, #b45309)' : '#94A3B8',
+                  }}
+                />
+                <span>{statusFilter === 'all' ? 'Filter Status' : activeStatusObj.label}</span>
+                {statusFilter !== 'all' && (
+                  <span
+                    style={{
+                      fontSize: '10px',
+                      fontWeight: '800',
+                      padding: '1px 6px',
+                      borderRadius: '999px',
+                      background: 'var(--color-primary, #b45309)',
+                      color: '#FFFFFF',
+                    }}
+                  >
+                    {activeStatusObj.count}
+                  </span>
+                )}
+                <i
+                  className="fa-solid fa-chevron-down"
+                  style={{
+                    fontSize: '9.5px',
+                    color: statusFilter !== 'all' ? 'var(--color-primary, #b45309)' : '#94A3B8',
+                    transition: 'transform 0.2s ease',
+                    transform: isFilterOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                    marginLeft: '2px',
+                  }}
+                />
+              </button>
+
+              {/* Status Filter Dropdown Card */}
+              {isFilterOpen && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: 'calc(100% + 6px)',
+                    right: 0,
+                    background: '#FFFFFF',
+                    borderRadius: '12px',
+                    boxShadow: '0 12px 32px rgba(15, 23, 42, 0.12), 0 4px 6px rgba(15, 23, 42, 0.04)',
+                    border: '1px solid #E2E8F0',
+                    padding: '6px',
+                    zIndex: 50,
+                    minWidth: '220px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '2px',
+                  }}
+                >
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '6px 8px 8px',
+                      borderBottom: '1px solid #F1F5F9',
+                      marginBottom: '2px',
+                    }}
+                  >
+                    <span style={{ fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#64748B' }}>
+                      Filter by Status
+                    </span>
+                    {statusFilter !== 'all' && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setStatusFilter('all');
+                          setIsFilterOpen(false);
+                        }}
+                        style={{
+                          fontSize: '11px',
+                          fontWeight: '700',
+                          color: 'var(--color-primary, #b45309)',
+                          border: 'none',
+                          background: 'none',
+                          cursor: 'pointer',
+                          padding: 0,
+                        }}
+                      >
+                        Reset
+                      </button>
+                    )}
+                  </div>
+
+                  {statuses.map((s) => {
+                    const isSelected = statusFilter === s.key;
+                    return (
                       <button
                         key={s.key}
                         type="button"
@@ -838,27 +1060,210 @@ export default function AdminOrdersClient({ initialOrders }) {
                           justifyContent: 'space-between',
                           width: '100%',
                           padding: '7px 10px',
-                          borderRadius: '6px',
+                          borderRadius: '7px',
                           border: 'none',
-                          background: statusFilter === s.key ? '#FAF6F0' : 'transparent',
-                          color: statusFilter === s.key ? 'var(--color-primary, #b45309)' : '#334155',
+                          background: isSelected ? 'rgba(180, 83, 9, 0.08)' : 'transparent',
+                          color: isSelected ? 'var(--color-primary, #b45309)' : '#334155',
                           fontSize: '12px',
-                          fontWeight: statusFilter === s.key ? '700' : '500',
+                          fontWeight: isSelected ? '700' : '500',
                           cursor: 'pointer',
                           textAlign: 'left',
+                          transition: 'background 0.12s ease',
+                        }}
+                        onMouseEnter={(e) => {
+                          if (!isSelected) e.currentTarget.style.background = '#F8FAFC';
+                        }}
+                        onMouseLeave={(e) => {
+                          if (!isSelected) e.currentTarget.style.background = 'transparent';
                         }}
                       >
-                        <span>{s.label}</span>
-                        <span style={{ fontSize: '11px', opacity: 0.7 }}>{s.count}</span>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                          <span
+                            style={{
+                              width: '7px',
+                              height: '7px',
+                              borderRadius: '50%',
+                              background: s.dot || '#94A3B8',
+                              flexShrink: 0,
+                            }}
+                          />
+                          <span>{s.label}</span>
+                        </span>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                          <span
+                            style={{
+                              fontSize: '11px',
+                              fontWeight: '700',
+                              padding: '1px 5px',
+                              borderRadius: '999px',
+                              background: isSelected ? 'rgba(180, 83, 9, 0.15)' : '#F1F5F9',
+                              color: isSelected ? 'var(--color-primary, #b45309)' : '#64748B',
+                            }}
+                          >
+                            {s.count}
+                          </span>
+                          {isSelected && (
+                            <i className="fa-solid fa-check" style={{ fontSize: '10px', color: 'var(--color-primary, #b45309)' }} />
+                          )}
+                        </span>
                       </button>
-                    ))}
-                  </div>
-                )}
-              </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
         </div>
+
+        {/* Active Filter Chips / Summary Bar */}
+        {(verificationTab !== 'verified' || statusFilter !== 'all' || searchQuery) && (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              marginTop: '12px',
+              padding: '6px 12px',
+              background: '#F8FAFC',
+              border: '1px solid #E2E8F0',
+              borderRadius: '8px',
+              fontSize: '12px',
+              color: '#475569',
+              flexWrap: 'wrap',
+            }}
+          >
+            <i className="fa-solid fa-filter" style={{ color: 'var(--color-primary, #b45309)', fontSize: '11px' }} />
+            <span style={{ fontWeight: '600', fontSize: '11.5px' }}>Active Filters:</span>
+
+            {verificationTab !== 'verified' && (
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  background: '#FFFFFF',
+                  border: '1px solid #CBD5E1',
+                  borderRadius: '6px',
+                  padding: '2px 8px',
+                  fontSize: '11.5px',
+                  fontWeight: '600',
+                  color: '#C2410C',
+                }}
+              >
+                View: {activeVerificationObj.shortLabel}
+                <button
+                  type="button"
+                  onClick={() => setVerificationTab('verified')}
+                  style={{
+                    border: 'none',
+                    background: 'none',
+                    cursor: 'pointer',
+                    color: '#94A3B8',
+                    padding: 0,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                  }}
+                  title="Reset to Verified orders"
+                >
+                  <i className="fa-solid fa-xmark" style={{ fontSize: '11px' }} />
+                </button>
+              </span>
+            )}
+
+            {statusFilter !== 'all' && (
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  background: '#FFFFFF',
+                  border: '1px solid #CBD5E1',
+                  borderRadius: '6px',
+                  padding: '2px 8px',
+                  fontSize: '11.5px',
+                  fontWeight: '600',
+                  color: '#0F172A',
+                }}
+              >
+                Status: {activeStatusObj.label}
+                <button
+                  type="button"
+                  onClick={() => setStatusFilter('all')}
+                  style={{
+                    border: 'none',
+                    background: 'none',
+                    cursor: 'pointer',
+                    color: '#94A3B8',
+                    padding: 0,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                  }}
+                  title="Clear status filter"
+                >
+                  <i className="fa-solid fa-xmark" style={{ fontSize: '11px' }} />
+                </button>
+              </span>
+            )}
+
+            {searchQuery && (
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  background: '#FFFFFF',
+                  border: '1px solid #CBD5E1',
+                  borderRadius: '6px',
+                  padding: '2px 8px',
+                  fontSize: '11.5px',
+                  fontWeight: '600',
+                  color: '#0F172A',
+                }}
+              >
+                Search: &quot;{searchQuery}&quot;
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery('')}
+                  style={{
+                    border: 'none',
+                    background: 'none',
+                    cursor: 'pointer',
+                    color: '#94A3B8',
+                    padding: 0,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                  }}
+                  title="Clear search query"
+                >
+                  <i className="fa-solid fa-xmark" style={{ fontSize: '11px' }} />
+                </button>
+              </span>
+            )}
+
+            <button
+              type="button"
+              onClick={() => {
+                setVerificationTab('verified');
+                setStatusFilter('all');
+                setSearchQuery('');
+              }}
+              style={{
+                marginLeft: 'auto',
+                border: 'none',
+                background: 'none',
+                color: 'var(--color-primary, #b45309)',
+                fontWeight: '700',
+                fontSize: '11.5px',
+                cursor: 'pointer',
+                padding: '2px 4px',
+              }}
+            >
+              Clear All
+            </button>
+          </div>
+        )}
       </div>
+
 
       {/* Orders Data Table */}
       <div className="data-table-wrapper" style={{ background: '#ffffff', borderRadius: '12px', overflow: 'visible', margin: 0, border: 'none', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
@@ -916,6 +1321,34 @@ export default function AdminOrdersClient({ initialOrders }) {
                   <p style={{ margin: '8px 0 0', fontSize: '13.5px', color: '#64748b' }}>
                     {searchQuery || statusFilter !== 'all' ? 'Try adjusting your search query or filter tab.' : 'Customer orders will appear here once placed.'}
                   </p>
+                  {(searchQuery || statusFilter !== 'all') && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setStatusFilter('all');
+                        setSearchQuery('');
+                      }}
+                      style={{
+                        marginTop: '16px',
+                        padding: '8px 16px',
+                        borderRadius: '8px',
+                        border: '1px solid #CBD5E1',
+                        background: '#FFFFFF',
+                        color: '#0F172A',
+                        fontWeight: '700',
+                        fontSize: '12.5px',
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+                        transition: 'all 0.15s ease',
+                      }}
+                    >
+                      <i className="fa-solid fa-rotate-left" style={{ fontSize: '11px', color: '#64748B' }} />
+                      <span>Reset Filters</span>
+                    </button>
+                  )}
                 </td>
               </tr>
             ) : (

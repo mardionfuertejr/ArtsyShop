@@ -130,6 +130,9 @@ export default function ConfirmationClient({ order: serverOrder, referenceCode }
     setCopiedReceipt(true);
     const nowIso = new Date().toISOString();
     const code = order.reference_code || effectiveCode;
+
+    setLocalOrder(prev => prev ? { ...prev, sent_to_messenger: true, messenger_opened_at: nowIso, status: 'confirmed' } : prev);
+
     try {
       if (code && typeof window !== 'undefined') {
         const mockRaw = localStorage.getItem('likha_mock_orders');
@@ -151,6 +154,37 @@ export default function ConfirmationClient({ order: serverOrder, referenceCode }
           if (s.status === 'pending') s.status = 'confirmed';
           localStorage.setItem(`likha_last_order_${code}`, JSON.stringify(s));
         }
+        const adminRaw = localStorage.getItem('likha_admin_orders');
+        if (adminRaw) {
+          const aList = JSON.parse(adminRaw);
+          const aIdx = aList.findIndex(o => o.reference_code === code || o.referenceCode === code);
+          if (aIdx !== -1) {
+            aList[aIdx].messenger_opened_at = nowIso;
+            aList[aIdx].sent_to_messenger = true;
+            if (aList[aIdx].status === 'pending') aList[aIdx].status = 'confirmed';
+            localStorage.setItem('likha_admin_orders', JSON.stringify(aList));
+          }
+        }
+        const myRaw = localStorage.getItem('likha_my_orders');
+        if (myRaw) {
+          const mList = JSON.parse(myRaw);
+          const mIdx = mList.findIndex(o => o.referenceCode === code || o.reference_code === code);
+          if (mIdx !== -1) {
+            mList[mIdx].status = 'confirmed';
+            localStorage.setItem('likha_my_orders', JSON.stringify(mList));
+          }
+        }
+
+        window.dispatchEvent(new CustomEvent('likha_order_placed', { detail: { ...order, sent_to_messenger: true, status: 'confirmed' } }));
+        window.dispatchEvent(new Event('storage'));
+        window.dispatchEvent(new CustomEvent('likha_toast', {
+          detail: {
+            type: 'success',
+            title: 'Verified on Messenger! 💬',
+            message: 'Receipt sent to M&M Artsy Shop.',
+            duration: 3500,
+          },
+        }));
       }
     } catch {}
     try {
@@ -698,6 +732,33 @@ export default function ConfirmationClient({ order: serverOrder, referenceCode }
 
         {/* ── ACTION BUTTONS ── */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', width: '100%', boxSizing: 'border-box' }}>
+          {/* Send to Messenger Button (Primary Action for Verification) */}
+          <button
+            type="button"
+            onClick={handleOpenMessenger}
+            className="btn btn-primary no-print"
+            id="send-messenger-btn"
+            style={{
+              height: '48px',
+              fontSize: '14px',
+              fontWeight: '700',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              borderRadius: 'var(--radius-xl)',
+              background: 'linear-gradient(135deg, #0084FF 0%, #0062E0 100%)',
+              color: '#FFFFFF',
+              border: 'none',
+              boxShadow: '0 4px 14px rgba(0, 132, 255, 0.35)',
+              cursor: 'pointer',
+              width: '100%',
+            }}
+          >
+            <i className="fa-brands fa-facebook-messenger" style={{ fontSize: '1.1rem' }}></i>
+            <span>{copiedReceipt || order.sent_to_messenger ? 'Order Sent to Messenger ✓' : 'Send Order to Messenger'}</span>
+          </button>
+
           {/* Preview & Save Receipt Button */}
           <button
             type="button"

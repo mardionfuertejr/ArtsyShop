@@ -1304,21 +1304,23 @@ button:active, .btn:active, .sidebar-link:active, [role="button"]:active {
   height: 0 !important;
 }
 
-/* ── Smooth Table Transition on Filter/Search ── */
+/* ── Smooth Table Transition on Filter/Search (Rock-solid table, pure data opacity fade) ── */
 @keyframes adminTableFadeIn {
   from {
     opacity: 0;
-    transform: translateY(5px);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
   }
 }
 
 .table-fade-enter {
-  animation: adminTableFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) both;
-  will-change: opacity, transform;
+  animation: adminTableFadeIn 0.16s ease-out both;
+  will-change: opacity;
+}
+
+.table-fade-enter tr {
+  transition: background-color 0.15s ease;
 }
 
 

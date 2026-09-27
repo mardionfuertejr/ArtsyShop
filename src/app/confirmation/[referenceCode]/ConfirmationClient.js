@@ -341,7 +341,7 @@ export default function ConfirmationClient({ order: serverOrder, referenceCode }
         : 'Address on file';
 
       drawRow('Customer:', order.customer_name || 'Customer', 114);
-      drawRow('Claim via:', order.order_type === 'delivery' ? `Delivery (${addrSummary})` : 'Store Pickup', 131);
+      drawRow('Claim via:', order.order_type === 'delivery' ? `Delivery (${addrSummary})` : 'Pickup', 131);
       drawRow('Schedule:', formattedSchedule || 'Standard Turnaround', 148);
       drawRow('Payment:', pMethod, 165);
 

@@ -68,7 +68,7 @@ export function formatOrderSummary(order) {
   if (isDelivery) {
     detailsList.push(`• Claim via: Delivery${deliveryAddr ? ` (${deliveryAddr})` : ''}${isRush ? ' (Rush Order)' : ''}`);
   } else {
-    detailsList.push(`• Claim via: Store Pickup${pickupLoc ? ` (${pickupLoc})` : ' (M&M\'s Artsy Studio)'}${isRush ? ' (Rush Order)' : ''}`);
+    detailsList.push(`• Claim via: Pickup${isRush ? ' (Rush Order)' : ''}`);
   }
 
   if (formattedSchedule) {

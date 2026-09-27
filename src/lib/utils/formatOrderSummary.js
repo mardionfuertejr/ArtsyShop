@@ -94,17 +94,17 @@ export function formatOrderSummary(order) {
   priceLines.push(`• Total Amount: ${formatCurrency(order.total_amount || order.totalAmount || 0)}`);
   const priceBreakdown = priceLines.join('\n');
 
-  const notesLine = customerNote ? `\n\nSpecial Instructions: ${customerNote}` : '';
+  const notesLine = customerNote ? `\n\nSpecial Instructions:\n${customerNote}` : '';
 
-  return `Hi M&M Artsy! I would like to confirm my order from your shop:
+  return `Hi M&M Artsy! I would like to confirm my order:
 
-📋 Order Details:
+--- ORDER DETAILS ---
 ${detailsBlock}
 
-🛍 Items:
+--- ITEMS ORDERED ---
 ${itemsListText || '• Handcrafted Bouquet / Crafts'}
 
-💰 Summary:
+--- PAYMENT SUMMARY ---
 ${priceBreakdown}${notesLine}
 
 Thank you po!`;

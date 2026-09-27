@@ -670,22 +670,22 @@ export default function AdminFeedbacksClient() {
         {activeTab === 'feedbacks' ? (
           /* ── FEEDBACKS TABLE ── */
           <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', tableLayout: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', tableLayout: 'fixed' }}>
               <thead>
                 <tr style={{ background: '#F8FAFC', borderBottom: '1.5px solid #E2E8F0' }}>
-                  <th style={{ width: '15%', padding: '13px 16px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#475569' }}>
+                  <th style={{ width: '14%', padding: '13px 16px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#475569' }}>
                     Date
                   </th>
                   <th style={{ width: '22%', padding: '13px 16px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#475569' }}>
                     Customer
                   </th>
-                  <th style={{ width: '13%', padding: '13px 16px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#475569' }}>
+                  <th style={{ width: '14%', padding: '13px 16px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#475569' }}>
                     Rating
                   </th>
-                  <th style={{ width: '38%', padding: '13px 16px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#475569' }}>
+                  <th style={{ width: '36%', padding: '13px 16px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#475569' }}>
                     Feedback Message
                   </th>
-                  <th style={{ width: '12%', padding: '13px 16px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#475569', textAlign: 'center' }}>
+                  <th style={{ width: '14%', padding: '13px 16px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#475569', textAlign: 'center' }}>
                     Visibility
                   </th>
                 </tr>
@@ -707,7 +707,7 @@ export default function AdminFeedbacksClient() {
                         <div style={{ width: '85%', height: '13px', borderRadius: '4px', background: '#F1F5F9' }} />
                       </td>
                       <td style={{ padding: '14px 16px', textAlign: 'center' }}>
-                        <div style={{ width: '50px', height: '22px', borderRadius: '999px', background: '#F1F5F9', margin: '0 auto' }} />
+                        <div style={{ width: '90px', height: '24px', borderRadius: '999px', background: '#F1F5F9', margin: '0 auto' }} />
                       </td>
                     </tr>
                   ))
@@ -789,8 +789,8 @@ export default function AdminFeedbacksClient() {
                             }}>
                               {(fb.customer_name || 'C').charAt(0).toUpperCase()}
                             </div>
-                            <div>
-                              <span style={{ fontWeight: '800', color: '#0F172A', fontSize: '13px', display: 'block', lineHeight: 1.2 }}>
+                            <div style={{ minWidth: 0 }}>
+                              <span style={{ fontWeight: '800', color: '#0F172A', fontSize: '13px', display: 'block', lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                 {fb.customer_name || 'Anonymous Customer'}
                               </span>
                               <span style={{
@@ -803,7 +803,7 @@ export default function AdminFeedbacksClient() {
                                 marginTop: '2px',
                               }}>
                                 <i className={fb.customer_name?.startsWith('Customer #') ? 'fa-solid fa-user-tag' : 'fa-solid fa-circle-check'} style={{ fontSize: '9px' }}></i>
-                                {fb.customer_name?.startsWith('Customer #') ? 'Guest Feedback' : 'Verified Buyer'}
+                                {fb.customer_name?.startsWith('Customer #') ? 'Guest' : 'Verified Buyer'}
                               </span>
                             </div>
                           </div>
@@ -823,39 +823,70 @@ export default function AdminFeedbacksClient() {
                           </div>
                         </td>
 
-                        {/* Message */}
+                        {/* Feedback Message */}
                         <td style={{ padding: '13px 16px', verticalAlign: 'middle' }}>
-                          <span style={{ fontSize: '12.5px', color: '#334155', lineHeight: 1.45, display: 'block' }}>
+                          <span style={{ fontSize: '12.5px', color: '#334155', lineHeight: 1.45, display: 'block', wordBreak: 'break-word' }}>
                             {fb.message}
                           </span>
                         </td>
 
                         {/* Visibility Option (Show / Hide) */}
                         <td style={{ padding: '13px 16px', verticalAlign: 'middle', textAlign: 'center' }}>
-                          <select
-                            value={isVisible ? 'visible' : 'hidden'}
-                            onChange={(e) => {
-                              const isSelectingHidden = e.target.value === 'hidden';
-                              if (isSelectingHidden === isVisible) {
-                                handleToggleFeedbackVisibility(fb);
-                              }
-                            }}
+                          <div
                             style={{
-                              border: isVisible ? '1.5px solid #86EFAC' : '1.5px solid #CBD5E1',
-                              background: isVisible ? '#ECFDF5' : '#F1F5F9',
-                              color: isVisible ? '#047857' : '#475569',
-                              padding: '5px 10px',
-                              borderRadius: '8px',
-                              fontSize: '11.5px',
-                              fontWeight: '800',
-                              cursor: 'pointer',
-                              outline: 'none',
-                              boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              background: '#F1F5F9',
+                              padding: '2.5px',
+                              borderRadius: '9999px',
+                              border: '1px solid #E2E8F0',
                             }}
                           >
-                            <option value="visible">👁 Visible (Show)</option>
-                            <option value="hidden">🙈 Hidden (Hide)</option>
-                          </select>
+                            <button
+                              type="button"
+                              onClick={() => { if (!isVisible) handleToggleFeedbackVisibility(fb); }}
+                              style={{
+                                border: 'none',
+                                padding: '4px 10px',
+                                borderRadius: '9999px',
+                                fontSize: '11px',
+                                fontWeight: '800',
+                                cursor: isVisible ? 'default' : 'pointer',
+                                background: isVisible ? '#10B981' : 'transparent',
+                                color: isVisible ? '#FFFFFF' : '#64748B',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                transition: 'all 0.15s ease',
+                              }}
+                              title={isVisible ? 'Currently visible on store' : 'Click to show on store'}
+                            >
+                              <i className="fa-solid fa-eye" style={{ fontSize: '9.5px' }} />
+                              <span>Show</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => { if (isVisible) handleToggleFeedbackVisibility(fb); }}
+                              style={{
+                                border: 'none',
+                                padding: '4px 10px',
+                                borderRadius: '9999px',
+                                fontSize: '11px',
+                                fontWeight: '800',
+                                cursor: !isVisible ? 'default' : 'pointer',
+                                background: !isVisible ? '#64748B' : 'transparent',
+                                color: !isVisible ? '#FFFFFF' : '#64748B',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                transition: 'all 0.15s ease',
+                              }}
+                              title={!isVisible ? 'Currently hidden from store' : 'Click to hide from store'}
+                            >
+                              <i className="fa-solid fa-eye-slash" style={{ fontSize: '9.5px' }} />
+                              <span>Hide</span>
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );
@@ -867,25 +898,25 @@ export default function AdminFeedbacksClient() {
         ) : (
           /* ── PRODUCT REVIEWS TABLE ── */
           <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', tableLayout: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', tableLayout: 'fixed' }}>
               <thead>
                 <tr style={{ background: '#F8FAFC', borderBottom: '1.5px solid #E2E8F0' }}>
-                  <th style={{ width: '15%', padding: '13px 16px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#475569' }}>
+                  <th style={{ width: '13%', padding: '13px 16px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#475569' }}>
                     Date
                   </th>
-                  <th style={{ width: '20%', padding: '13px 16px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#475569' }}>
+                  <th style={{ width: '18%', padding: '13px 16px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#475569' }}>
                     Customer
                   </th>
-                  <th style={{ width: '18%', padding: '13px 16px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#475569' }}>
+                  <th style={{ width: '17%', padding: '13px 16px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#475569' }}>
                     Product
                   </th>
-                  <th style={{ width: '13%', padding: '13px 16px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#475569' }}>
+                  <th style={{ width: '12%', padding: '13px 16px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#475569' }}>
                     Rating
                   </th>
-                  <th style={{ width: '22%', padding: '13px 16px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#475569' }}>
+                  <th style={{ width: '26%', padding: '13px 16px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#475569' }}>
                     Review Comment
                   </th>
-                  <th style={{ width: '12%', padding: '13px 16px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#475569', textAlign: 'center' }}>
+                  <th style={{ width: '14%', padding: '13px 16px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#475569', textAlign: 'center' }}>
                     Visibility
                   </th>
                 </tr>
@@ -894,7 +925,7 @@ export default function AdminFeedbacksClient() {
                 {loading ? (
                   [1, 2, 3, 4, 5].map((i) => (
                     <tr key={`skel-rev-${i}`} style={{ borderBottom: '1px solid #F1F5F9' }}>
-                      <td style={{ padding: '14px 18px' }}>
+                      <td style={{ padding: '14px 16px' }}>
                         <div style={{ width: '80px', height: '13px', borderRadius: '4px', background: 'linear-gradient(90deg, #F1F5F9 25%, #E2E8F0 50%, #F1F5F9 75%)', backgroundSize: '200% 100%', animation: 'shimmer 1.2s infinite ease-in-out' }} />
                       </td>
                       <td style={{ padding: '14px 16px' }}>
@@ -903,14 +934,14 @@ export default function AdminFeedbacksClient() {
                       <td style={{ padding: '14px 16px' }}>
                         <div style={{ width: '130px', height: '13px', borderRadius: '4px', background: '#F1F5F9' }} />
                       </td>
-                      <td style={{ padding: '14px 16px', textAlign: 'center' }}>
-                        <div style={{ width: '70px', height: '14px', borderRadius: '4px', background: '#F1F5F9', margin: '0 auto' }} />
+                      <td style={{ padding: '14px 16px' }}>
+                        <div style={{ width: '70px', height: '14px', borderRadius: '4px', background: '#F1F5F9' }} />
                       </td>
                       <td style={{ padding: '14px 16px' }}>
                         <div style={{ width: '80%', height: '13px', borderRadius: '4px', background: '#F1F5F9' }} />
                       </td>
-                      <td style={{ padding: '14px 18px', textAlign: 'center' }}>
-                        <div style={{ width: '50px', height: '22px', borderRadius: '999px', background: '#F1F5F9', margin: '0 auto' }} />
+                      <td style={{ padding: '14px 16px', textAlign: 'center' }}>
+                        <div style={{ width: '90px', height: '24px', borderRadius: '999px', background: '#F1F5F9', margin: '0 auto' }} />
                       </td>
                     </tr>
                   ))
@@ -959,12 +990,14 @@ export default function AdminFeedbacksClient() {
                         style={{
                           borderBottom: '1px solid #F1F5F9',
                           transition: 'background-color 0.12s ease',
+                          opacity: isLive ? 1 : 0.65,
+                          background: isLive ? 'transparent' : '#FAFAFA',
                         }}
-                        onMouseEnter={(e) => (e.currentTarget.style.background = '#FAFBFD')}
-                        onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                        onMouseEnter={(e) => (e.currentTarget.style.background = isLive ? '#FAFBFD' : '#F5F5F5')}
+                        onMouseLeave={(e) => (e.currentTarget.style.background = isLive ? 'transparent' : '#FAFAFA')}
                       >
                         {/* Date */}
-                        <td style={{ padding: '13px 18px', verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
+                        <td style={{ padding: '13px 16px', verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
                           <span style={{ fontSize: '12.5px', fontWeight: '800', color: '#0F172A', display: 'block' }}>
                             {formatDate(rev.created_at)}
                           </span>
@@ -992,8 +1025,8 @@ export default function AdminFeedbacksClient() {
                             }}>
                               {(rev.customer_name || 'C').charAt(0).toUpperCase()}
                             </div>
-                            <div>
-                              <span style={{ fontWeight: '800', color: '#0F172A', fontSize: '13px', display: 'block', lineHeight: 1.2 }}>
+                            <div style={{ minWidth: 0 }}>
+                              <span style={{ fontWeight: '800', color: '#0F172A', fontSize: '13px', display: 'block', lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                                 {rev.customer_name || 'Customer'}
                               </span>
                               <span style={{
@@ -1021,6 +1054,9 @@ export default function AdminFeedbacksClient() {
                                 fontWeight: '700',
                                 color: '#0F172A',
                                 textTransform: 'capitalize',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
                               }}
                             >
                               {productName}
@@ -1029,7 +1065,7 @@ export default function AdminFeedbacksClient() {
                               <Link
                                 href={`/shop/${productSlug}`}
                                 target="_blank"
-                                style={{ color: 'var(--color-primary, #EA580C)', fontSize: '11px' }}
+                                style={{ color: 'var(--color-primary, #EA580C)', fontSize: '11px', flexShrink: 0 }}
                                 title="View product in shop"
                               >
                                 <i className="fa-solid fa-arrow-up-right-from-square"></i>
@@ -1039,7 +1075,7 @@ export default function AdminFeedbacksClient() {
                         </td>
 
                         {/* Rating */}
-                        <td style={{ padding: '13px 16px', verticalAlign: 'middle', textAlign: 'center' }}>
+                        <td style={{ padding: '13px 16px', verticalAlign: 'middle' }}>
                           <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                             <div style={{ display: 'inline-flex', gap: '2px', color: '#F59E0B', fontSize: '11px' }}>
                               {[...Array(rev.rating || 5)].map((_, i) => (
@@ -1054,37 +1090,68 @@ export default function AdminFeedbacksClient() {
 
                         {/* Review Comment */}
                         <td style={{ padding: '13px 16px', verticalAlign: 'middle' }}>
-                          <span style={{ fontSize: '12.5px', color: '#334155', lineHeight: 1.45, display: 'block' }}>
+                          <span style={{ fontSize: '12.5px', color: '#334155', lineHeight: 1.45, display: 'block', wordBreak: 'break-word' }}>
                             {rev.comment}
                           </span>
                         </td>
 
                         {/* Visibility Option (Show / Hide) */}
                         <td style={{ padding: '13px 16px', verticalAlign: 'middle', textAlign: 'center' }}>
-                          <select
-                            value={isLive ? 'visible' : 'hidden'}
-                            onChange={(e) => {
-                              const isSelectingHidden = e.target.value === 'hidden';
-                              if (isSelectingHidden === isLive) {
-                                handleToggleApprove(rev);
-                              }
-                            }}
+                          <div
                             style={{
-                              border: isLive ? '1.5px solid #86EFAC' : '1.5px solid #CBD5E1',
-                              background: isLive ? '#ECFDF5' : '#F1F5F9',
-                              color: isLive ? '#047857' : '#475569',
-                              padding: '5px 10px',
-                              borderRadius: '8px',
-                              fontSize: '11.5px',
-                              fontWeight: '800',
-                              cursor: 'pointer',
-                              outline: 'none',
-                              boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              background: '#F1F5F9',
+                              padding: '2.5px',
+                              borderRadius: '9999px',
+                              border: '1px solid #E2E8F0',
                             }}
                           >
-                            <option value="visible">👁 Visible (Show)</option>
-                            <option value="hidden">🙈 Hidden (Hide)</option>
-                          </select>
+                            <button
+                              type="button"
+                              onClick={() => { if (!isLive) handleToggleApprove(rev); }}
+                              style={{
+                                border: 'none',
+                                padding: '4px 10px',
+                                borderRadius: '9999px',
+                                fontSize: '11px',
+                                fontWeight: '800',
+                                cursor: isLive ? 'default' : 'pointer',
+                                background: isLive ? '#10B981' : 'transparent',
+                                color: isLive ? '#FFFFFF' : '#64748B',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                transition: 'all 0.15s ease',
+                              }}
+                              title={isLive ? 'Currently visible on store' : 'Click to show on store'}
+                            >
+                              <i className="fa-solid fa-eye" style={{ fontSize: '9.5px' }} />
+                              <span>Show</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => { if (isLive) handleToggleApprove(rev); }}
+                              style={{
+                                border: 'none',
+                                padding: '4px 10px',
+                                borderRadius: '9999px',
+                                fontSize: '11px',
+                                fontWeight: '800',
+                                cursor: !isLive ? 'default' : 'pointer',
+                                background: !isLive ? '#64748B' : 'transparent',
+                                color: !isLive ? '#FFFFFF' : '#64748B',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                transition: 'all 0.15s ease',
+                              }}
+                              title={!isLive ? 'Currently hidden from store' : 'Click to hide from store'}
+                            >
+                              <i className="fa-solid fa-eye-slash" style={{ fontSize: '9.5px' }} />
+                              <span>Hide</span>
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );

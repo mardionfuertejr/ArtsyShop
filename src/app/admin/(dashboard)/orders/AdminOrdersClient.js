@@ -56,6 +56,7 @@ export default function AdminOrdersClient({ initialOrders }) {
     return resolveAutoStatus(MOCK_ORDERS);
   });
   const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
+  const [verificationTab, setVerificationTab] = useState('verified'); // 'verified' | 'unsent' | 'all'
   const [statusFilter, setStatusFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [toastMsg, setToastMsg] = useState('');
@@ -386,9 +387,17 @@ export default function AdminOrdersClient({ initialOrders }) {
     setTimeout(() => setToastMsg(''), 3000);
   };
 
-  const activeStatusObj = statuses.find(s => s.key === statusFilter) || statuses[0];
+  const isOrderUnsent = (o) => !o.sent_to_messenger && !o.messenger_opened_at && (o.status === 'pending' || o.status === 'submitted');
+  const unsentCount = orders.filter(isOrderUnsent).length;
+  const verifiedCount = orders.filter(o => !isOrderUnsent(o)).length;
 
   const filteredOrders = orders.filter((o) => {
+    // 1. Messenger Verification Gatekeep
+    const unverified = isOrderUnsent(o);
+    if (verificationTab === 'verified' && unverified) return false;
+    if (verificationTab === 'unsent' && !unverified) return false;
+
+    // 2. Status Filter
     const matchesStatus =
       statusFilter === 'all' ||
       (statusFilter === 'submitted' && (o.status === 'submitted' || o.status === 'pending' || o.status === 'for_confirmation')) ||
@@ -585,23 +594,102 @@ export default function AdminOrdersClient({ initialOrders }) {
       {/* Header Row: Title on Left, Combined Search/Filter + Sync on Right */}
       <div style={{ marginBottom: '18px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '14px', flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
-            <h1 className="admin-page-title" style={{ margin: 0, fontSize: '22px', fontWeight: '800' }}>
-              Orders Management
-            </h1>
-            <span style={{
-              background: 'rgba(180, 83, 9, 0.1)',
-              color: 'var(--color-primary, #b45309)',
-              fontSize: '12px',
-              fontWeight: '700',
-              padding: '2px 9px',
-              borderRadius: '9999px',
-              minWidth: '65px',
-              textAlign: 'center',
-              display: 'inline-block',
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
+              <h1 className="admin-page-title" style={{ margin: 0, fontSize: '22px', fontWeight: '800' }}>
+                Orders Management
+              </h1>
+              <span style={{
+                background: 'rgba(180, 83, 9, 0.1)',
+                color: 'var(--color-primary, #b45309)',
+                fontSize: '12px',
+                fontWeight: '700',
+                padding: '2px 9px',
+                borderRadius: '9999px',
+                minWidth: '65px',
+                textAlign: 'center',
+                display: 'inline-block',
+              }}>
+                {filteredOrders.length} {filteredOrders.length === 1 ? 'Order' : 'Orders'}
+              </span>
+            </div>
+
+            {/* Messenger Verification Toggle Tabs */}
+            <div style={{
+              display: 'inline-flex',
+              background: '#F1F5F9',
+              padding: '3px',
+              borderRadius: '10px',
+              gap: '2px',
             }}>
-              {filteredOrders.length} {filteredOrders.length === 1 ? 'Order' : 'Orders'}
-            </span>
+              <button
+                type="button"
+                onClick={() => setVerificationTab('verified')}
+                style={{
+                  border: 'none',
+                  background: verificationTab === 'verified' ? '#FFFFFF' : 'transparent',
+                  color: verificationTab === 'verified' ? '#0F172A' : '#64748B',
+                  fontWeight: verificationTab === 'verified' ? '700' : '600',
+                  fontSize: '12px',
+                  padding: '5px 12px',
+                  borderRadius: '7px',
+                  boxShadow: verificationTab === 'verified' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                <i className="fa-solid fa-check-circle" style={{ color: verificationTab === 'verified' ? '#10B981' : '#94A3B8', fontSize: '11px' }}></i>
+                <span>Verified ({verifiedCount})</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setVerificationTab('unsent')}
+                style={{
+                  border: 'none',
+                  background: verificationTab === 'unsent' ? '#FFFFFF' : 'transparent',
+                  color: verificationTab === 'unsent' ? '#EA580C' : '#64748B',
+                  fontWeight: verificationTab === 'unsent' ? '700' : '600',
+                  fontSize: '12px',
+                  padding: '5px 12px',
+                  borderRadius: '7px',
+                  boxShadow: verificationTab === 'unsent' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                <i className="fa-brands fa-facebook-messenger" style={{ color: verificationTab === 'unsent' ? '#EA580C' : '#94A3B8', fontSize: '11px' }}></i>
+                <span>Unsent / Drafts ({unsentCount})</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setVerificationTab('all')}
+                style={{
+                  border: 'none',
+                  background: verificationTab === 'all' ? '#FFFFFF' : 'transparent',
+                  color: verificationTab === 'all' ? '#0F172A' : '#64748B',
+                  fontWeight: verificationTab === 'all' ? '700' : '600',
+                  fontSize: '12px',
+                  padding: '5px 12px',
+                  borderRadius: '7px',
+                  boxShadow: verificationTab === 'all' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                <span>All ({orders.length})</span>
+              </button>
+            </div>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>

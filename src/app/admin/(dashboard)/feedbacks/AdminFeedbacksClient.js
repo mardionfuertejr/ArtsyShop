@@ -244,136 +244,22 @@ export default function AdminFeedbacksClient() {
           >
             {allItems.length} Total
           </span>
-        </div>
-      </div>
-
-      {/* Concise KPI Cards */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-          gap: '12px',
-        }}
-      >
-        {/* Average Rating */}
-        <div
-          style={{
-            background: '#FFFFFF',
-            borderRadius: '14px',
-            padding: '16px 20px',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
-            border: '1px solid #F1F5F9',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-          }}
-        >
-          <div>
-            <p style={{ fontSize: '11px', fontWeight: '800', color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.04em', margin: '0 0 4px' }}>
-              Average Rating
-            </p>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: '5px' }}>
-              <span style={{ fontSize: '24px', fontWeight: '900', color: '#0F172A', lineHeight: 1 }}>{avgRating}</span>
-              <span style={{ fontSize: '12px', color: '#94A3B8', fontWeight: '700' }}>/ 5.0</span>
-            </div>
-          </div>
-          <div
+          <span
             style={{
-              width: '42px',
-              height: '42px',
-              borderRadius: '11px',
               background: '#FEF3C7',
               color: '#D97706',
-              display: 'flex',
+              fontSize: '12px',
+              fontWeight: '800',
+              padding: '2.5px 9px',
+              borderRadius: '9999px',
+              display: 'inline-flex',
               alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '18px',
+              gap: '4px',
             }}
           >
-            <i className="fa-solid fa-star"></i>
-          </div>
-        </div>
-
-        {/* Customer Feedbacks */}
-        <div
-          onClick={() => setActiveTab('feedbacks')}
-          style={{
-            background: '#FFFFFF',
-            borderRadius: '14px',
-            padding: '16px 20px',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
-            border: activeTab === 'feedbacks' ? '2px solid var(--color-primary, #EA580C)' : '1px solid #F1F5F9',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            transition: 'all 0.15s ease',
-          }}
-        >
-          <div>
-            <p style={{ fontSize: '11px', fontWeight: '800', color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.04em', margin: '0 0 4px' }}>
-              Customer Feedbacks
-            </p>
-            <span style={{ fontSize: '24px', fontWeight: '900', color: 'var(--color-primary, #EA580C)', lineHeight: 1 }}>
-              {feedbacks.length}
-            </span>
-          </div>
-          <div
-            style={{
-              width: '42px',
-              height: '42px',
-              borderRadius: '11px',
-              background: '#FFF5F2',
-              color: 'var(--color-primary, #EA580C)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '18px',
-            }}
-          >
-            <i className="fa-regular fa-comments"></i>
-          </div>
-        </div>
-
-        {/* Product Reviews */}
-        <div
-          onClick={() => setActiveTab('reviews')}
-          style={{
-            background: '#FFFFFF',
-            borderRadius: '14px',
-            padding: '16px 20px',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
-            border: activeTab === 'reviews' ? '2px solid var(--color-primary, #EA580C)' : '1px solid #F1F5F9',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            transition: 'all 0.15s ease',
-          }}
-        >
-          <div>
-            <p style={{ fontSize: '11px', fontWeight: '800', color: '#64748B', textTransform: 'uppercase', letterSpacing: '0.04em', margin: '0 0 4px' }}>
-              Product Reviews
-            </p>
-            <span style={{ fontSize: '24px', fontWeight: '900', color: '#0EA5E9', lineHeight: 1 }}>
-              {reviews.length}
-            </span>
-          </div>
-          <div
-            style={{
-              width: '42px',
-              height: '42px',
-              borderRadius: '11px',
-              background: '#EFF6FF',
-              color: '#0EA5E9',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '18px',
-            }}
-          >
-            <i className="fa-solid fa-award"></i>
-          </div>
+            <i className="fa-solid fa-star" style={{ fontSize: '11px' }}></i>
+            {avgRating} Avg Rating
+          </span>
         </div>
       </div>
 
@@ -416,7 +302,7 @@ export default function AdminFeedbacksClient() {
               transition: 'all 0.15s ease',
             }}
           >
-            <i className="fa-regular fa-comments"></i>
+            <i className="fa-solid fa-comments"></i>
             <span>Customer Feedbacks ({feedbacks.length})</span>
           </button>
 
@@ -439,7 +325,7 @@ export default function AdminFeedbacksClient() {
               transition: 'all 0.15s ease',
             }}
           >
-            <i className="fa-regular fa-star"></i>
+            <i className="fa-solid fa-star"></i>
             <span>Product Reviews ({reviews.length})</span>
           </button>
         </div>

@@ -1425,18 +1425,18 @@ function TrackContent() {
                   <div style={{
                     background: '#EFF6FF',
                     border: '1px solid #BFDBFE',
-                    borderRadius: 'var(--radius-lg)',
-                    padding: '8px 12px',
-                    marginBottom: '12px',
+                    borderRadius: 'var(--radius-lg, 12px)',
+                    padding: '10px 14px',
+                    marginBottom: '14px',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
-                    gap: '8px',
-                    flexWrap: 'nowrap',
+                    gap: '10px',
+                    flexWrap: 'wrap',
                   }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '7px', minWidth: 0, flex: 1 }}>
-                      <i className="fa-brands fa-facebook-messenger" style={{ color: '#0866FF', fontSize: '16px', flexShrink: 0 }}></i>
-                      <span style={{ fontSize: '11.5px', color: '#1E40AF', fontWeight: '700', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '9px', minWidth: 0, flex: 1 }}>
+                      <i className="fa-brands fa-facebook-messenger" style={{ color: '#0866FF', fontSize: '18px', flexShrink: 0 }}></i>
+                      <span style={{ fontSize: '12px', color: '#1E40AF', fontWeight: '700', lineHeight: 1.35 }}>
                         Send receipt to Messenger to confirm
                       </span>
                     </div>
@@ -1444,22 +1444,23 @@ function TrackContent() {
                       href={`/confirmation/${order.reference_code}`}
                       className="btn-press"
                       style={{
-                        padding: '4px 10px',
+                        padding: '6px 12px',
                         background: '#0866FF',
                         color: '#FFFFFF',
-                        borderRadius: 'var(--radius-full)',
-                        fontSize: '11px',
+                        borderRadius: 'var(--radius-full, 9999px)',
+                        fontSize: '11.5px',
                         fontWeight: '700',
                         textDecoration: 'none',
                         display: 'inline-flex',
                         alignItems: 'center',
-                        gap: '4px',
+                        gap: '5px',
                         flexShrink: 0,
                         whiteSpace: 'nowrap',
+                        boxShadow: '0 2px 6px rgba(8, 102, 255, 0.25)',
                       }}
                     >
                       <span>Send Now</span>
-                      <i className="fa-solid fa-arrow-right" style={{ fontSize: '8.5px' }}></i>
+                      <i className="fa-solid fa-arrow-right" style={{ fontSize: '9px' }}></i>
                     </Link>
                   </div>
                 )}

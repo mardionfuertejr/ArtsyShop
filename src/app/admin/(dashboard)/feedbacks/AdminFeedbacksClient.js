@@ -686,7 +686,7 @@ export default function AdminFeedbacksClient() {
                     Feedback Message
                   </th>
                   <th style={{ width: '12%', padding: '13px 16px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#475569', textAlign: 'center' }}>
-                    Storefront
+                    Visibility
                   </th>
                 </tr>
               </thead>
@@ -830,55 +830,32 @@ export default function AdminFeedbacksClient() {
                           </span>
                         </td>
 
-                        {/* Storefront Visibility & Actions */}
+                        {/* Visibility Option (Show / Hide) */}
                         <td style={{ padding: '13px 16px', verticalAlign: 'middle', textAlign: 'center' }}>
-                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
-                            <button
-                              type="button"
-                              onClick={() => handleToggleFeedbackVisibility(fb)}
-                              style={{
-                                border: isVisible ? '1px solid #86EFAC' : '1px solid #CBD5E1',
-                                background: isVisible ? '#DCFCE7' : '#F1F5F9',
-                                color: isVisible ? '#166534' : '#64748B',
-                                padding: '4px 10px',
-                                borderRadius: '9999px',
-                                fontSize: '11px',
-                                fontWeight: '800',
-                                cursor: 'pointer',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '4px',
-                                transition: 'all 0.15s ease',
-                                whiteSpace: 'nowrap',
-                              }}
-                              title={isVisible ? 'Click to hide from store' : 'Click to unhide / show on store'}
-                            >
-                              <i className={isVisible ? 'fa-solid fa-eye' : 'fa-solid fa-eye-slash'} style={{ fontSize: '10px' }}></i>
-                              <span>{isVisible ? 'Live' : 'Hidden'}</span>
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteFeedback(fb.id)}
-                              style={{
-                                width: '28px',
-                                height: '28px',
-                                borderRadius: '7px',
-                                background: '#FEE2E2',
-                                color: '#DC2626',
-                                border: 'none',
-                                cursor: 'pointer',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                fontSize: '11px',
-                                transition: 'all 0.15s ease',
-                              }}
-                              title="Delete feedback"
-                            >
-                              <i className="fa-regular fa-trash-can" />
-                            </button>
-                          </div>
+                          <select
+                            value={isVisible ? 'visible' : 'hidden'}
+                            onChange={(e) => {
+                              const isSelectingHidden = e.target.value === 'hidden';
+                              if (isSelectingHidden === isVisible) {
+                                handleToggleFeedbackVisibility(fb);
+                              }
+                            }}
+                            style={{
+                              border: isVisible ? '1.5px solid #86EFAC' : '1.5px solid #CBD5E1',
+                              background: isVisible ? '#ECFDF5' : '#F1F5F9',
+                              color: isVisible ? '#047857' : '#475569',
+                              padding: '5px 10px',
+                              borderRadius: '8px',
+                              fontSize: '11.5px',
+                              fontWeight: '800',
+                              cursor: 'pointer',
+                              outline: 'none',
+                              boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+                            }}
+                          >
+                            <option value="visible">👁 Visible (Show)</option>
+                            <option value="hidden">🙈 Hidden (Hide)</option>
+                          </select>
                         </td>
                       </tr>
                     );
@@ -909,7 +886,7 @@ export default function AdminFeedbacksClient() {
                     Review Comment
                   </th>
                   <th style={{ width: '12%', padding: '13px 16px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#475569', textAlign: 'center' }}>
-                    Storefront
+                    Visibility
                   </th>
                 </tr>
               </thead>
@@ -1082,55 +1059,32 @@ export default function AdminFeedbacksClient() {
                           </span>
                         </td>
 
-                        {/* Storefront Visibility & Actions */}
-                        <td style={{ padding: '13px 18px', verticalAlign: 'middle', textAlign: 'center' }}>
-                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
-                            <button
-                              type="button"
-                              onClick={() => handleToggleApprove(rev)}
-                              style={{
-                                border: isLive ? '1px solid #86EFAC' : '1px solid #CBD5E1',
-                                background: isLive ? '#DCFCE7' : '#F1F5F9',
-                                color: isLive ? '#166534' : '#64748B',
-                                padding: '4px 10px',
-                                borderRadius: '9999px',
-                                fontSize: '11px',
-                                fontWeight: '800',
-                                cursor: 'pointer',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '4px',
-                                transition: 'all 0.15s ease',
-                                whiteSpace: 'nowrap',
-                              }}
-                              title={isLive ? 'Click to hide from store' : 'Click to show on store'}
-                            >
-                              <i className={isLive ? 'fa-solid fa-eye' : 'fa-solid fa-eye-slash'} style={{ fontSize: '10px' }}></i>
-                              <span>{isLive ? 'Live' : 'Hidden'}</span>
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteReview(rev.id)}
-                              style={{
-                                width: '28px',
-                                height: '28px',
-                                borderRadius: '7px',
-                                background: '#FEE2E2',
-                                color: '#DC2626',
-                                border: 'none',
-                                cursor: 'pointer',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                fontSize: '11px',
-                                transition: 'all 0.15s ease',
-                              }}
-                              title="Delete review"
-                            >
-                              <i className="fa-regular fa-trash-can" />
-                            </button>
-                          </div>
+                        {/* Visibility Option (Show / Hide) */}
+                        <td style={{ padding: '13px 16px', verticalAlign: 'middle', textAlign: 'center' }}>
+                          <select
+                            value={isLive ? 'visible' : 'hidden'}
+                            onChange={(e) => {
+                              const isSelectingHidden = e.target.value === 'hidden';
+                              if (isSelectingHidden === isLive) {
+                                handleToggleApprove(rev);
+                              }
+                            }}
+                            style={{
+                              border: isLive ? '1.5px solid #86EFAC' : '1.5px solid #CBD5E1',
+                              background: isLive ? '#ECFDF5' : '#F1F5F9',
+                              color: isLive ? '#047857' : '#475569',
+                              padding: '5px 10px',
+                              borderRadius: '8px',
+                              fontSize: '11.5px',
+                              fontWeight: '800',
+                              cursor: 'pointer',
+                              outline: 'none',
+                              boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+                            }}
+                          >
+                            <option value="visible">👁 Visible (Show)</option>
+                            <option value="hidden">🙈 Hidden (Hide)</option>
+                          </select>
                         </td>
                       </tr>
                     );

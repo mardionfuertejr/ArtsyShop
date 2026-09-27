@@ -11,6 +11,7 @@ import { useCart } from '@/lib/hooks/useCart';
 import { createClient } from '@/lib/supabase/client';
 import { formatCurrency } from '@/lib/utils/formatCurrency';
 import { formatDate, formatDateShort, formatRelative, formatTime12Hour } from '@/lib/utils/formatDate';
+import { formatOrderSummary } from '@/lib/utils/formatOrderSummary';
 import { MESSENGER_URL } from '@/lib/constants/customPrompts';
 import { openExternalSafe, openMessengerDirect } from '@/lib/utils/browserNav';
 import { getAllMockOrders } from '@/lib/mockData';
@@ -285,6 +286,40 @@ function TrackContent() {
       }
       setTimeout(() => setCopiedRef(false), 2500);
     } catch {}
+  };
+
+  const handleSendReceiptToMessenger = () => {
+    if (!order) return;
+    const msg = formatOrderSummary(order);
+    handleCopyRef(msg);
+    const nowIso = new Date().toISOString();
+    const code = order.reference_code;
+    setOrder((prev) => (prev ? { ...prev, sent_to_messenger: true, messenger_opened_at: nowIso } : prev));
+    try {
+      if (code && typeof window !== 'undefined') {
+        const mockRaw = localStorage.getItem('likha_mock_orders');
+        if (mockRaw) {
+          const list = JSON.parse(mockRaw);
+          const idx = list.findIndex((o) => o.reference_code === code || o.referenceCode === code);
+          if (idx !== -1) {
+            list[idx].messenger_opened_at = nowIso;
+            list[idx].sent_to_messenger = true;
+            localStorage.setItem('likha_mock_orders', JSON.stringify(list));
+          }
+        }
+        const adminRaw = localStorage.getItem('likha_admin_orders');
+        if (adminRaw) {
+          const aList = JSON.parse(adminRaw);
+          const aIdx = aList.findIndex((o) => o.reference_code === code || o.referenceCode === code);
+          if (aIdx !== -1) {
+            aList[aIdx].messenger_opened_at = nowIso;
+            aList[aIdx].sent_to_messenger = true;
+            localStorage.setItem('likha_admin_orders', JSON.stringify(aList));
+          }
+        }
+      }
+    } catch {}
+    openMessengerDirect(msg);
   };
 
   const handleSearch = async (ref) => {
@@ -1441,8 +1476,9 @@ function TrackContent() {
                         Send receipt on Messenger
                       </span>
                     </div>
-                    <Link
-                      href={`/confirmation/${order.reference_code}`}
+                    <button
+                      type="button"
+                      onClick={handleSendReceiptToMessenger}
                       className="btn-press"
                       style={{
                         height: '28px',
@@ -1452,7 +1488,8 @@ function TrackContent() {
                         borderRadius: 'var(--radius-full, 9999px)',
                         fontSize: '11px',
                         fontWeight: '700',
-                        textDecoration: 'none',
+                        border: 'none',
+                        cursor: 'pointer',
                         display: 'inline-flex',
                         alignItems: 'center',
                         gap: '4px',
@@ -1463,7 +1500,7 @@ function TrackContent() {
                     >
                       <span>Send Now</span>
                       <i className="fa-solid fa-arrow-right" style={{ fontSize: '8.5px' }}></i>
-                    </Link>
+                    </button>
                   </div>
                 )}
 
@@ -1869,15 +1906,15 @@ function TrackContent() {
                   </h3>
                 </div>
                 <p style={{ fontSize: '12px', color: 'var(--color-text-secondary)', margin: '0 0 10px 0', lineHeight: 1.4 }}>
-                  Pumili ng template sa ibaba para kusa itong makopya at direktang magbukas sa chatbox:
+                  Tap a quick message below to copy and open Messenger:
                 </p>
 
                 {/* Quick Template Chips */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                   {[
-                    { label: 'Follow up on order status', text: `Hi M&M Artsy! Following up on my order: ${order.reference_code}. May update na po ba?` },
-                    { label: 'Ask about delivery time', text: `Hi M&M Artsy! Anong oras po estimated delivery ng order kong ${order.reference_code}?` },
-                    { label: 'Update delivery address or notes', text: `Hi M&M Artsy! Pwede po mag-update ng delivery details para sa ${order.reference_code}?` },
+                    { label: 'Follow up on order status', text: `Hi M&M Artsy! Following up on my order: ${order.reference_code}. Any updates po?` },
+                    { label: 'Ask about delivery time', text: `Hi M&M Artsy! What is the estimated delivery time for order ${order.reference_code}?` },
+                    { label: 'Update delivery details', text: `Hi M&M Artsy! Can I update my delivery details for order ${order.reference_code}?` },
                   ].map((item, idx) => (
                     <button
                       key={idx}
@@ -1919,7 +1956,7 @@ function TrackContent() {
                     fontWeight: '600',
                     textAlign: 'center',
                   }}>
-                    ✓ Kopyado na sa clipboard! I-paste lang sa chatbox.
+                    ✓ Copied to clipboard! Ready to paste in Messenger.
                   </div>
                 )}
               </div>

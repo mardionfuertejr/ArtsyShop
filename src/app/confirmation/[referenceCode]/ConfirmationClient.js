@@ -734,32 +734,6 @@ export default function ConfirmationClient({ order: serverOrder, referenceCode }
 
         {/* ── ACTION BUTTONS ── */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', width: '100%', boxSizing: 'border-box' }}>
-          {/* Send to Messenger Button (Primary Action for Verification) */}
-          <button
-            type="button"
-            onClick={handleOpenMessenger}
-            className="btn btn-primary no-print"
-            id="send-messenger-btn"
-            style={{
-              height: '48px',
-              fontSize: '14px',
-              fontWeight: '700',
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '8px',
-              borderRadius: 'var(--radius-xl)',
-              background: 'linear-gradient(135deg, #0084FF 0%, #0062E0 100%)',
-              color: '#FFFFFF',
-              border: 'none',
-              boxShadow: '0 4px 14px rgba(0, 132, 255, 0.35)',
-              cursor: 'pointer',
-              width: '100%',
-            }}
-          >
-            <i className="fa-brands fa-facebook-messenger" style={{ fontSize: '1.1rem' }}></i>
-            <span>{copiedReceipt || order.sent_to_messenger ? 'Order Sent to Messenger ✓' : 'Send Order to Messenger'}</span>
-          </button>
 
           {/* Preview & Save Receipt Button */}
           <button

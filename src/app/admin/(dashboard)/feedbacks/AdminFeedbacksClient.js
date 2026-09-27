@@ -722,9 +722,41 @@ export default function AdminFeedbacksClient() {
 
                       {/* Customer */}
                       <td style={{ padding: '13px 16px', verticalAlign: 'middle' }}>
-                        <span style={{ fontWeight: '800', color: '#0F172A', fontSize: '13px' }}>
-                          {fb.customer_name || 'Anonymous'}
-                        </span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '9px' }}>
+                          <div style={{
+                            width: '32px',
+                            height: '32px',
+                            borderRadius: '50%',
+                            background: 'linear-gradient(135deg, #FFF5F2 0%, #FED7AA 100%)',
+                            color: 'var(--color-primary, #EA580C)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '12px',
+                            fontWeight: '800',
+                            flexShrink: 0,
+                            boxShadow: '0 1px 3px rgba(234, 88, 12, 0.15)',
+                          }}>
+                            {(fb.customer_name || 'C').charAt(0).toUpperCase()}
+                          </div>
+                          <div>
+                            <span style={{ fontWeight: '800', color: '#0F172A', fontSize: '13px', display: 'block', lineHeight: 1.2 }}>
+                              {fb.customer_name || 'Anonymous Customer'}
+                            </span>
+                            <span style={{
+                              fontSize: '10.5px',
+                              fontWeight: '700',
+                              color: fb.customer_name?.startsWith('Customer #') ? '#64748B' : '#16A34A',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '3px',
+                              marginTop: '2px',
+                            }}>
+                              <i className={fb.customer_name?.startsWith('Customer #') ? 'fa-solid fa-user-tag' : 'fa-solid fa-circle-check'} style={{ fontSize: '9px' }}></i>
+                              {fb.customer_name?.startsWith('Customer #') ? 'Guest Feedback' : 'Verified Buyer'}
+                            </span>
+                          </div>
+                        </div>
                       </td>
 
                       {/* Rating */}
@@ -864,9 +896,41 @@ export default function AdminFeedbacksClient() {
 
                         {/* Customer */}
                         <td style={{ padding: '13px 16px', verticalAlign: 'middle' }}>
-                          <span style={{ fontWeight: '800', color: '#0F172A', fontSize: '13px' }}>
-                            {rev.customer_name || 'Customer'}
-                          </span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '9px' }}>
+                            <div style={{
+                              width: '32px',
+                              height: '32px',
+                              borderRadius: '50%',
+                              background: 'linear-gradient(135deg, #EFF6FF 0%, #BFDBFE 100%)',
+                              color: '#0284C7',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              fontSize: '12px',
+                              fontWeight: '800',
+                              flexShrink: 0,
+                              boxShadow: '0 1px 3px rgba(2, 132, 199, 0.15)',
+                            }}>
+                              {(rev.customer_name || 'C').charAt(0).toUpperCase()}
+                            </div>
+                            <div>
+                              <span style={{ fontWeight: '800', color: '#0F172A', fontSize: '13px', display: 'block', lineHeight: 1.2 }}>
+                                {rev.customer_name || 'Customer'}
+                              </span>
+                              <span style={{
+                                fontSize: '10.5px',
+                                fontWeight: '700',
+                                color: '#16A34A',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '3px',
+                                marginTop: '2px',
+                              }}>
+                                <i className="fa-solid fa-circle-check" style={{ fontSize: '9px' }}></i>
+                                Verified Review
+                              </span>
+                            </div>
+                          </div>
                         </td>
 
                         {/* Product */}

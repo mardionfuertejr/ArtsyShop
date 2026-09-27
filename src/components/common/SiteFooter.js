@@ -67,6 +67,7 @@ export default function SiteFooter({ className = '', style = {} }) {
   const [mounted, setMounted] = useState(false);
 
   // Form State
+  const [customerName, setCustomerName] = useState('');
   const [rating, setRating] = useState(0);
   const [message, setMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -77,10 +78,30 @@ export default function SiteFooter({ className = '', style = {} }) {
     setMounted(true);
   }, []);
 
-  // Lock body scroll when modal is open
+  // Lock body scroll and auto-fill customer name when modal is open
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
+      try {
+        if (!customerName) {
+          const guestRaw = localStorage.getItem('likha_guest_info');
+          if (guestRaw) {
+            const parsed = JSON.parse(guestRaw);
+            if (parsed.name || parsed.facebookName) {
+              setCustomerName(parsed.name || parsed.facebookName);
+            }
+          }
+          if (!customerName) {
+            const myOrdersRaw = localStorage.getItem('likha_my_orders');
+            if (myOrdersRaw) {
+              const myOrders = JSON.parse(myOrdersRaw);
+              if (myOrders?.[0]?.customerName) {
+                setCustomerName(myOrders[0].customerName);
+              }
+            }
+          }
+        }
+      } catch {}
     } else {
       document.body.style.overflow = '';
     }
@@ -94,7 +115,32 @@ export default function SiteFooter({ className = '', style = {} }) {
     if (!message.trim()) return;
 
     setSubmitting(true);
-    const randomId = Math.floor(1000 + Math.random() * 9000);
+
+    let finalCustomerName = customerName.trim();
+    if (!finalCustomerName) {
+      try {
+        const guestRaw = localStorage.getItem('likha_guest_info');
+        if (guestRaw) {
+          const parsed = JSON.parse(guestRaw);
+          finalCustomerName = parsed.name || parsed.facebookName || '';
+        }
+        if (!finalCustomerName) {
+          const myOrdersRaw = localStorage.getItem('likha_my_orders');
+          if (myOrdersRaw) {
+            const myOrders = JSON.parse(myOrdersRaw);
+            if (myOrders?.[0]?.customerName) {
+              finalCustomerName = myOrders[0].customerName;
+            }
+          }
+        }
+      } catch {}
+    }
+
+    if (!finalCustomerName) {
+      const randomId = Math.floor(1000 + Math.random() * 9000);
+      finalCustomerName = `Customer #${randomId}`;
+    }
+
     const randomPakilig = PAKILIG_MESSAGES[Math.floor(Math.random() * PAKILIG_MESSAGES.length)];
     setActivePakilig(randomPakilig);
 
@@ -102,7 +148,7 @@ export default function SiteFooter({ className = '', style = {} }) {
       rating: rating || 5,
       topic: 'Customer Feedback',
       message: message.trim(),
-      customer_name: `Customer #${randomId}`,
+      customer_name: finalCustomerName,
     };
 
     try {
@@ -388,6 +434,41 @@ export default function SiteFooter({ className = '', style = {} }) {
                       </button>
                     ))}
                   </div>
+                </div>
+
+                {/* Customer Name Input */}
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                    <label style={{ fontSize: '12.5px', fontWeight: '700', color: 'var(--color-text)', margin: 0 }}>
+                      Your Name / Facebook Name
+                    </label>
+                    <span style={{ fontSize: '11px', color: 'var(--color-text-muted, #94A3B8)' }}>Optional</span>
+                  </div>
+                  <input
+                    type="text"
+                    value={customerName}
+                    onChange={(e) => setCustomerName(e.target.value)}
+                    placeholder="e.g. Maria Santos or Facebook Name"
+                    style={{
+                      width: '100%',
+                      padding: '10px 14px',
+                      borderRadius: '12px',
+                      border: '1.5px solid var(--color-border-light, #E2E8F0)',
+                      background: '#FFFFFF',
+                      fontSize: '13px',
+                      color: 'var(--color-text)',
+                      fontFamily: 'inherit',
+                      boxSizing: 'border-box',
+                      outline: 'none',
+                      transition: 'border-color 0.15s ease',
+                    }}
+                    onFocus={(e) => {
+                      e.currentTarget.style.borderColor = 'var(--color-primary, #EA580C)';
+                    }}
+                    onBlur={(e) => {
+                      e.currentTarget.style.borderColor = 'var(--color-border-light, #E2E8F0)';
+                    }}
+                  />
                 </div>
 
                 {/* Feedback Input */}

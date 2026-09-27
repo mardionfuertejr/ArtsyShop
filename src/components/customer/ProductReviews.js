@@ -88,10 +88,30 @@ export default function ProductReviews({ product }) {
     };
   }, [product?.id, product?.slug]);
 
-  // Lock body scroll when modal is open
+  // Lock body scroll and auto-fill customer name when modal is open
   useEffect(() => {
     if (isModalOpen) {
       document.body.style.overflow = 'hidden';
+      try {
+        if (!customerName) {
+          const guestRaw = localStorage.getItem('likha_guest_info');
+          if (guestRaw) {
+            const parsed = JSON.parse(guestRaw);
+            if (parsed.name || parsed.facebookName) {
+              setCustomerName(parsed.name || parsed.facebookName);
+            }
+          }
+          if (!customerName) {
+            const myOrdersRaw = localStorage.getItem('likha_my_orders');
+            if (myOrdersRaw) {
+              const myOrders = JSON.parse(myOrdersRaw);
+              if (myOrders?.[0]?.customerName) {
+                setCustomerName(myOrders[0].customerName);
+              }
+            }
+          }
+        }
+      } catch {}
     } else {
       document.body.style.overflow = '';
     }
@@ -117,7 +137,28 @@ export default function ProductReviews({ product }) {
     setErrorMsg('');
 
     const finalRating = rating || 5;
-    const finalCustomerName = customerName.trim() || generateAnonymousReviewerName();
+    let finalCustomerName = customerName.trim();
+    if (!finalCustomerName) {
+      try {
+        const guestRaw = localStorage.getItem('likha_guest_info');
+        if (guestRaw) {
+          const parsed = JSON.parse(guestRaw);
+          finalCustomerName = parsed.name || parsed.facebookName || '';
+        }
+        if (!finalCustomerName) {
+          const myOrdersRaw = localStorage.getItem('likha_my_orders');
+          if (myOrdersRaw) {
+            const myOrders = JSON.parse(myOrdersRaw);
+            if (myOrders?.[0]?.customerName) {
+              finalCustomerName = myOrders[0].customerName;
+            }
+          }
+        }
+      } catch {}
+    }
+    if (!finalCustomerName) {
+      finalCustomerName = generateAnonymousReviewerName();
+    }
     const randomMsg = REVIEW_THANK_YOU_MESSAGES[Math.floor(Math.random() * REVIEW_THANK_YOU_MESSAGES.length)];
     setActiveThankYou(randomMsg);
 

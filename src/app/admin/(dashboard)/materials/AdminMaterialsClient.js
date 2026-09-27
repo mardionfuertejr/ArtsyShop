@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { MOCK_MATERIALS, getMockMaterials, saveMockMaterial, deleteMockMaterial } from '@/lib/mockData';
 import { formatCurrency } from '@/lib/utils/formatCurrency';
 import { createClient } from '@/lib/supabase/client';
@@ -10,11 +10,16 @@ export default function AdminMaterialsClient({ initialMaterials = [] }) {
   const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState('all');
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [isFocused, setIsFocused] = useState(false);
   const [toastMsg, setToastMsg] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [activeMenuId, setActiveMenuId] = useState(null);
   const [materialToDelete, setMaterialToDelete] = useState(null);
+
+  const searchInputRef = useRef(null);
+  const filterRef = useRef(null);
 
   // Sync custom materials or initial materials on mount
   useEffect(() => {
@@ -84,9 +89,12 @@ export default function AdminMaterialsClient({ initialMaterials = [] }) {
     setCurrentPage(1);
   }, [activeCategory, searchQuery, pageSize]);
 
-  // Close action menu on click outside
+  // Close action menu and category filter on click outside
   useEffect(() => {
     function handleClickOutside(e) {
+      if (filterRef.current && !filterRef.current.contains(e.target)) {
+        setIsFilterOpen(false);
+      }
       if (!e.target.closest('.action-menu-dropdown-container')) {
         setActiveMenuId(null);
       }
@@ -292,7 +300,7 @@ export default function AdminMaterialsClient({ initialMaterials = [] }) {
         </div>
       )}
 
-      {/* Page Header */}
+      {/* Page Header: Title + Unified Search & Category Filter + Add Material */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '14px', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <h1 className="admin-page-title" style={{ margin: 0, fontSize: '22px', fontWeight: '800' }}>
@@ -309,127 +317,196 @@ export default function AdminMaterialsClient({ initialMaterials = [] }) {
             {filteredMaterials.length} {filteredMaterials.length === 1 ? 'Item' : 'Items'}
           </span>
         </div>
-        <button
-          type="button"
-          onClick={handleOpenAdd}
-          className="btn btn-primary btn-sm"
-          style={{ height: '38px', padding: '0 16px', borderRadius: '10px', fontWeight: '700', fontSize: '12.5px', cursor: 'pointer', border: 'none' }}
-        >
-          + Add Material
-        </button>
-      </div>
 
-      {/* Filter and Search Bar */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
-        <div className="admin-filter-tabs" style={{ margin: 0, display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
-          {categories.map((cat) => {
-            const count = cat === 'all' 
-              ? materials.length 
-              : materials.filter(m => m.category === cat).length;
-            const isActive = activeCategory === cat;
-            return (
+        {/* Right Controls: Integrated Search & Category Dropdown + Add Material Button */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+          {/* Integrated Search & Filter Pill Input */}
+          <div
+            style={{
+              position: 'relative',
+              display: 'inline-flex',
+              alignItems: 'center',
+              background: '#ffffff',
+              border: isFocused ? '1.5px solid var(--color-primary, #b45309)' : '1px solid #e2e8f0',
+              borderRadius: '10px',
+              height: '38px',
+              padding: '0 4px 0 12px',
+              width: '300px',
+              maxWidth: '100%',
+              boxSizing: 'border-box',
+              boxShadow: isFocused ? '0 0 0 3px rgba(180, 83, 9, 0.12)' : '0 1px 2px rgba(0,0,0,0.03)',
+              transition: 'all 0.15s ease',
+            }}
+          >
+            <i className="fa-solid fa-magnifying-glass" style={{ color: '#94a3b8', fontSize: '12px', marginRight: '8px', flexShrink: 0 }}></i>
+            <input
+              ref={searchInputRef}
+              type="text"
+              placeholder="Search materials..."
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setCurrentPage(1);
+              }}
+              onFocus={() => setIsFocused(true)}
+              onBlur={() => setIsFocused(false)}
+              style={{
+                border: 'none',
+                background: 'transparent',
+                outline: 'none',
+                fontSize: '13px',
+                color: '#0f172a',
+                width: '100%',
+                padding: 0,
+              }}
+            />
+
+            {searchQuery && (
               <button
-                key={cat}
                 type="button"
-                className={`filter-tab ${isActive ? 'active' : ''}`}
                 onClick={() => {
-                  setActiveCategory(cat);
+                  setSearchQuery('');
                   setCurrentPage(1);
+                  searchInputRef.current?.focus();
                 }}
                 style={{
-                  border: isActive ? '1px solid var(--color-primary, #b45309)' : '1px solid #e2e8f0',
-                  padding: '7px 14px',
-                  borderRadius: '9999px',
-                  fontSize: '12px',
-                  fontWeight: isActive ? '700' : '600',
-                  background: isActive ? 'var(--color-primary, #b45309)' : '#ffffff',
-                  color: isActive ? '#ffffff' : '#64748b',
+                  border: 'none',
+                  background: 'none',
+                  color: '#94a3b8',
                   cursor: 'pointer',
+                  fontSize: '12px',
+                  padding: '4px',
+                  marginRight: '4px',
+                }}
+              >
+                ✕
+              </button>
+            )}
+
+            <div style={{ width: '1px', height: '20px', background: '#e2e8f0', margin: '0 4px 0 2px', flexShrink: 0 }}></div>
+
+            {/* Filter Dropdown Toggle Button */}
+            <div style={{ position: 'relative' }} ref={filterRef}>
+              <button
+                type="button"
+                onClick={() => setIsFilterOpen(!isFilterOpen)}
+                style={{
+                  height: '30px',
+                  padding: '0 10px',
+                  borderRadius: '7px',
+                  border: 'none',
+                  background: activeCategory !== 'all' ? 'rgba(180, 83, 9, 0.12)' : 'transparent',
+                  color: activeCategory !== 'all' ? 'var(--color-primary, #b45309)' : '#64748b',
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: '6px',
-                  transition: 'all 0.18s cubic-bezier(0.4, 0, 0.2, 1)',
-                  boxShadow: isActive ? '0 2px 6px rgba(180, 83, 9, 0.2)' : '0 1px 2px rgba(0,0,0,0.03)',
-                }}
-                onMouseEnter={(e) => {
-                  if (!isActive) {
-                    e.currentTarget.style.borderColor = '#cbd5e1';
-                    e.currentTarget.style.color = '#0f172a';
-                    e.currentTarget.style.background = '#f8fafc';
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (!isActive) {
-                    e.currentTarget.style.borderColor = '#e2e8f0';
-                    e.currentTarget.style.color = '#64748b';
-                    e.currentTarget.style.background = '#ffffff';
-                  }
+                  cursor: 'pointer',
+                  fontSize: '12px',
+                  fontWeight: '700',
+                  whiteSpace: 'nowrap',
+                  transition: 'all 0.15s ease',
                 }}
               >
-                <span>{cat === 'all' ? 'All Materials' : cat}</span>
-                <span
+                {activeCategory !== 'all' && (
+                  <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--color-primary, #b45309)', display: 'inline-block', flexShrink: 0 }}></span>
+                )}
+                <span>{activeCategory === 'all' ? 'Category' : activeCategory}</span>
+                <i
+                  className="fa-solid fa-chevron-down"
                   style={{
-                    fontSize: '10.5px',
-                    fontWeight: '700',
-                    padding: '1px 6px',
-                    borderRadius: '9999px',
-                    background: isActive ? 'rgba(255, 255, 255, 0.22)' : '#f1f5f9',
-                    color: isActive ? '#ffffff' : '#64748b',
-                    transition: 'all 0.18s ease',
+                    fontSize: '9.5px',
+                    color: activeCategory !== 'all' ? 'var(--color-primary, #b45309)' : '#94a3b8',
+                    transition: 'transform 0.2s ease',
+                    transform: isFilterOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                  }}
+                />
+              </button>
+
+              {/* Filter Dropdown Menu */}
+              {isFilterOpen && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: 'calc(100% + 6px)',
+                    right: 0,
+                    background: '#ffffff',
+                    borderRadius: '10px',
+                    boxShadow: '0 10px 30px rgba(0, 0, 0, 0.12)',
+                    border: '1px solid #f1f5f9',
+                    padding: '4px',
+                    zIndex: 50,
+                    minWidth: '190px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '2px',
                   }}
                 >
-                  {count}
-                </span>
-              </button>
-            );
-          })}
-        </div>
+                  {categories.map((cat) => {
+                    const count = cat === 'all'
+                      ? materials.length
+                      : materials.filter((m) => m.category === cat).length;
+                    const isSelected = activeCategory === cat;
+                    return (
+                      <button
+                        key={cat}
+                        type="button"
+                        onClick={() => {
+                          setActiveCategory(cat);
+                          setCurrentPage(1);
+                          setIsFilterOpen(false);
+                        }}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          width: '100%',
+                          padding: '7px 10px',
+                          borderRadius: '6px',
+                          border: 'none',
+                          background: isSelected ? '#FAF6F0' : 'transparent',
+                          color: isSelected ? 'var(--color-primary, #b45309)' : '#334155',
+                          fontSize: '12px',
+                          fontWeight: isSelected ? '700' : '500',
+                          cursor: 'pointer',
+                          textAlign: 'left',
+                          transition: 'all 0.15s ease',
+                        }}
+                        onMouseEnter={(e) => {
+                          if (!isSelected) e.currentTarget.style.background = '#f8fafc';
+                        }}
+                        onMouseLeave={(e) => {
+                          if (!isSelected) e.currentTarget.style.background = 'transparent';
+                        }}
+                      >
+                        <span>{cat === 'all' ? 'All Materials' : cat}</span>
+                        <span
+                          style={{
+                            fontSize: '10px',
+                            fontWeight: '700',
+                            padding: '1px 6px',
+                            borderRadius: '9999px',
+                            background: isSelected ? 'rgba(180, 83, 9, 0.15)' : '#f1f5f9',
+                            color: isSelected ? 'var(--color-primary, #b45309)' : '#64748b',
+                          }}
+                        >
+                          {count}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
 
-        <div style={{
-          position: 'relative',
-          display: 'inline-flex',
-          alignItems: 'center',
-          background: '#ffffff',
-          border: '1px solid #e2e8f0',
-          borderRadius: '10px',
-          height: '38px',
-          padding: '0 12px',
-          width: '260px',
-          maxWidth: '100%',
-          boxSizing: 'border-box',
-          boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
-        }}>
-          <i className="fa-solid fa-magnifying-glass" style={{ color: '#94a3b8', fontSize: '12px', marginRight: '8px' }}></i>
-          <input
-            type="text"
-            placeholder="Search materials..."
-            value={searchQuery}
-            onChange={(e) => {
-              setSearchQuery(e.target.value);
-              setCurrentPage(1);
-            }}
-            style={{
-              border: 'none',
-              background: 'transparent',
-              outline: 'none',
-              fontSize: '12.5px',
-              color: '#0f172a',
-              width: '100%',
-              padding: 0,
-            }}
-          />
-          {searchQuery && (
-            <button
-              type="button"
-              onClick={() => {
-                setSearchQuery('');
-                setCurrentPage(1);
-              }}
-              style={{ border: 'none', background: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '12px', padding: 0 }}
-            >
-              ✕
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={handleOpenAdd}
+            className="btn btn-primary btn-sm"
+            style={{ height: '38px', padding: '0 16px', borderRadius: '10px', fontWeight: '700', fontSize: '12.5px', cursor: 'pointer', border: 'none', whiteSpace: 'nowrap' }}
+          >
+            + Add Material
+          </button>
         </div>
       </div>
 

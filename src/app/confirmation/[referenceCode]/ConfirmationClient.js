@@ -8,6 +8,7 @@ import { formatOrderSummary } from '@/lib/utils/formatOrderSummary';
 import { openMessengerDirect, getMessengerChatUrl } from '@/lib/utils/browserNav';
 import { isRushDate } from '@/components/common/PremiumDatePicker';
 import { createClient } from '@/lib/supabase/client';
+import { registerServiceWorker } from '@/lib/utils/pushNotification';
 
 export default function ConfirmationClient({ order: serverOrder, referenceCode }) {
   const [localOrder, setLocalOrder] = useState(serverOrder || null);
@@ -20,6 +21,7 @@ export default function ConfirmationClient({ order: serverOrder, referenceCode }
   const effectiveCode = referenceCode || serverOrder?.reference_code || '';
 
   useEffect(() => {
+    registerServiceWorker();
     if (typeof document !== 'undefined') {
       document.title = effectiveCode ? `Order Received #${effectiveCode} | M&M's Artsy` : "Order Received | M&M's Artsy";
     }

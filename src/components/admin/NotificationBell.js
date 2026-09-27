@@ -62,21 +62,7 @@ function buildNotificationList(ordersList = MOCK_ORDERS, materialsList = MOCK_MA
     }
   });
 
-  // 2. CUSTOM REQUESTS
-  (customRequestsList || []).filter(r => r.status === 'pending').slice(0, 3).forEach((cr) => {
-    notifs.push({
-      id: `cr-${cr.id || cr.reference_code}`,
-      icon: 'fa-solid fa-wand-magic-sparkles',
-      color: '#7C3AED',
-      bgColor: '#F5F3FF',
-      title: `Custom Request: ${cr.reference_code}`,
-      subtitle: `${cr.customer_name} • ${cr.description ? cr.description.slice(0, 32) + '...' : 'Custom Quote Needed'}`,
-      href: '/admin/custom-requests',
-      time: cr.created_at,
-    });
-  });
-
-  // 3. REVIEWS & FEEDBACK
+  // 2. REVIEWS & FEEDBACK
   feedbacksList.slice(0, 2).forEach((fb) => {
     notifs.push({
       id: `fb-${fb.id}`,

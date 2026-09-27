@@ -1,8 +1,6 @@
-import AdminCustomRequestsClient from './AdminCustomRequestsClient';
-
-export const metadata = { title: "Custom Requests & Quotes | M&M's Artsy Admin" };
+import { redirect } from 'next/navigation';
 
 export default function AdminCustomRequestsPage() {
-  return <AdminCustomRequestsClient />;
+  redirect('/admin/orders');
 }
 

@@ -13,6 +13,14 @@ import { formatCurrency } from '@/lib/utils/formatCurrency';
 import { formatDate, formatDateShort, formatRelative, formatTime12Hour } from '@/lib/utils/formatDate';
 import { MESSENGER_URL } from '@/lib/constants/customPrompts';
 import { openExternalSafe, openMessengerDirect } from '@/lib/utils/browserNav';
+import { getAllMockOrders } from '@/lib/mockData';
+import {
+  registerServiceWorker,
+  requestNotificationPermission,
+  getNotificationPermission,
+  triggerOrderNotification,
+  getOrderStatusNotificationContent,
+} from '@/lib/utils/pushNotification';
 
 function getProcessSteps(orderType = 'delivery') {
   const isDelivery = orderType === 'delivery';
@@ -142,6 +150,62 @@ function TrackContent() {
   const [itemComments, setItemComments] = useState({});
   const [itemReviewed, setItemReviewed] = useState({});
   const [itemSubmitting, setItemSubmitting] = useState({});
+
+  // Web Push & Device Notification State
+  const prevStatusRef = useRef(null);
+  const audioCtxRef = useRef(null);
+
+  useEffect(() => {
+    // Automatically register service worker and silently request permission in background
+    if (typeof window !== 'undefined') {
+      registerServiceWorker();
+      if ('Notification' in window && Notification.permission === 'default') {
+        try {
+          requestNotificationPermission().catch(() => {});
+        } catch {}
+      }
+
+      // Unlock AudioContext on first user interaction for guaranteed mobile chime playback
+      const unlockAudio = () => {
+        try {
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          if (AudioContext && !audioCtxRef.current) {
+            audioCtxRef.current = new AudioContext();
+            if (audioCtxRef.current.state === 'suspended') {
+              audioCtxRef.current.resume();
+            }
+          }
+        } catch {}
+      };
+
+      window.addEventListener('click', unlockAudio, { once: true });
+      window.addEventListener('touchstart', unlockAudio, { once: true });
+    }
+  }, []);
+
+  const playChime = () => {
+    try {
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      if (!AudioContext) return;
+      const ctx = audioCtxRef.current || new AudioContext();
+      if (ctx.state === 'suspended') {
+        ctx.resume();
+      }
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
+      osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.15); // A5
+      gain.gain.setValueAtTime(0.35, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.65);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.65);
+    } catch {}
+  };
+
+
 
   useEffect(() => {
     if (typeof document !== 'undefined') {
@@ -432,6 +496,27 @@ function TrackContent() {
     }
 
     if (!foundOrder) {
+      try {
+        const allMocks = getAllMockOrders();
+        const match = allMocks.find((o) => {
+          const oRef = (o.reference_code || o.referenceCode || '').toUpperCase();
+          return (
+            oRef === lookupRef ||
+            oRef.replace(/^LK-/, 'M&M-') === lookupRef ||
+            oRef.replace(/^M&M-/, 'LK-') === lookupRef
+          );
+        });
+        if (match) {
+          foundOrder = {
+            ...match,
+            reference_code: match.reference_code || lookupRef,
+            total_amount: parseFloat(match.total_amount) || 0,
+          };
+        }
+      } catch {}
+    }
+
+    if (!foundOrder) {
       setError('Order not found. Check your reference code.');
     } else {
       setOrder(foundOrder);
@@ -643,6 +728,40 @@ function TrackContent() {
       }
     };
   }, [order?.reference_code]);
+
+  // Handle Realtime Status Change Alerts & Push Notification
+  useEffect(() => {
+    if (!order) return;
+    const currentStatus = order.status;
+
+    if (prevStatusRef.current && prevStatusRef.current !== currentStatus) {
+      // Trigger notification and sound chime when order status updates
+      if (currentStatus === 'ready' || currentStatus === 'preparing' || currentStatus === 'crafting' || currentStatus === 'completed') {
+        playChime();
+        const notifContent = getOrderStatusNotificationContent(order, currentStatus);
+        if (notifContent) {
+          triggerOrderNotification(notifContent);
+        }
+
+        try {
+          window.dispatchEvent(
+            new CustomEvent('likha_toast', {
+              detail: {
+                type: currentStatus === 'ready' ? 'success' : 'info',
+                title: currentStatus === 'ready' ? 'Order Ready! 📦' : 'Order Status Updated',
+                message: currentStatus === 'ready'
+                  ? 'Your order is ready for pickup or delivery.'
+                  : `Your order status is now: ${currentStatus.toUpperCase()}`,
+                duration: 5000,
+              },
+            })
+          );
+        } catch {}
+      }
+    }
+
+    prevStatusRef.current = currentStatus;
+  }, [order?.status, order?.reference_code]);
 
   const handleReviewSubmit = async (itemIndex, item, commentText = '') => {
     const rating = itemRatings[itemIndex] || 5;
@@ -1301,8 +1420,8 @@ function TrackContent() {
                   </div>
                 )}
 
-                {/* Awaiting Messenger Confirmation Notice (Clean One-Liner) */}
-                {(!order.sent_to_messenger && !order.messenger_opened_at && order.status !== 'confirmed' && order.status !== 'completed' && order.status !== 'ready' && order.status !== 'cancelled') && (
+                {/* Awaiting Messenger Confirmation Notice (Only show when pending/unconfirmed and not yet verified) */}
+                {(order.status === 'pending' && order.verification_status !== 'verified' && !order.sent_to_messenger && !order.messenger_opened_at) && (
                   <div style={{
                     background: '#EFF6FF',
                     border: '1px solid #BFDBFE',
@@ -1344,6 +1463,8 @@ function TrackContent() {
                     </Link>
                   </div>
                 )}
+
+
 
                 {/* Key Metadata Box */}
                 <div

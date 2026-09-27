@@ -515,6 +515,20 @@ export default function OrderDetailClient({ order: initialOrder }) {
       }
     } catch {}
 
+    // 3. Dispatch Web Push & Customer Realtime Notification
+    try {
+      fetch('/api/push/notify-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          reference_code: refCode,
+          status: newStatus,
+          customer_name: order.customer_name,
+          order_type: order.order_type,
+        }),
+      }).catch(() => {});
+    } catch {}
+
     setUpdating(false);
   };
 
@@ -1342,8 +1356,8 @@ export default function OrderDetailClient({ order: initialOrder }) {
                     alignItems: 'center',
                     gap: '4px',
                   }}>
-                    <i className="fa-solid fa-truck-fast" style={{ fontSize: '10px', color: 'var(--color-primary)' }}></i>
-                    <span>Delivery Schedule</span>
+                    <i className={order.delivery_locations ? "fa-solid fa-truck-fast" : "fa-solid fa-store"} style={{ fontSize: '10px', color: 'var(--color-primary)' }}></i>
+                    <span>{order.delivery_locations ? "Delivery Schedule" : "Pickup Schedule"}</span>
                   </div>
                 </div>
               )}
@@ -1738,13 +1752,26 @@ export default function OrderDetailClient({ order: initialOrder }) {
                       justifyContent: 'center',
                       fontSize: '14px',
                     }}>
-                      <i className={showPhoto ? "fa-solid fa-image" : "fa-solid fa-receipt"}></i>
+                      <i className={showPhoto ? "fa-solid fa-wallet" : "fa-solid fa-receipt"}></i>
                     </div>
                     <div>
-                      <h3 style={{ fontSize: '15px', fontWeight: '800', color: '#0F172A', margin: 0 }}>
-                        {showPhoto ? 'GCash Receipt Photo' : 'GCash Payment Verification'}
-                      </h3>
-                      <span style={{ fontSize: '11px', color: '#64748B' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <h3 style={{ fontSize: '15px', fontWeight: '800', color: '#0F172A', margin: 0 }}>
+                          GCash Payment Receipt
+                        </h3>
+                        <span style={{
+                          background: '#ECFDF5',
+                          color: '#065F46',
+                          border: '1px solid #A7F3D0',
+                          fontSize: '11px',
+                          fontWeight: '800',
+                          padding: '1.5px 7px',
+                          borderRadius: '6px',
+                        }}>
+                          ₱{parseFloat(order.total_amount || 0).toLocaleString()}
+                        </span>
+                      </div>
+                      <span style={{ fontSize: '11.5px', color: '#64748B', marginTop: '2px', display: 'block' }}>
                         Order #{order.reference_code} · {order.customer_name}
                       </span>
                     </div>
@@ -1757,14 +1784,17 @@ export default function OrderDetailClient({ order: initialOrder }) {
                       background: '#F1F5F9',
                       border: 'none',
                       borderRadius: '50%',
-                      width: '30px',
-                      height: '30px',
+                      width: '32px',
+                      height: '32px',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
                       cursor: 'pointer',
                       color: '#64748B',
+                      transition: 'all 0.15s ease',
                     }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = '#E2E8F0'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = '#F1F5F9'; }}
                   >
                     <i className="fa-solid fa-xmark"></i>
                   </button>
@@ -1794,7 +1824,7 @@ export default function OrderDetailClient({ order: initialOrder }) {
                       onError={() => setImageError(true)}
                       style={{
                         maxWidth: '100%',
-                        maxHeight: '58vh',
+                        maxHeight: '60vh',
                         objectFit: 'contain',
                         borderRadius: '8px',
                         cursor: 'zoom-in',
@@ -1804,7 +1834,7 @@ export default function OrderDetailClient({ order: initialOrder }) {
                           window.open(rawProofUrl, '_blank');
                         }
                       }}
-                      title="Click to open full size"
+                      title="Click to view full image in new tab"
                     />
                   </div>
                 ) : (
@@ -1854,36 +1884,26 @@ export default function OrderDetailClient({ order: initialOrder }) {
                         {refNo || 'No Reference Provided'}
                       </div>
                       <div style={{ fontSize: '12px', color: '#047857', fontWeight: '700', marginTop: '8px' }}>
-                        Expected Total: ₱{parseFloat(order.total_amount || 0).toLocaleString()}
+                        Expected Amount: ₱{parseFloat(order.total_amount || 0).toLocaleString()}
                       </div>
                     </div>
                   </div>
                 )}
 
-                {/* Modal Footer */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '14px', gap: '8px', flexWrap: 'wrap' }}>
-                  <div style={{ fontSize: '12px', color: '#64748B' }}>
-                    {showPhoto && (
-                      hasRef ? (
-                        <span>Ref: <strong style={{ color: '#0F172A', fontFamily: 'monospace' }}>{refNo}</strong></span>
-                      ) : (
-                        <span style={{ fontStyle: 'italic', color: '#94A3B8' }}>No Ref No. typed · Check photo</span>
-                      )
-                    )}
-                  </div>
-
-                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                    {hasRef && (
+                {/* Modal Footer: Clean, Minimalist & Action-Oriented */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '14px', gap: '10px', flexWrap: 'wrap' }}>
+                  {/* Left: Interactive Reference No. Pill with Instant Copy */}
+                  <div>
+                    {hasRef ? (
                       <button
                         type="button"
                         onClick={() => handleCopyRef(refNo)}
                         style={{
-                          height: '34px',
-                          padding: '0 12px',
-                          background: copiedRef ? '#10B981' : '#F1F5F9',
-                          color: copiedRef ? '#FFFFFF' : '#1E293B',
-                          border: '1px solid #CBD5E1',
+                          background: copiedRef ? '#ECFDF5' : '#F1F5F9',
+                          border: `1px solid ${copiedRef ? '#A7F3D0' : '#CBD5E1'}`,
+                          color: copiedRef ? '#047857' : '#334155',
                           borderRadius: '8px',
+                          padding: '6px 12px',
                           fontSize: '12px',
                           fontWeight: '700',
                           cursor: 'pointer',
@@ -1892,80 +1912,84 @@ export default function OrderDetailClient({ order: initialOrder }) {
                           gap: '6px',
                           transition: 'all 0.15s ease',
                         }}
+                        title="Click to copy Reference No."
                       >
-                        <i className={copiedRef ? 'fa-solid fa-check' : 'fa-regular fa-copy'}></i>
-                        <span>{copiedRef ? 'Copied Ref!' : 'Copy Ref'}</span>
+                        <i className={copiedRef ? "fa-solid fa-check" : "fa-regular fa-copy"} style={{ fontSize: '11px', color: copiedRef ? '#059669' : '#64748B' }}></i>
+                        <span>Ref: <strong style={{ fontFamily: 'monospace' }}>{refNo}</strong></span>
+                        {copiedRef && <span style={{ fontSize: '11px', color: '#059669', fontWeight: '800' }}>Copied!</span>}
                       </button>
+                    ) : (
+                      <span style={{ fontSize: '11.5px', color: '#94A3B8', fontStyle: 'italic' }}>
+                        No typed Ref No. · Check receipt photo
+                      </span>
                     )}
+                  </div>
 
-                    {showPhoto && (
-                      <>
-                        <a
-                          href={rawProofUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          style={{
-                            height: '34px',
-                            padding: '0 12px',
-                            background: '#EFF6FF',
-                            color: '#007DFE',
-                            border: '1px solid #BFDBFE',
-                            borderRadius: '8px',
-                            fontSize: '12px',
-                            fontWeight: '700',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '6px',
-                            textDecoration: 'none',
-                          }}
-                        >
-                          <i className="fa-solid fa-up-right-from-square"></i>
-                          <span>Open Full</span>
-                        </a>
-
-                        <a
-                          href={rawProofUrl}
-                          download={`Receipt_${order.reference_code}.png`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          style={{
-                            height: '34px',
-                            padding: '0 12px',
-                            background: '#007DFE',
-                            color: '#FFFFFF',
-                            border: 'none',
-                            borderRadius: '8px',
-                            fontSize: '12px',
-                            fontWeight: '700',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '6px',
-                            textDecoration: 'none',
-                            cursor: 'pointer',
-                          }}
-                        >
-                          <i className="fa-solid fa-download"></i>
-                          <span>Download</span>
-                        </a>
-                      </>
+                  {/* Right: Actions */}
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    {status !== 'confirmed' && status !== 'preparing' && status !== 'ready' && status !== 'completed' ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          handleUpdateStatus('confirmed');
+                          setShowReceiptModal(false);
+                        }}
+                        style={{
+                          height: '36px',
+                          padding: '0 16px',
+                          background: '#10B981',
+                          color: '#FFFFFF',
+                          border: 'none',
+                          borderRadius: '9px',
+                          fontSize: '12.5px',
+                          fontWeight: '800',
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          boxShadow: '0 2px 5px rgba(16, 185, 129, 0.3)',
+                          transition: 'all 0.15s ease',
+                        }}
+                      >
+                        <i className="fa-solid fa-circle-check" style={{ fontSize: '13px' }}></i>
+                        <span>Verify & Confirm</span>
+                      </button>
+                    ) : (
+                      <span style={{
+                        height: '36px',
+                        padding: '0 12px',
+                        background: '#ECFDF5',
+                        color: '#065F46',
+                        border: '1px solid #A7F3D0',
+                        borderRadius: '9px',
+                        fontSize: '11.5px',
+                        fontWeight: '700',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '5px',
+                      }}>
+                        <i className="fa-solid fa-circle-check" style={{ color: '#10B981' }}></i>
+                        <span>Payment Verified</span>
+                      </span>
                     )}
 
                     <button
                       type="button"
                       onClick={() => setShowReceiptModal(false)}
                       style={{
-                        height: '34px',
+                        height: '36px',
                         padding: '0 14px',
                         background: '#F1F5F9',
                         color: '#475569',
                         border: '1px solid #E2E8F0',
-                        borderRadius: '8px',
-                        fontSize: '12px',
-                        fontWeight: '600',
+                        borderRadius: '9px',
+                        fontSize: '12.5px',
+                        fontWeight: '700',
                         cursor: 'pointer',
+                        transition: 'all 0.15s ease',
                       }}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = '#E2E8F0'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = '#F1F5F9'; }}
                     >
                       Close
                     </button>

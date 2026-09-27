@@ -7,12 +7,14 @@ import { createClient } from '@/lib/supabase/client';
 import AdminNotepad from '@/components/admin/AdminNotepad';
 import DashboardFinancialWidget from '@/components/admin/DashboardFinancialWidget';
 import DashboardSalesAnalyticsChart from '@/components/admin/DashboardSalesAnalyticsChart';
+import { formatDate } from '@/lib/utils/formatDate';
+import { formatCurrency } from '@/lib/utils/formatCurrency';
 
 import ErrorBoundary from '@/components/common/ErrorBoundary';
 
 export default function AdminDashboardClient({ initialOrders = [], initialMaterials = [] }) {
   const router = useRouter();
-  // Helper to preserve order status
+
   const resolveAutoStatus = (orderList) => {
     return (orderList || []).map((ord) => ord);
   };
@@ -70,6 +72,9 @@ export default function AdminDashboardClient({ initialOrders = [], initialMateri
               preferred_date: ord.preferred_date || null,
               notes: ord.notes || '',
               created_at: ord.created_at,
+              payment_method: ord.payment_method,
+              payment_proof_url: ord.payment_proof_url,
+              gcash_reference_no: ord.gcash_reference_no,
               order_items: (ord.order_items || []).map((it) => ({
                 id: it.id,
                 product_name: it.product_name,
@@ -133,23 +138,162 @@ export default function AdminDashboardClient({ initialOrders = [], initialMateri
 
   const completedOrders = orders.filter((o) => o.status === 'completed');
   const collectedRevenue = completedOrders.reduce((s, o) => s + (parseFloat(o.total_amount) || 0), 0);
-  const calculatedSales = collectedRevenue; // Realized Kita from completed orders
+  const calculatedSales = collectedRevenue;
   const calculatedExpenses = orders.reduce((s, o) => s + (parseFloat(o.total_cost) || 0), 0);
 
-  const lowStockMaterials = (materials || []).filter(
-    (m) => parseFloat(m.current_stock) <= parseFloat(m.minimum_stock)
+  const activeOrders = orders.filter((o) => o.status !== 'completed' && o.status !== 'cancelled');
+
+  // Calculate upcoming / rush orders by needed date
+  const todayStr = new Date().toISOString().split('T')[0];
+  const tomorrowDate = new Date();
+  tomorrowDate.setDate(tomorrowDate.getDate() + 1);
+  const tomorrowStr = tomorrowDate.toISOString().split('T')[0];
+
+  const urgentOrders = activeOrders.filter((o) => {
+    if (!o.preferred_date) return false;
+    const pDate = String(o.preferred_date).split('T')[0];
+    return pDate <= tomorrowStr;
+  });
+
+  const unverifiedGcashOrders = activeOrders.filter(
+    (o) => (o.payment_method === 'gcash' || o.paymentMethod === 'gcash') && o.status === 'for_verification'
   );
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '18px', maxWidth: '1200px', margin: '0 auto' }}>
       {/* Top Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
-        <h1 className="admin-page-title" style={{ margin: 0, fontSize: '22px', fontWeight: '800', letterSpacing: '-0.02em' }}>
-          Dashboard Overview
-        </h1>
+        <div>
+          <h1 className="admin-page-title" style={{ margin: 0, fontSize: '22px', fontWeight: '800', letterSpacing: '-0.02em', color: '#0F172A' }}>
+            Dashboard Overview
+          </h1>
+        </div>
 
         <AdminNotepad />
       </div>
+
+      {/* Urgent Orders & Action Alerts Banner (if any) */}
+      {(urgentOrders.length > 0 || unverifiedGcashOrders.length > 0) && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '12px' }}>
+          {urgentOrders.length > 0 && (
+            <div
+              style={{
+                background: 'linear-gradient(135deg, #FFF5F2 0%, #FED7AA 100%)',
+                border: '1.5px solid #FDBA74',
+                borderRadius: '14px',
+                padding: '14px 18px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '12px',
+                boxShadow: '0 2px 8px rgba(234, 88, 12, 0.08)',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{
+                  width: '38px',
+                  height: '38px',
+                  borderRadius: '10px',
+                  background: 'var(--color-primary, #EA580C)',
+                  color: '#FFFFFF',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '16px',
+                  flexShrink: 0,
+                }}>
+                  <i className="fa-solid fa-fire-flame-curved"></i>
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '14px', fontWeight: '800', color: '#9A3412' }}>
+                    {urgentOrders.length} Urgent / Needed Order{urgentOrders.length === 1 ? '' : 's'}
+                  </h3>
+                  <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#C2410C', fontWeight: '600' }}>
+                    Due Today or Tomorrow — prioritize crafting & packaging
+                  </p>
+                </div>
+              </div>
+
+              <Link
+                href="/admin/orders"
+                style={{
+                  background: '#FFFFFF',
+                  color: 'var(--color-primary, #EA580C)',
+                  fontSize: '12px',
+                  fontWeight: '800',
+                  padding: '6px 12px',
+                  borderRadius: '8px',
+                  textDecoration: 'none',
+                  border: '1px solid #FDBA74',
+                  whiteSpace: 'nowrap',
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+                }}
+              >
+                View Orders →
+              </Link>
+            </div>
+          )}
+
+          {unverifiedGcashOrders.length > 0 && (
+            <div
+              style={{
+                background: 'linear-gradient(135deg, #EFF6FF 0%, #BFDBFE 100%)',
+                border: '1.5px solid #93C5FD',
+                borderRadius: '14px',
+                padding: '14px 18px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '12px',
+                boxShadow: '0 2px 8px rgba(2, 132, 199, 0.08)',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{
+                  width: '38px',
+                  height: '38px',
+                  borderRadius: '10px',
+                  background: '#007DFE',
+                  color: '#FFFFFF',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '16px',
+                  flexShrink: 0,
+                }}>
+                  <i className="fa-solid fa-receipt"></i>
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '14px', fontWeight: '800', color: '#1E40AF' }}>
+                    {unverifiedGcashOrders.length} GCash Payment{unverifiedGcashOrders.length === 1 ? '' : 's'} to Check
+                  </h3>
+                  <p style={{ margin: '2px 0 0', fontSize: '12px', color: '#2563EB', fontWeight: '600' }}>
+                    Receipt screenshot or Ref No. submitted
+                  </p>
+                </div>
+              </div>
+
+              <Link
+                href="/admin/orders"
+                style={{
+                  background: '#FFFFFF',
+                  color: '#007DFE',
+                  fontSize: '12px',
+                  fontWeight: '800',
+                  padding: '6px 12px',
+                  borderRadius: '8px',
+                  textDecoration: 'none',
+                  border: '1px solid #93C5FD',
+                  whiteSpace: 'nowrap',
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+                }}
+              >
+                Verify Now →
+              </Link>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Financial Overview: Kita vs. Gastos with interactive adjustments */}
       <ErrorBoundary>
@@ -163,95 +307,6 @@ export default function AdminDashboardClient({ initialOrders = [], initialMateri
       <ErrorBoundary>
         <DashboardSalesAnalyticsChart orders={orders} />
       </ErrorBoundary>
-
-      {/* Low Stock / Out of Stock Materials Alert */}
-      {lowStockMaterials && lowStockMaterials.length > 0 && (
-        <div
-          className="card"
-          style={{
-            padding: '20px',
-            background: 'var(--color-surface, #ffffff)',
-            borderRadius: '16px',
-            border: 'none',
-            boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
-          }}
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
-            <h2 style={{ fontSize: '15px', fontWeight: '800', color: '#92400E', margin: 0, display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
-              <i className="fa-solid fa-triangle-exclamation" style={{ color: '#D97706', fontSize: '14px' }}></i>
-              <span>Low Stock & Out of Stock Materials</span>
-            </h2>
-            <Link href="/admin/materials" style={{ fontSize: '12px', fontWeight: '700', color: 'var(--color-primary)', textDecoration: 'none' }}>
-              Manage Inventory →
-            </Link>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '12px' }}>
-            {lowStockMaterials.map((m) => {
-              const current = parseFloat(m.current_stock) || 0;
-              const threshold = parseFloat(m.minimum_stock) || 0;
-              const isCritical = current <= 5;
-
-              return (
-                <div
-                  key={m.id}
-                  style={{
-                    background: isCritical ? '#FEF2F2' : '#FFFBEB',
-                    border: isCritical ? '1px solid #FECACA' : '1px solid #FDE68A',
-                    borderRadius: '12px',
-                    padding: '14px 16px',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    gap: '12px',
-                  }}
-                >
-                  <div style={{ flex: '1 1 auto', minWidth: 0, overflow: 'hidden' }}>
-                    <p
-                      title={m.name}
-                      style={{
-                        fontWeight: '700',
-                        fontSize: '13px',
-                        color: isCritical ? '#991B1B' : '#92400E',
-                        margin: 0,
-                        lineHeight: 1.3,
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                      }}
-                    >
-                      {m.name}
-                    </p>
-                  </div>
-                  <div style={{ flexShrink: 0, textAlign: 'right' }}>
-                    <p
-                      style={{
-                        fontWeight: '800',
-                        color: isCritical ? '#DC2626' : '#D97706',
-                        fontSize: '15px',
-                        margin: 0,
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
-                      {current}
-                      <span
-                        style={{
-                          fontSize: '12.5px',
-                          fontWeight: '600',
-                          color: isCritical ? '#EF4444' : '#B45309',
-                          marginLeft: '2px',
-                        }}
-                      >
-                        /{threshold} {m.unit}
-                      </span>
-                    </p>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
     </div>
   );
 }

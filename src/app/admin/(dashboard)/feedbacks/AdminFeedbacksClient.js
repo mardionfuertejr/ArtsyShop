@@ -7,6 +7,7 @@ import {
   getMockFeedbacks,
   getAllMockReviews,
   toggleMockReviewApproval,
+  toggleMockFeedbackVisibility,
 } from '@/lib/mockData';
 import { formatRelative, formatDate } from '@/lib/utils/formatDate';
 
@@ -18,6 +19,7 @@ export default function AdminFeedbacksClient() {
   const [searchTerm, setSearchTerm] = useState('');
   const [ratingFilter, setRatingFilter] = useState('all');
   const [isRatingOpen, setIsRatingOpen] = useState(false);
+  const [isTypeOpen, setIsTypeOpen] = useState(false);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [actionToast, setActionToast] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -25,19 +27,23 @@ export default function AdminFeedbacksClient() {
 
   const searchInputRef = useRef(null);
   const ratingDropdownRef = useRef(null);
+  const typeDropdownRef = useRef(null);
 
-  // Close rating dropdown on outside click
+  // Close dropdowns on outside click
   useEffect(() => {
     function handleClickOutside(e) {
       if (ratingDropdownRef.current && !ratingDropdownRef.current.contains(e.target)) {
         setIsRatingOpen(false);
+      }
+      if (typeDropdownRef.current && !typeDropdownRef.current.contains(e.target)) {
+        setIsTypeOpen(false);
       }
     }
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Load Feedbacks and Reviews with real-time Supabase integration & fallback
+  // Load Feedbacks and Reviews with real-time Supabase integration & localStorage fallback
   useEffect(() => {
     let isMounted = true;
     async function loadData() {
@@ -51,16 +57,20 @@ export default function AdminFeedbacksClient() {
           ]);
 
           if (isMounted) {
-            if (!fbRes.error && Array.isArray(fbRes.data)) {
+            if (!fbRes.error && Array.isArray(fbRes.data) && fbRes.data.length > 0) {
               setFeedbacks(fbRes.data);
+              try { localStorage.setItem('likha_admin_feedbacks', JSON.stringify(fbRes.data)); } catch {}
             } else {
-              setFeedbacks(getMockFeedbacks());
+              const saved = typeof window !== 'undefined' ? localStorage.getItem('likha_admin_feedbacks') : null;
+              setFeedbacks(saved ? JSON.parse(saved) : getMockFeedbacks());
             }
 
-            if (!revRes.error && Array.isArray(revRes.data)) {
+            if (!revRes.error && Array.isArray(revRes.data) && revRes.data.length > 0) {
               setReviews(revRes.data);
+              try { localStorage.setItem('likha_admin_reviews', JSON.stringify(revRes.data)); } catch {}
             } else {
-              setReviews(getAllMockReviews());
+              const saved = typeof window !== 'undefined' ? localStorage.getItem('likha_admin_reviews') : null;
+              setReviews(saved ? JSON.parse(saved) : getAllMockReviews());
             }
             setLoading(false);
             return;
@@ -69,8 +79,10 @@ export default function AdminFeedbacksClient() {
       } catch { }
 
       if (isMounted) {
-        setFeedbacks(getMockFeedbacks());
-        setReviews(getAllMockReviews());
+        const savedFb = typeof window !== 'undefined' ? localStorage.getItem('likha_admin_feedbacks') : null;
+        const savedRev = typeof window !== 'undefined' ? localStorage.getItem('likha_admin_reviews') : null;
+        setFeedbacks(savedFb ? JSON.parse(savedFb) : getMockFeedbacks());
+        setReviews(savedRev ? JSON.parse(savedRev) : getAllMockReviews());
         setLoading(false);
       }
     }
@@ -94,25 +106,53 @@ export default function AdminFeedbacksClient() {
   };
 
   // Toggle Review Approval / Storefront Visibility
-  const handleToggleApprove = async (review) => {
-    const newStatus = review.is_approved === false ? true : false;
+  const handleToggleApprove = async (review, forceLive) => {
+    const currentLive = review.is_approved !== false;
+    const newLive = forceLive !== undefined ? forceLive : !currentLive;
+
+    // Optimistic UI update immediately
+    setReviews((prev) => {
+      const updated = prev.map((r) => {
+        const isMatch = (r.id && review.id && String(r.id) === String(review.id)) ||
+                        (r === review) ||
+                        (r.created_at === review.created_at && r.comment === review.comment);
+        return isMatch ? { ...r, is_approved: newLive } : r;
+      });
+      try { localStorage.setItem('likha_admin_reviews', JSON.stringify(updated)); } catch {}
+      return updated;
+    });
+
+    showToast(newLive ? 'Review is now visible on storefront' : 'Review hidden from storefront');
+
     try {
       const supabase = createClient();
-      if (supabase) {
-        await supabase.from('product_reviews').update({ is_approved: newStatus }).eq('id', review.id);
+      if (supabase && review.id) {
+        await supabase.from('product_reviews').update({ is_approved: newLive }).eq('id', review.id);
       }
     } catch { }
 
-    toggleMockReviewApproval(review.id);
-    setReviews((prev) =>
-      prev.map((r) => (r.id === review.id ? { ...r, is_approved: newStatus } : r))
-    );
-    showToast(newStatus ? 'Review is now visible on storefront' : 'Review hidden from storefront');
+    toggleMockReviewApproval(review.id, newLive);
   };
 
   // Toggle Feedback Storefront Visibility (Hide / Unhide)
-  const handleToggleFeedbackVisibility = async (feedback) => {
-    const newHidden = !feedback.is_hidden;
+  const handleToggleFeedbackVisibility = async (feedback, forceHidden) => {
+    const currentHidden = Boolean(feedback.is_hidden);
+    const newHidden = forceHidden !== undefined ? forceHidden : !currentHidden;
+
+    // Optimistic UI update immediately
+    setFeedbacks((prev) => {
+      const updated = prev.map((f) => {
+        const isMatch = (f.id && feedback.id && String(f.id) === String(feedback.id)) ||
+                        (f === feedback) ||
+                        (f.created_at === feedback.created_at && f.message === feedback.message);
+        return isMatch ? { ...f, is_hidden: newHidden } : f;
+      });
+      try { localStorage.setItem('likha_admin_feedbacks', JSON.stringify(updated)); } catch {}
+      return updated;
+    });
+
+    showToast(newHidden ? 'Feedback hidden from storefront' : 'Feedback is now visible on storefront');
+
     try {
       const supabase = createClient();
       if (supabase && feedback.id) {
@@ -120,33 +160,7 @@ export default function AdminFeedbacksClient() {
       }
     } catch {}
 
-    toggleMockFeedbackVisibility(feedback.id);
-    setFeedbacks((prev) =>
-      prev.map((f) => (f.id === feedback.id ? { ...f, is_hidden: newHidden } : f))
-    );
-    showToast(newHidden ? 'Feedback is now hidden' : 'Feedback is now visible');
-  };
-
-  const handleDeleteFeedback = async (id) => {
-    try {
-      const supabase = createClient();
-      if (supabase && id) {
-        await supabase.from('feedbacks').delete().eq('id', id);
-      }
-    } catch {}
-    setFeedbacks(prev => prev.filter(f => f.id !== id));
-    showToast('Feedback deleted');
-  };
-
-  const handleDeleteReview = async (id) => {
-    try {
-      const supabase = createClient();
-      if (supabase && id) {
-        await supabase.from('product_reviews').delete().eq('id', id);
-      }
-    } catch {}
-    setReviews(prev => prev.filter(r => r.id !== id));
-    showToast('Review deleted');
+    toggleMockFeedbackVisibility(feedback.id, newHidden);
   };
 
   // Calculations
@@ -199,7 +213,7 @@ export default function AdminFeedbacksClient() {
   ];
 
   return (
-    <div style={{ width: '100%', maxWidth: '1180px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '18px' }}>
+    <div style={{ width: '100%', maxWidth: '1180px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '16px' }}>
       {/* Toast Notification */}
       {actionToast && (
         <div
@@ -226,10 +240,11 @@ export default function AdminFeedbacksClient() {
         </div>
       )}
 
-      {/* Header */}
+      {/* Header Row: Title & Stats on Left, Single-Pill Unified Search & Filter on Right */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '14px', flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <h1 style={{ margin: 0, fontSize: '23px', fontWeight: '800', color: '#0F172A', letterSpacing: '-0.02em' }}>
+        {/* Left: Title + Total Count + Average Rating */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          <h1 className="admin-page-title" style={{ margin: 0, fontSize: '22px', fontWeight: '800', color: '#0F172A', letterSpacing: '-0.02em' }}>
             Reviews & Feedbacks
           </h1>
           <span
@@ -237,8 +252,8 @@ export default function AdminFeedbacksClient() {
               background: 'rgba(234, 88, 12, 0.1)',
               color: 'var(--color-primary, #EA580C)',
               fontSize: '12px',
-              fontWeight: '800',
-              padding: '2.5px 9px',
+              fontWeight: '700',
+              padding: '2px 8px',
               borderRadius: '9999px',
             }}
           >
@@ -249,101 +264,35 @@ export default function AdminFeedbacksClient() {
               background: '#FEF3C7',
               color: '#D97706',
               fontSize: '12px',
-              fontWeight: '800',
-              padding: '2.5px 9px',
+              fontWeight: '700',
+              padding: '2px 8px',
               borderRadius: '9999px',
               display: 'inline-flex',
               alignItems: 'center',
               gap: '4px',
             }}
           >
-            <i className="fa-solid fa-star" style={{ fontSize: '11px' }}></i>
-            {avgRating} Avg Rating
+            <i className="fa-solid fa-star" style={{ fontSize: '10px' }}></i>
+            {avgRating} Avg
           </span>
         </div>
-      </div>
 
-      {/* Tabs and Search / Filter Controls Bar */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: '12px',
-          flexWrap: 'wrap',
-        }}
-      >
-        {/* Clean Filter Tabs */}
-        <div
-          style={{
-            display: 'inline-flex',
-            background: '#F1F5F9',
-            padding: '3.5px',
-            borderRadius: '11px',
-            gap: '3px',
-          }}
-        >
-          <button
-            type="button"
-            onClick={() => setActiveTab('feedbacks')}
-            style={{
-              border: 'none',
-              padding: '7px 16px',
-              borderRadius: '8px',
-              fontSize: '12.5px',
-              fontWeight: activeTab === 'feedbacks' ? '800' : '600',
-              background: activeTab === 'feedbacks' ? '#FFFFFF' : 'transparent',
-              color: activeTab === 'feedbacks' ? 'var(--color-primary, #EA580C)' : '#64748B',
-              boxShadow: activeTab === 'feedbacks' ? '0 1px 3px rgba(0,0,0,0.06)' : 'none',
-              cursor: 'pointer',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              transition: 'all 0.15s ease',
-            }}
-          >
-            <i className="fa-solid fa-comments"></i>
-            <span>Customer Feedbacks ({feedbacks.length})</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setActiveTab('reviews')}
-            style={{
-              border: 'none',
-              padding: '7px 16px',
-              borderRadius: '8px',
-              fontSize: '12.5px',
-              fontWeight: activeTab === 'reviews' ? '800' : '600',
-              background: activeTab === 'reviews' ? '#FFFFFF' : 'transparent',
-              color: activeTab === 'reviews' ? 'var(--color-primary, #EA580C)' : '#64748B',
-              boxShadow: activeTab === 'reviews' ? '0 1px 3px rgba(0,0,0,0.06)' : 'none',
-              cursor: 'pointer',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              transition: 'all 0.15s ease',
-            }}
-          >
-            <i className="fa-solid fa-star"></i>
-            <span>Product Reviews ({reviews.length})</span>
-          </button>
-        </div>
-
-        {/* Integrated Search & Rating Dropdown with Smooth Chevron Transition */}
-        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+        {/* Right: Single-Pill Search & Integrated Dropdowns */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
           <div
             style={{
+              position: 'relative',
               display: 'inline-flex',
               alignItems: 'center',
               background: '#FFFFFF',
-              border: isSearchFocused ? '1.5px solid var(--color-primary, #EA580C)' : '1.5px solid #E2E8F0',
-              borderRadius: '11px',
+              border: isSearchFocused ? '1.5px solid var(--color-primary, #EA580C)' : '1px solid #E2E8F0',
+              borderRadius: '10px',
               height: '38px',
               padding: '0 4px 0 12px',
-              boxShadow: isSearchFocused ? '0 0 0 3px rgba(234, 88, 12, 0.1)' : '0 1px 2px rgba(0,0,0,0.02)',
-              transition: 'border-color 0.2s ease, box-shadow 0.2s ease',
-              position: 'relative',
+              maxWidth: '100%',
+              boxSizing: 'border-box',
+              boxShadow: isSearchFocused ? '0 0 0 3px rgba(234, 88, 12, 0.1)' : '0 1px 2px rgba(0,0,0,0.03)',
+              transition: 'all 0.15s ease',
             }}
           >
             <i
@@ -352,13 +301,13 @@ export default function AdminFeedbacksClient() {
                 color: isSearchFocused ? 'var(--color-primary, #EA580C)' : '#94A3B8',
                 fontSize: '12px',
                 marginRight: '8px',
-                transition: 'color 0.2s ease',
+                flexShrink: 0,
               }}
             />
             <input
               ref={searchInputRef}
               type="text"
-              placeholder="Search keyword or customer..."
+              placeholder="Search feedback, review..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               onFocus={() => setIsSearchFocused(true)}
@@ -367,7 +316,7 @@ export default function AdminFeedbacksClient() {
                 border: 'none',
                 background: 'transparent',
                 outline: 'none',
-                fontSize: '12.5px',
+                fontSize: '13px',
                 color: '#0F172A',
                 width: '180px',
                 padding: 0,
@@ -386,64 +335,204 @@ export default function AdminFeedbacksClient() {
                   border: 'none',
                   color: '#94A3B8',
                   cursor: 'pointer',
-                  padding: '4px',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
                   fontSize: '12px',
-                  marginRight: '4px',
+                  padding: '4px',
+                  marginRight: '2px',
                 }}
-                title="Clear search"
               >
-                <i className="fa-solid fa-circle-xmark" />
+                ✕
               </button>
             )}
 
-            {/* Dividing separator */}
-            <div style={{ width: '1px', height: '20px', background: '#E2E8F0', margin: '0 4px' }} />
+            <div style={{ width: '1px', height: '20px', background: '#E2E8F0', margin: '0 4px 0 2px', flexShrink: 0 }}></div>
 
-            {/* Custom Rating Dropdown Button with Smooth Animated Chevron */}
+            {/* Type Dropdown inside pill */}
+            <div ref={typeDropdownRef} style={{ position: 'relative' }}>
+              <button
+                type="button"
+                onClick={() => setIsTypeOpen(!isTypeOpen)}
+                style={{
+                  height: '30px',
+                  padding: '0 8px',
+                  borderRadius: '7px',
+                  border: 'none',
+                  background: 'transparent',
+                  color: '#475569',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  cursor: 'pointer',
+                  fontSize: '12px',
+                  fontWeight: '700',
+                  whiteSpace: 'nowrap',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                <i
+                  className={activeTab === 'feedbacks' ? 'fa-solid fa-comments' : 'fa-solid fa-star'}
+                  style={{
+                    fontSize: '11px',
+                    color: activeTab === 'feedbacks' ? 'var(--color-primary, #EA580C)' : '#0284C7',
+                  }}
+                />
+                <span>{activeTab === 'feedbacks' ? 'Feedbacks' : 'Reviews'}</span>
+                <span
+                  style={{
+                    fontSize: '10px',
+                    fontWeight: '800',
+                    padding: '1px 5px',
+                    borderRadius: '999px',
+                    background: activeTab === 'feedbacks' ? '#FFF5F2' : '#EFF6FF',
+                    color: activeTab === 'feedbacks' ? 'var(--color-primary, #EA580C)' : '#0284C7',
+                  }}
+                >
+                  {activeTab === 'feedbacks' ? feedbacks.length : reviews.length}
+                </span>
+                <i
+                  className="fa-solid fa-chevron-down"
+                  style={{
+                    fontSize: '9px',
+                    color: '#94A3B8',
+                    transition: 'transform 0.2s ease',
+                    transform: isTypeOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                  }}
+                />
+              </button>
+
+              {/* Type Dropdown Card */}
+              {isTypeOpen && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: 'calc(100% + 6px)',
+                    right: 0,
+                    background: '#FFFFFF',
+                    borderRadius: '10px',
+                    boxShadow: '0 10px 30px rgba(0, 0, 0, 0.12)',
+                    border: '1px solid #F1F5F9',
+                    padding: '4px',
+                    zIndex: 60,
+                    minWidth: '190px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '2px',
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveTab('feedbacks');
+                      setIsTypeOpen(false);
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      width: '100%',
+                      padding: '7px 10px',
+                      borderRadius: '6px',
+                      border: 'none',
+                      background: activeTab === 'feedbacks' ? '#FFF5F2' : 'transparent',
+                      color: activeTab === 'feedbacks' ? 'var(--color-primary, #EA580C)' : '#334155',
+                      fontSize: '12px',
+                      fontWeight: activeTab === 'feedbacks' ? '700' : '500',
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <i className="fa-solid fa-comments" style={{ color: 'var(--color-primary, #EA580C)', fontSize: '11px' }} />
+                      <span>Customer Feedbacks</span>
+                    </div>
+                    <span
+                      style={{
+                        fontSize: '10px',
+                        fontWeight: '700',
+                        padding: '1px 5px',
+                        borderRadius: '999px',
+                        background: activeTab === 'feedbacks' ? 'var(--color-primary, #EA580C)' : '#F1F5F9',
+                        color: activeTab === 'feedbacks' ? '#FFFFFF' : '#64748B',
+                      }}
+                    >
+                      {feedbacks.length}
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveTab('reviews');
+                      setIsTypeOpen(false);
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      width: '100%',
+                      padding: '7px 10px',
+                      borderRadius: '6px',
+                      border: 'none',
+                      background: activeTab === 'reviews' ? '#EFF6FF' : 'transparent',
+                      color: activeTab === 'reviews' ? '#0284C7' : '#334155',
+                      fontSize: '12px',
+                      fontWeight: activeTab === 'reviews' ? '700' : '500',
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <i className="fa-solid fa-star" style={{ color: '#0284C7', fontSize: '11px' }} />
+                      <span>Product Reviews</span>
+                    </div>
+                    <span
+                      style={{
+                        fontSize: '10px',
+                        fontWeight: '700',
+                        padding: '1px 5px',
+                        borderRadius: '999px',
+                        background: activeTab === 'reviews' ? '#0284C7' : '#F1F5F9',
+                        color: activeTab === 'reviews' ? '#FFFFFF' : '#64748B',
+                      }}
+                    >
+                      {reviews.length}
+                    </span>
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div style={{ width: '1px', height: '20px', background: '#E2E8F0', margin: '0 4px', flexShrink: 0 }}></div>
+
+            {/* Rating Dropdown inside pill */}
             <div ref={ratingDropdownRef} style={{ position: 'relative' }}>
               <button
                 type="button"
                 onClick={() => setIsRatingOpen(!isRatingOpen)}
                 style={{
                   height: '30px',
-                  padding: '0 10px',
+                  padding: '0 8px',
                   borderRadius: '7px',
                   border: 'none',
-                  background: ratingFilter !== 'all' ? 'rgba(234, 88, 12, 0.1)' : 'transparent',
-                  color: ratingFilter !== 'all' ? 'var(--color-primary, #EA580C)' : '#64748B',
+                  background: ratingFilter !== 'all' ? 'rgba(234, 88, 12, 0.12)' : 'transparent',
+                  color: ratingFilter !== 'all' ? 'var(--color-primary, #EA580C)' : '#475569',
                   display: 'inline-flex',
                   alignItems: 'center',
-                  gap: '6px',
+                  gap: '5px',
                   cursor: 'pointer',
                   fontSize: '12px',
                   fontWeight: '700',
                   whiteSpace: 'nowrap',
                   transition: 'all 0.15s ease',
-                  outline: 'none',
                 }}
               >
-                {ratingFilter !== 'all' && (
-                  <span
-                    style={{
-                      width: '6px',
-                      height: '6px',
-                      borderRadius: '50%',
-                      background: 'var(--color-primary, #EA580C)',
-                      display: 'inline-block',
-                      flexShrink: 0,
-                    }}
-                  />
-                )}
-                <span>{ratingFilter === 'all' ? 'All Ratings' : `${ratingFilter} Stars`}</span>
+                <i className="fa-solid fa-star" style={{ fontSize: '10.5px', color: '#F59E0B' }}></i>
+                <span>{ratingFilter === 'all' ? 'Rating' : `${ratingFilter}★`}</span>
                 <i
                   className="fa-solid fa-chevron-down"
                   style={{
-                    fontSize: '9.5px',
-                    color: isRatingOpen || ratingFilter !== 'all' ? 'var(--color-primary, #EA580C)' : '#94A3B8',
-                    transition: 'transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), color 0.2s ease',
+                    fontSize: '9px',
+                    color: ratingFilter !== 'all' ? 'var(--color-primary, #EA580C)' : '#94A3B8',
+                    transition: 'transform 0.2s ease',
                     transform: isRatingOpen ? 'rotate(180deg)' : 'rotate(0deg)',
                   }}
                 />
@@ -457,16 +546,15 @@ export default function AdminFeedbacksClient() {
                     top: 'calc(100% + 6px)',
                     right: 0,
                     background: '#FFFFFF',
-                    borderRadius: '11px',
-                    boxShadow: '0 12px 30px rgba(0, 0, 0, 0.12)',
-                    border: '1px solid #E2E8F0',
+                    borderRadius: '10px',
+                    boxShadow: '0 10px 30px rgba(0, 0, 0, 0.12)',
+                    border: '1px solid #F1F5F9',
                     padding: '4px',
                     zIndex: 60,
-                    minWidth: '190px',
+                    minWidth: '180px',
                     display: 'flex',
                     flexDirection: 'column',
                     gap: '2px',
-                    animation: 'adminModalScaleIn 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
                   }}
                 >
                   {ratingOptions.map((opt) => {
@@ -485,27 +573,18 @@ export default function AdminFeedbacksClient() {
                           justifyContent: 'space-between',
                           width: '100%',
                           padding: '7px 10px',
-                          borderRadius: '7px',
+                          borderRadius: '6px',
                           border: 'none',
                           background: isSelected ? '#FFF5F2' : 'transparent',
                           color: isSelected ? 'var(--color-primary, #EA580C)' : '#334155',
                           fontSize: '12px',
-                          fontWeight: isSelected ? '800' : '500',
+                          fontWeight: isSelected ? '700' : '500',
                           cursor: 'pointer',
                           textAlign: 'left',
-                          transition: 'background 0.1s ease',
-                        }}
-                        onMouseEnter={(e) => {
-                          if (!isSelected) e.currentTarget.style.background = '#F8FAFC';
-                        }}
-                        onMouseLeave={(e) => {
-                          if (!isSelected) e.currentTarget.style.background = 'transparent';
                         }}
                       >
                         <span>{opt.label}</span>
-                        {isSelected && (
-                          <i className="fa-solid fa-check" style={{ fontSize: '11px', color: 'var(--color-primary, #EA580C)' }} />
-                        )}
+                        {isSelected && <i className="fa-solid fa-check" style={{ color: 'var(--color-primary, #EA580C)', fontSize: '11px' }} />}
                       </button>
                     );
                   })}
@@ -513,33 +592,6 @@ export default function AdminFeedbacksClient() {
               )}
             </div>
           </div>
-
-          {/* Reset Filters button if active */}
-          {isFiltered && (
-            <button
-              type="button"
-              onClick={() => {
-                setSearchTerm('');
-                setRatingFilter('all');
-              }}
-              style={{
-                height: '38px',
-                padding: '0 12px',
-                borderRadius: '10px',
-                border: '1px solid #CBD5E1',
-                background: '#F8FAFC',
-                color: '#475569',
-                fontSize: '12px',
-                fontWeight: '700',
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '5px',
-              }}
-            >
-              <i className="fa-solid fa-rotate-left"></i> Reset
-            </button>
-          )}
         </div>
       </div>
 
@@ -565,13 +617,13 @@ export default function AdminFeedbacksClient() {
                   <th style={{ width: '22%', padding: '13px 16px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#475569' }}>
                     Customer
                   </th>
-                  <th style={{ width: '14%', padding: '13px 16px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#475569' }}>
+                  <th style={{ width: '13%', padding: '13px 16px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#475569' }}>
                     Rating
                   </th>
-                  <th style={{ width: '36%', padding: '13px 16px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#475569' }}>
+                  <th style={{ width: '33%', padding: '13px 16px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#475569' }}>
                     Feedback Message
                   </th>
-                  <th style={{ width: '14%', padding: '13px 16px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#475569', textAlign: 'center' }}>
+                  <th style={{ width: '18%', padding: '13px 24px 13px 12px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#475569', textAlign: 'center' }}>
                     Visibility
                   </th>
                 </tr>
@@ -592,7 +644,7 @@ export default function AdminFeedbacksClient() {
                       <td style={{ padding: '14px 16px' }}>
                         <div style={{ width: '85%', height: '13px', borderRadius: '4px', background: '#F1F5F9' }} />
                       </td>
-                      <td style={{ padding: '14px 16px', textAlign: 'center' }}>
+                      <td style={{ padding: '14px 24px 14px 12px', textAlign: 'center' }}>
                         <div style={{ width: '90px', height: '24px', borderRadius: '999px', background: '#F1F5F9', margin: '0 auto' }} />
                       </td>
                     </tr>
@@ -711,63 +763,72 @@ export default function AdminFeedbacksClient() {
 
                         {/* Feedback Message */}
                         <td style={{ padding: '13px 16px', verticalAlign: 'middle' }}>
-                          <span style={{ fontSize: '12.5px', color: '#334155', lineHeight: 1.45, display: 'block', wordBreak: 'break-word' }}>
+                          <span style={{ fontSize: '12.5px', color: '#334155', lineHeight: 1.45, display: 'block', wordBreak: 'break-word', fontWeight: '500' }}>
                             {fb.message}
                           </span>
                         </td>
 
                         {/* Visibility Option (Show / Hide) */}
-                        <td style={{ padding: '13px 16px', verticalAlign: 'middle', textAlign: 'center' }}>
+                        <td style={{ padding: '13px 24px 13px 12px', verticalAlign: 'middle', textAlign: 'center' }}>
                           <div
                             style={{
                               display: 'inline-flex',
                               alignItems: 'center',
                               background: '#F1F5F9',
-                              padding: '2.5px',
+                              padding: '3px',
                               borderRadius: '9999px',
                               border: '1px solid #E2E8F0',
+                              gap: '2px',
                             }}
                           >
                             <button
                               type="button"
-                              onClick={() => { if (!isVisible) handleToggleFeedbackVisibility(fb); }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleToggleFeedbackVisibility(fb, false);
+                              }}
                               style={{
                                 border: 'none',
-                                padding: '4px 10px',
+                                padding: '4px 11px',
                                 borderRadius: '9999px',
                                 fontSize: '11px',
                                 fontWeight: '800',
-                                cursor: isVisible ? 'default' : 'pointer',
+                                cursor: 'pointer',
                                 background: isVisible ? '#10B981' : 'transparent',
                                 color: isVisible ? '#FFFFFF' : '#64748B',
+                                boxShadow: isVisible ? '0 1px 3px rgba(16, 185, 129, 0.35)' : 'none',
                                 display: 'inline-flex',
                                 alignItems: 'center',
                                 gap: '4px',
                                 transition: 'all 0.15s ease',
                               }}
-                              title={isVisible ? 'Currently visible on store' : 'Click to show on store'}
+                              title="Show on storefront"
                             >
                               <i className="fa-solid fa-eye" style={{ fontSize: '9.5px' }} />
                               <span>Show</span>
                             </button>
                             <button
                               type="button"
-                              onClick={() => { if (isVisible) handleToggleFeedbackVisibility(fb); }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleToggleFeedbackVisibility(fb, true);
+                              }}
                               style={{
                                 border: 'none',
-                                padding: '4px 10px',
+                                padding: '4px 11px',
                                 borderRadius: '9999px',
                                 fontSize: '11px',
                                 fontWeight: '800',
-                                cursor: !isVisible ? 'default' : 'pointer',
-                                background: !isVisible ? '#64748B' : 'transparent',
+                                cursor: 'pointer',
+                                background: !isVisible ? '#475569' : 'transparent',
                                 color: !isVisible ? '#FFFFFF' : '#64748B',
+                                boxShadow: !isVisible ? '0 1px 3px rgba(71, 85, 105, 0.35)' : 'none',
                                 display: 'inline-flex',
                                 alignItems: 'center',
                                 gap: '4px',
                                 transition: 'all 0.15s ease',
                               }}
-                              title={!isVisible ? 'Currently hidden from store' : 'Click to hide from store'}
+                              title="Hide from storefront"
                             >
                               <i className="fa-solid fa-eye-slash" style={{ fontSize: '9.5px' }} />
                               <span>Hide</span>
@@ -799,10 +860,10 @@ export default function AdminFeedbacksClient() {
                   <th style={{ width: '12%', padding: '13px 16px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#475569' }}>
                     Rating
                   </th>
-                  <th style={{ width: '26%', padding: '13px 16px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#475569' }}>
+                  <th style={{ width: '22%', padding: '13px 16px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#475569' }}>
                     Review Comment
                   </th>
-                  <th style={{ width: '14%', padding: '13px 16px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#475569', textAlign: 'center' }}>
+                  <th style={{ width: '18%', padding: '13px 24px 13px 12px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#475569', textAlign: 'center' }}>
                     Visibility
                   </th>
                 </tr>
@@ -826,7 +887,7 @@ export default function AdminFeedbacksClient() {
                       <td style={{ padding: '14px 16px' }}>
                         <div style={{ width: '80%', height: '13px', borderRadius: '4px', background: '#F1F5F9' }} />
                       </td>
-                      <td style={{ padding: '14px 16px', textAlign: 'center' }}>
+                      <td style={{ padding: '14px 24px 14px 12px', textAlign: 'center' }}>
                         <div style={{ width: '90px', height: '24px', borderRadius: '999px', background: '#F1F5F9', margin: '0 auto' }} />
                       </td>
                     </tr>
@@ -976,63 +1037,72 @@ export default function AdminFeedbacksClient() {
 
                         {/* Review Comment */}
                         <td style={{ padding: '13px 16px', verticalAlign: 'middle' }}>
-                          <span style={{ fontSize: '12.5px', color: '#334155', lineHeight: 1.45, display: 'block', wordBreak: 'break-word' }}>
+                          <span style={{ fontSize: '12.5px', color: '#334155', lineHeight: 1.45, display: 'block', wordBreak: 'break-word', fontWeight: '500' }}>
                             {rev.comment}
                           </span>
                         </td>
 
                         {/* Visibility Option (Show / Hide) */}
-                        <td style={{ padding: '13px 16px', verticalAlign: 'middle', textAlign: 'center' }}>
+                        <td style={{ padding: '13px 24px 13px 12px', verticalAlign: 'middle', textAlign: 'center' }}>
                           <div
                             style={{
                               display: 'inline-flex',
                               alignItems: 'center',
                               background: '#F1F5F9',
-                              padding: '2.5px',
+                              padding: '3px',
                               borderRadius: '9999px',
                               border: '1px solid #E2E8F0',
+                              gap: '2px',
                             }}
                           >
                             <button
                               type="button"
-                              onClick={() => { if (!isLive) handleToggleApprove(rev); }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleToggleApprove(rev, true);
+                              }}
                               style={{
                                 border: 'none',
-                                padding: '4px 10px',
+                                padding: '4px 11px',
                                 borderRadius: '9999px',
                                 fontSize: '11px',
                                 fontWeight: '800',
-                                cursor: isLive ? 'default' : 'pointer',
+                                cursor: 'pointer',
                                 background: isLive ? '#10B981' : 'transparent',
                                 color: isLive ? '#FFFFFF' : '#64748B',
+                                boxShadow: isLive ? '0 1px 3px rgba(16, 185, 129, 0.35)' : 'none',
                                 display: 'inline-flex',
                                 alignItems: 'center',
                                 gap: '4px',
                                 transition: 'all 0.15s ease',
                               }}
-                              title={isLive ? 'Currently visible on store' : 'Click to show on store'}
+                              title="Show on storefront"
                             >
                               <i className="fa-solid fa-eye" style={{ fontSize: '9.5px' }} />
                               <span>Show</span>
                             </button>
                             <button
                               type="button"
-                              onClick={() => { if (isLive) handleToggleApprove(rev); }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleToggleApprove(rev, false);
+                              }}
                               style={{
                                 border: 'none',
-                                padding: '4px 10px',
+                                padding: '4px 11px',
                                 borderRadius: '9999px',
                                 fontSize: '11px',
                                 fontWeight: '800',
-                                cursor: !isLive ? 'default' : 'pointer',
-                                background: !isLive ? '#64748B' : 'transparent',
+                                cursor: 'pointer',
+                                background: !isLive ? '#475569' : 'transparent',
                                 color: !isLive ? '#FFFFFF' : '#64748B',
+                                boxShadow: !isLive ? '0 1px 3px rgba(71, 85, 105, 0.35)' : 'none',
                                 display: 'inline-flex',
                                 alignItems: 'center',
                                 gap: '4px',
                                 transition: 'all 0.15s ease',
                               }}
-                              title={!isLive ? 'Currently hidden from store' : 'Click to hide from store'}
+                              title="Hide from storefront"
                             >
                               <i className="fa-solid fa-eye-slash" style={{ fontSize: '9.5px' }} />
                               <span>Hide</span>

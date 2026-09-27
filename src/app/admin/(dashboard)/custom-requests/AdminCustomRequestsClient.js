@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import { MOCK_CUSTOM_REQUESTS } from '@/lib/mockData';
 import { createClient } from '@/lib/supabase/client';
@@ -12,12 +12,17 @@ export default function AdminCustomRequestsClient() {
   const [requests, setRequests] = useState(MOCK_CUSTOM_REQUESTS);
   const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
   const [statusFilter, setStatusFilter] = useState('all');
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [isFocused, setIsFocused] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [toastMsg, setToastMsg] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [activeMenuId, setActiveMenuId] = useState(null);
   const [requestToDelete, setRequestToDelete] = useState(null);
+
+  const searchInputRef = useRef(null);
+  const filterRef = useRef(null);
 
   // Sync requests from Supabase & localStorage
   const fetchRequests = useCallback(async () => {
@@ -99,9 +104,12 @@ export default function AdminCustomRequestsClient() {
     setCurrentPage(1);
   }, [statusFilter, searchQuery, pageSize]);
 
-  // Close action menu on click outside
+  // Close action menu and status filter on click outside
   useEffect(() => {
     function handleClickOutside(e) {
+      if (filterRef.current && !filterRef.current.contains(e.target)) {
+        setIsFilterOpen(false);
+      }
       if (!e.target.closest('.action-menu-dropdown-container')) {
         setActiveMenuId(null);
       }
@@ -244,7 +252,7 @@ export default function AdminCustomRequestsClient() {
         </div>
       )}
 
-      {/* Header Bar */}
+      {/* Page Header: Title + Unified Search & Status Filter */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '14px', flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <h1 className="admin-page-title" style={{ margin: 0, fontSize: '22px', fontWeight: '800' }}>
@@ -261,72 +269,183 @@ export default function AdminCustomRequestsClient() {
             {filteredRequests.length} {filteredRequests.length === 1 ? 'Request' : 'Requests'}
           </span>
         </div>
-      </div>
 
-      {/* Filter Tabs and Search Bar */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
-        <div className="admin-filter-tabs" style={{ margin: 0, display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-          {statuses.map((tab) => (
-            <button
-              key={tab.key}
-              type="button"
-              className={`filter-tab ${statusFilter === tab.key ? 'active' : ''}`}
-              onClick={() => setStatusFilter(tab.key)}
+        {/* Right Controls: Integrated Search & Status Dropdown */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+          <div
+            style={{
+              position: 'relative',
+              display: 'inline-flex',
+              alignItems: 'center',
+              background: '#ffffff',
+              border: isFocused ? '1.5px solid var(--color-primary, #b45309)' : '1px solid #e2e8f0',
+              borderRadius: '10px',
+              height: '38px',
+              padding: '0 4px 0 12px',
+              width: '300px',
+              maxWidth: '100%',
+              boxSizing: 'border-box',
+              boxShadow: isFocused ? '0 0 0 3px rgba(180, 83, 9, 0.12)' : '0 1px 2px rgba(0,0,0,0.03)',
+              transition: 'all 0.15s ease',
+            }}
+          >
+            <i className="fa-solid fa-magnifying-glass" style={{ color: '#94a3b8', fontSize: '12px', marginRight: '8px', flexShrink: 0 }}></i>
+            <input
+              ref={searchInputRef}
+              type="text"
+              placeholder="Search requests..."
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setCurrentPage(1);
+              }}
+              onFocus={() => setIsFocused(true)}
+              onBlur={() => setIsFocused(false)}
               style={{
                 border: 'none',
-                padding: '6px 12px',
-                borderRadius: '8px',
-                fontSize: '12px',
-                fontWeight: statusFilter === tab.key ? '700' : '500',
-                background: statusFilter === tab.key ? 'var(--color-primary, #b45309)' : '#ffffff',
-                color: statusFilter === tab.key ? '#ffffff' : '#64748b',
-                cursor: 'pointer',
-                transition: 'all 0.15s ease',
+                background: 'transparent',
+                outline: 'none',
+                fontSize: '13px',
+                color: '#0f172a',
+                width: '100%',
+                padding: 0,
               }}
-            >
-              {tab.label} ({tab.count})
-            </button>
-          ))}
-        </div>
+            />
 
-        <div style={{
-          position: 'relative',
-          display: 'inline-flex',
-          alignItems: 'center',
-          background: '#ffffff',
-          border: '1px solid #e2e8f0',
-          borderRadius: '10px',
-          height: '38px',
-          padding: '0 12px',
-          width: '260px',
-          maxWidth: '100%',
-          boxSizing: 'border-box',
-        }}>
-          <i className="fa-solid fa-magnifying-glass" style={{ color: '#94a3b8', fontSize: '12px', marginRight: '8px' }}></i>
-          <input
-            type="text"
-            placeholder="Search requests..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            style={{
-              border: 'none',
-              background: 'transparent',
-              outline: 'none',
-              fontSize: '12.5px',
-              color: '#0f172a',
-              width: '100%',
-              padding: 0,
-            }}
-          />
-          {searchQuery && (
-            <button
-              type="button"
-              onClick={() => setSearchQuery('')}
-              style={{ border: 'none', background: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '12px', padding: 0 }}
-            >
-              ✕
-            </button>
-          )}
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchQuery('');
+                  setCurrentPage(1);
+                  searchInputRef.current?.focus();
+                }}
+                style={{
+                  border: 'none',
+                  background: 'none',
+                  color: '#94a3b8',
+                  cursor: 'pointer',
+                  fontSize: '12px',
+                  padding: '4px',
+                  marginRight: '4px',
+                }}
+              >
+                ✕
+              </button>
+            )}
+
+            <div style={{ width: '1px', height: '20px', background: '#e2e8f0', margin: '0 4px 0 2px', flexShrink: 0 }}></div>
+
+            {/* Status Filter Dropdown Toggle Button */}
+            <div style={{ position: 'relative' }} ref={filterRef}>
+              <button
+                type="button"
+                onClick={() => setIsFilterOpen(!isFilterOpen)}
+                style={{
+                  height: '30px',
+                  padding: '0 10px',
+                  borderRadius: '7px',
+                  border: 'none',
+                  background: statusFilter !== 'all' ? 'rgba(180, 83, 9, 0.12)' : 'transparent',
+                  color: statusFilter !== 'all' ? 'var(--color-primary, #b45309)' : '#64748b',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  cursor: 'pointer',
+                  fontSize: '12px',
+                  fontWeight: '700',
+                  whiteSpace: 'nowrap',
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                {statusFilter !== 'all' && (
+                  <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--color-primary, #b45309)', display: 'inline-block', flexShrink: 0 }}></span>
+                )}
+                <span>{statusFilter === 'all' ? 'Status' : statuses.find(s => s.key === statusFilter)?.label || statusFilter}</span>
+                <i
+                  className="fa-solid fa-chevron-down"
+                  style={{
+                    fontSize: '9.5px',
+                    color: statusFilter !== 'all' ? 'var(--color-primary, #b45309)' : '#94a3b8',
+                    transition: 'transform 0.2s ease',
+                    transform: isFilterOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                  }}
+                />
+              </button>
+
+              {/* Status Filter Dropdown Menu */}
+              {isFilterOpen && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: 'calc(100% + 6px)',
+                    right: 0,
+                    background: '#ffffff',
+                    borderRadius: '10px',
+                    boxShadow: '0 10px 30px rgba(0, 0, 0, 0.12)',
+                    border: '1px solid #f1f5f9',
+                    padding: '4px',
+                    zIndex: 50,
+                    minWidth: '190px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '2px',
+                  }}
+                >
+                  {statuses.map((tab) => {
+                    const isSelected = statusFilter === tab.key;
+                    return (
+                      <button
+                        key={tab.key}
+                        type="button"
+                        onClick={() => {
+                          setStatusFilter(tab.key);
+                          setCurrentPage(1);
+                          setIsFilterOpen(false);
+                        }}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          width: '100%',
+                          padding: '7px 10px',
+                          borderRadius: '6px',
+                          border: 'none',
+                          background: isSelected ? '#FAF6F0' : 'transparent',
+                          color: isSelected ? 'var(--color-primary, #b45309)' : '#334155',
+                          fontSize: '12px',
+                          fontWeight: isSelected ? '700' : '500',
+                          cursor: 'pointer',
+                          textAlign: 'left',
+                          transition: 'all 0.15s ease',
+                        }}
+                        onMouseEnter={(e) => {
+                          if (!isSelected) e.currentTarget.style.background = '#f8fafc';
+                        }}
+                        onMouseLeave={(e) => {
+                          if (!isSelected) e.currentTarget.style.background = 'transparent';
+                        }}
+                      >
+                        <span>{tab.label}</span>
+                        <span
+                          style={{
+                            fontSize: '10px',
+                            fontWeight: '700',
+                            padding: '1px 6px',
+                            borderRadius: '9999px',
+                            background: isSelected ? 'rgba(180, 83, 9, 0.15)' : '#f1f5f9',
+                            color: isSelected ? 'var(--color-primary, #b45309)' : '#64748b',
+                          }}
+                        >
+                          {tab.count}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </div>
 

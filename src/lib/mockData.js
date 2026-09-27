@@ -956,10 +956,11 @@ export function deleteMockReview(id) {
   return localReviews;
 }
 
-export function toggleMockReviewApproval(id) {
+export function toggleMockReviewApproval(id, forceApproved) {
   localReviews = localReviews.map((r) => {
     if (r.id === id) {
-      return { ...r, is_approved: r.is_approved === false ? true : false };
+      const newStatus = forceApproved !== undefined ? forceApproved : (r.is_approved === false ? true : false);
+      return { ...r, is_approved: newStatus };
     }
     return r;
   });
@@ -987,10 +988,11 @@ export function deleteMockFeedback(id) {
   return localFeedbacks;
 }
 
-export function toggleMockFeedbackVisibility(id) {
+export function toggleMockFeedbackVisibility(id, forceHidden) {
   localFeedbacks = localFeedbacks.map((f) => {
     if (f.id === id) {
-      return { ...f, is_hidden: !f.is_hidden };
+      const newHidden = forceHidden !== undefined ? forceHidden : !f.is_hidden;
+      return { ...f, is_hidden: newHidden };
     }
     return f;
   });

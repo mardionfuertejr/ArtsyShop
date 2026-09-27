@@ -51,11 +51,11 @@ button, a, .btn, .product-card, .bottom-nav-item, .top-bar-action, .cart-btn-wra
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
   cursor: pointer;
-  transition: transform 0.10s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.10s ease, background-color 0.10s ease, border-color 0.10s ease;
+  transition: transform 0.16s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.16s ease, background-color 0.16s ease, border-color 0.16s ease;
 }
 
 button:active, .btn:active, .product-card:active, .bottom-nav-item:active, [role="button"]:active {
-  transform: scale(0.972);
+  transform: scale(0.98);
 }
 
 /* ── CSS Variables for mobile layout ───────────────────────── */

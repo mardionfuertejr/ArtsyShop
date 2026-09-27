@@ -5,14 +5,14 @@
 /* ── Page Transitions (Consistent, Native-App Smooth) ──────── */
 .page-enter,
 .page-content {
-  animation: pageFadeSlideUp 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: pageFadeSlideUp 0.24s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   will-change: opacity, transform;
 }
 
 @keyframes pageFadeSlideUp {
   0% {
     opacity: 0;
-    transform: translateY(8px);
+    transform: translateY(6px);
   }
   100% {
     opacity: 1;
@@ -21,14 +21,14 @@
 }
 
 .page-enter-left {
-  animation: pageSlideLeft 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: pageSlideLeft 0.24s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   will-change: opacity, transform;
 }
 
 @keyframes pageSlideLeft {
   0% {
     opacity: 0;
-    transform: translateX(12px);
+    transform: translateX(10px);
   }
   100% {
     opacity: 1;
@@ -37,14 +37,14 @@
 }
 
 .page-enter-scale {
-  animation: pageScaleIn 0.26s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: pageScaleIn 0.24s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   will-change: opacity, transform;
 }
 
 @keyframes pageScaleIn {
   0% {
     opacity: 0;
-    transform: scale(0.98) translateY(6px);
+    transform: scale(0.985) translateY(4px);
   }
   100% {
     opacity: 1;
@@ -54,7 +54,7 @@
 
 /* ── Fade In ──────────────────────────────────────────────── */
 .fade-in {
-  animation: fadeIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: fadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 @keyframes fadeIn {

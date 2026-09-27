@@ -66,9 +66,9 @@ export function formatOrderSummary(order) {
   detailsList.push(`• Customer: ${order.customer_name || order.customerName || 'Customer'}${order.customer_phone || order.customerPhone ? ` (${order.customer_phone || order.customerPhone})` : ''}`);
   
   if (isDelivery) {
-    detailsList.push(`• Delivery to: ${deliveryAddr || 'Delivery'}${isRush ? ' (Rush Order)' : ''}`);
+    detailsList.push(`• Claim via: Delivery${deliveryAddr ? ` (${deliveryAddr})` : ''}${isRush ? ' (Rush Order)' : ''}`);
   } else {
-    detailsList.push(`• Pickup at: ${pickupLoc || 'Pickup'}${isRush ? ' (Rush Order)' : ''}`);
+    detailsList.push(`• Claim via: Store Pickup${pickupLoc ? ` (${pickupLoc})` : ' (M&M\'s Artsy Studio)'}${isRush ? ' (Rush Order)' : ''}`);
   }
 
   if (formattedSchedule) {

@@ -18,6 +18,7 @@ export const viewport = {
 };
 
 export const metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://mm-artsy.vercel.app'),
   title: {
     default: "M&M's Artsy | Handcrafted Flowers & Custom Gifts",
     template: "%s | M&M's Artsy",

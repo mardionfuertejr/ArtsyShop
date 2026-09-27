@@ -12,20 +12,9 @@ import ErrorBoundary from '@/components/common/ErrorBoundary';
 
 export default function AdminDashboardClient({ initialOrders = [], initialMaterials = [] }) {
   const router = useRouter();
-  // Helper to resolve 1-hour auto transition to Crafting (preparing)
+  // Helper to preserve order status
   const resolveAutoStatus = (orderList) => {
-    const oneHourMs = 60 * 60 * 1000;
-    const now = Date.now();
-    return orderList.map((ord) => {
-      const orderTime = new Date(ord.created_at || now).getTime();
-      if ((ord.status === 'confirmed' || ord.status === 'pending' || ord.status === 'for_confirmation') && (now - orderTime >= oneHourMs)) {
-        return { ...ord, status: 'preparing' };
-      }
-      if (ord.status === 'pending' || ord.status === 'for_confirmation') {
-        return { ...ord, status: 'confirmed' };
-      }
-      return ord;
-    });
+    return (orderList || []).map((ord) => ord);
   };
 
   const [orders, setOrders] = useState(() => resolveAutoStatus(initialOrders));

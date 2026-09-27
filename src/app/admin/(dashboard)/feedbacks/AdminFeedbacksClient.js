@@ -110,6 +110,28 @@ export default function AdminFeedbacksClient() {
     showToast(newStatus ? 'Review is now visible on storefront' : 'Review hidden from storefront');
   };
 
+  const handleDeleteFeedback = async (id) => {
+    try {
+      const supabase = createClient();
+      if (supabase && id) {
+        await supabase.from('feedbacks').delete().eq('id', id);
+      }
+    } catch {}
+    setFeedbacks(prev => prev.filter(f => f.id !== id));
+    showToast('Feedback deleted');
+  };
+
+  const handleDeleteReview = async (id) => {
+    try {
+      const supabase = createClient();
+      if (supabase && id) {
+        await supabase.from('product_reviews').delete().eq('id', id);
+      }
+    } catch {}
+    setReviews(prev => prev.filter(r => r.id !== id));
+    showToast('Review deleted');
+  };
+
   // Calculations
   const allItems = [...feedbacks, ...reviews];
   const avgRating =
@@ -634,17 +656,20 @@ export default function AdminFeedbacksClient() {
             <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
               <thead>
                 <tr style={{ background: '#F8FAFC', borderBottom: '1.5px solid #E2E8F0' }}>
-                  <th style={{ width: '18%', padding: '13px 18px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#475569' }}>
+                  <th style={{ width: '16%', padding: '13px 18px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#475569' }}>
                     Date
                   </th>
-                  <th style={{ width: '24%', padding: '13px 16px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#475569' }}>
+                  <th style={{ width: '22%', padding: '13px 16px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#475569' }}>
                     Customer
                   </th>
-                  <th style={{ width: '14%', padding: '13px 16px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#475569', textAlign: 'center' }}>
+                  <th style={{ width: '12%', padding: '13px 16px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#475569', textAlign: 'center' }}>
                     Rating
                   </th>
-                  <th style={{ width: '44%', padding: '13px 18px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#475569' }}>
+                  <th style={{ width: '42%', padding: '13px 18px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#475569' }}>
                     Feedback Message
+                  </th>
+                  <th style={{ width: '8%', padding: '13px 18px', fontSize: '11px', fontWeight: '800', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#475569', textAlign: 'center' }}>
+                    Action
                   </th>
                 </tr>
               </thead>
@@ -664,11 +689,14 @@ export default function AdminFeedbacksClient() {
                       <td style={{ padding: '14px 18px' }}>
                         <div style={{ width: '85%', height: '13px', borderRadius: '4px', background: '#F1F5F9' }} />
                       </td>
+                      <td style={{ padding: '14px 18px' }}>
+                        <div style={{ width: '30px', height: '13px', borderRadius: '4px', background: '#F1F5F9', margin: '0 auto' }} />
+                      </td>
                     </tr>
                   ))
                 ) : paginatedItems.length === 0 ? (
                   <tr>
-                    <td colSpan={4} style={{ textAlign: 'center', padding: '60px 20px' }}>
+                    <td colSpan={5} style={{ textAlign: 'center', padding: '60px 20px' }}>
                       <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: '#FFF5F2', color: 'var(--color-primary, #EA580C)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px', marginBottom: '10px' }}>
                         <i className="fa-regular fa-comments"></i>
                       </div>
@@ -778,6 +806,31 @@ export default function AdminFeedbacksClient() {
                         <span style={{ fontSize: '12.5px', color: '#334155', lineHeight: 1.45, display: 'block' }}>
                           {fb.message}
                         </span>
+                      </td>
+
+                      {/* Action */}
+                      <td style={{ padding: '13px 18px', verticalAlign: 'middle', textAlign: 'center' }}>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteFeedback(fb.id)}
+                          style={{
+                            width: '30px',
+                            height: '30px',
+                            borderRadius: '8px',
+                            background: '#FEE2E2',
+                            color: '#DC2626',
+                            border: 'none',
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '12px',
+                            transition: 'all 0.15s ease',
+                          }}
+                          title="Delete feedback"
+                        >
+                          <i className="fa-regular fa-trash-can" />
+                        </button>
                       </td>
                     </tr>
                   ))
@@ -980,31 +1033,55 @@ export default function AdminFeedbacksClient() {
                           </span>
                         </td>
 
-                        {/* Storefront Visibility Toggle */}
+                        {/* Storefront Visibility & Actions */}
                         <td style={{ padding: '13px 18px', verticalAlign: 'middle', textAlign: 'center' }}>
-                          <button
-                            type="button"
-                            onClick={() => handleToggleApprove(rev)}
-                            style={{
-                              border: isLive ? '1px solid #86EFAC' : '1px solid #CBD5E1',
-                              background: isLive ? '#DCFCE7' : '#F1F5F9',
-                              color: isLive ? '#166534' : '#64748B',
-                              padding: '4px 10px',
-                              borderRadius: '9999px',
-                              fontSize: '11px',
-                              fontWeight: '800',
-                              cursor: 'pointer',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '4px',
-                              transition: 'all 0.15s ease',
-                              whiteSpace: 'nowrap',
-                            }}
-                            title={isLive ? 'Click to hide from store' : 'Click to show on store'}
-                          >
-                            <i className={isLive ? 'fa-solid fa-eye' : 'fa-solid fa-eye-slash'} style={{ fontSize: '10px' }}></i>
-                            <span>{isLive ? 'Live' : 'Hidden'}</span>
-                          </button>
+                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
+                            <button
+                              type="button"
+                              onClick={() => handleToggleApprove(rev)}
+                              style={{
+                                border: isLive ? '1px solid #86EFAC' : '1px solid #CBD5E1',
+                                background: isLive ? '#DCFCE7' : '#F1F5F9',
+                                color: isLive ? '#166534' : '#64748B',
+                                padding: '4px 10px',
+                                borderRadius: '9999px',
+                                fontSize: '11px',
+                                fontWeight: '800',
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                transition: 'all 0.15s ease',
+                                whiteSpace: 'nowrap',
+                              }}
+                              title={isLive ? 'Click to hide from store' : 'Click to show on store'}
+                            >
+                              <i className={isLive ? 'fa-solid fa-eye' : 'fa-solid fa-eye-slash'} style={{ fontSize: '10px' }}></i>
+                              <span>{isLive ? 'Live' : 'Hidden'}</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteReview(rev.id)}
+                              style={{
+                                width: '28px',
+                                height: '28px',
+                                borderRadius: '7px',
+                                background: '#FEE2E2',
+                                color: '#DC2626',
+                                border: 'none',
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontSize: '11px',
+                                transition: 'all 0.15s ease',
+                              }}
+                              title="Delete review"
+                            >
+                              <i className="fa-regular fa-trash-can" />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );

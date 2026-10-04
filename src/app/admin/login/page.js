@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import BrandLogo from '@/components/common/BrandLogo';
 import { createClient } from '@/lib/supabase/client';
+import { triggerAdminSecurityCode } from '@/lib/utils/pushNotification';
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -31,8 +32,14 @@ export default function AdminLoginPage() {
 
   // Forgot Password Modal State
   const [showForgotModal, setShowForgotModal] = useState(false);
+  const [forgotStep, setForgotStep] = useState('email'); // 'email' | 'verify'
   const [forgotEmail, setForgotEmail] = useState('');
-  const [forgotSubmitted, setForgotSubmitted] = useState(false);
+  const [forgotCode, setForgotCode] = useState('');
+  const [dispatchedCode, setDispatchedCode] = useState('');
+  const [forgotNewPass, setForgotNewPass] = useState('');
+  const [forgotLoading, setForgotLoading] = useState(false);
+  const [forgotError, setForgotError] = useState('');
+  const [forgotSuccess, setForgotSuccess] = useState('');
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -81,9 +88,92 @@ export default function AdminLoginPage() {
     }
   };
 
-  const handleForgotSubmit = (e) => {
+  const handleOpenForgot = () => {
+    setForgotEmail(email || localStorage.getItem('mm_admin_email') || '');
+    setForgotStep('email');
+    setForgotCode('');
+    setDispatchedCode('');
+    setForgotNewPass('');
+    setForgotError('');
+    setForgotSuccess('');
+    setShowForgotModal(true);
+  };
+
+  const handleRequestDeviceCode = async (e) => {
     e.preventDefault();
-    setForgotSubmitted(true);
+    if (!forgotEmail.trim()) {
+      setForgotError('Please enter your admin email.');
+      return;
+    }
+
+    setForgotLoading(true);
+    setForgotError('');
+
+    try {
+      const res = await fetch('/api/admin/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'request_code',
+          email: forgotEmail.trim(),
+        }),
+      });
+
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        setDispatchedCode(data.code);
+        setForgotStep('verify');
+        // Trigger device push notification
+        triggerAdminSecurityCode({ code: data.code, email: forgotEmail.trim() });
+      } else {
+        setForgotError(data.message || 'Unable to send security code.');
+      }
+    } catch {
+      setForgotError('Network error. Please try again.');
+    } finally {
+      setForgotLoading(false);
+    }
+  };
+
+  const handleVerifyAndReset = async (e) => {
+    e.preventDefault();
+    if (!forgotCode.trim() || !forgotNewPass.trim()) {
+      setForgotError('Please enter the 6-digit code and new password.');
+      return;
+    }
+
+    setForgotLoading(true);
+    setForgotError('');
+
+    try {
+      const res = await fetch('/api/admin/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'verify_and_reset',
+          email: forgotEmail.trim(),
+          code: forgotCode.trim(),
+          newPassword: forgotNewPass.trim(),
+        }),
+      });
+
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        setForgotSuccess('Password updated! Logging in...');
+        setTimeout(() => {
+          router.push('/admin');
+          router.refresh();
+        }, 800);
+      } else {
+        setForgotError(data.message || 'Invalid verification code.');
+      }
+    } catch {
+      setForgotError('Network error. Please try again.');
+    } finally {
+      setForgotLoading(false);
+    }
   };
 
   return (
@@ -243,11 +333,7 @@ export default function AdminLoginPage() {
             <button
               type="button"
               disabled={loading}
-              onClick={() => {
-                setForgotEmail(email);
-                setForgotSubmitted(false);
-                setShowForgotModal(true);
-              }}
+              onClick={handleOpenForgot}
               style={{
                 background: 'none',
                 border: 'none',
@@ -334,16 +420,16 @@ export default function AdminLoginPage() {
         </div>
       </div>
 
-      {/* Forgot Password Modal */}
+      {/* Device Push Forgot Password Modal */}
       {showForgotModal && (
         <div
           className="modal-backdrop"
-          onClick={() => setShowForgotModal(false)}
+          onClick={() => !forgotLoading && setShowForgotModal(false)}
           style={{
             position: 'fixed',
             inset: 0,
-            background: 'rgba(0, 0, 0, 0.5)',
-            backdropFilter: 'blur(4px)',
+            background: 'rgba(15, 23, 42, 0.65)',
+            backdropFilter: 'blur(3px)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -355,67 +441,108 @@ export default function AdminLoginPage() {
             className="modal-card"
             onClick={(e) => e.stopPropagation()}
             style={{
-              background: 'var(--color-surface, #ffffff)',
-              borderRadius: 'var(--radius-xl, 16px)',
+              background: '#FFFFFF',
+              borderRadius: '16px',
               padding: '24px',
               maxWidth: '380px',
               width: '100%',
               boxShadow: '0 20px 40px rgba(0, 0, 0, 0.15)',
               position: 'relative',
+              boxSizing: 'border-box',
             }}
           >
+            {/* Close Button */}
             <button
               type="button"
               onClick={() => setShowForgotModal(false)}
+              disabled={forgotLoading}
               style={{
                 position: 'absolute',
                 top: '16px',
                 right: '16px',
-                background: 'none',
+                background: '#F1F5F9',
                 border: 'none',
-                color: 'var(--color-text-muted)',
+                borderRadius: '50%',
+                width: '28px',
+                height: '28px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#64748B',
                 cursor: 'pointer',
-                fontSize: '16px',
+                fontSize: '13px',
               }}
               aria-label="Close"
             >
               <i className="fa-solid fa-xmark"></i>
             </button>
 
-            {!forgotSubmitted ? (
-              <form onSubmit={handleForgotSubmit}>
-                <div style={{ textAlign: 'center', marginBottom: '16px' }}>
-                  <div style={{
-                    width: '46px',
-                    height: '46px',
-                    borderRadius: '50%',
-                    background: 'var(--color-primary-lighter, #FDF2F4)',
-                    color: 'var(--color-primary)',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '18px',
-                    marginBottom: '10px',
-                  }}>
-                    <i className="fa-solid fa-key"></i>
-                  </div>
-                  <h3 style={{ fontSize: '16px', fontWeight: '700', color: 'var(--color-text)', margin: '0 0 4px' }}>
-                    Reset Admin Password
-                  </h3>
-                  <p style={{
-                    fontSize: '12px',
-                    color: 'var(--color-text-secondary)',
-                    margin: 0,
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                  }}>
-                    Enter your email to receive recovery instructions.
-                  </p>
-                </div>
+            {/* Modal Header */}
+            <div style={{ textAlign: 'center', marginBottom: '18px' }}>
+              <div
+                style={{
+                  width: '44px',
+                  height: '44px',
+                  borderRadius: '50%',
+                  background: 'rgba(180, 83, 9, 0.1)',
+                  color: 'var(--color-primary, #b45309)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '18px',
+                  marginBottom: '8px',
+                }}
+              >
+                <i className={forgotStep === 'email' ? 'fa-solid fa-mobile-screen' : 'fa-solid fa-shield-halved'}></i>
+              </div>
+              <h3 style={{ fontSize: '16px', fontWeight: '800', color: '#0F172A', margin: 0 }}>
+                {forgotStep === 'email' ? 'Reset Password' : 'Device Verification'}
+              </h3>
+            </div>
 
+            {/* Error Message */}
+            {forgotError && (
+              <div
+                style={{
+                  padding: '8px 12px',
+                  borderRadius: '8px',
+                  background: '#FEE2E2',
+                  border: '1px solid #FECACA',
+                  color: '#DC2626',
+                  fontSize: '12px',
+                  fontWeight: '600',
+                  marginBottom: '14px',
+                  textAlign: 'center',
+                }}
+              >
+                {forgotError}
+              </div>
+            )}
+
+            {/* Success Message */}
+            {forgotSuccess && (
+              <div
+                style={{
+                  padding: '8px 12px',
+                  borderRadius: '8px',
+                  background: '#DCFCE7',
+                  border: '1px solid #BBF7D0',
+                  color: '#166534',
+                  fontSize: '12px',
+                  fontWeight: '700',
+                  marginBottom: '14px',
+                  textAlign: 'center',
+                }}
+              >
+                {forgotSuccess}
+              </div>
+            )}
+
+            {/* STEP 1: Enter Email */}
+            {forgotStep === 'email' && (
+              <form onSubmit={handleRequestDeviceCode}>
                 <div style={{ marginBottom: '16px' }}>
-                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '6px', color: 'var(--color-text)' }}>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', marginBottom: '6px', color: '#334155' }}>
                     Admin Email
                   </label>
                   <input
@@ -426,56 +553,165 @@ export default function AdminLoginPage() {
                     placeholder="name@example.com"
                     autoComplete="email"
                     required
-                    style={{ width: '100%', height: '42px', fontSize: '13px' }}
+                    style={{ width: '100%', height: '40px', fontSize: '13px', boxSizing: 'border-box' }}
                   />
                 </div>
 
                 <button
                   type="submit"
+                  disabled={forgotLoading}
                   className="btn btn-primary btn-full"
-                  style={{ height: '42px', fontSize: '13.5px', fontWeight: '600' }}
+                  style={{
+                    height: '40px',
+                    fontSize: '13px',
+                    fontWeight: '700',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                  }}
                 >
-                  Send Reset Link
+                  {forgotLoading ? (
+                    <>
+                      <i className="fa-solid fa-spinner fa-spin"></i>
+                      <span>Sending Code...</span>
+                    </>
+                  ) : (
+                    <>
+                      <i className="fa-solid fa-paper-plane" style={{ fontSize: '11.5px' }}></i>
+                      <span>Send Code to Device</span>
+                    </>
+                  )}
                 </button>
               </form>
-            ) : (
-              <div style={{ textAlign: 'center', padding: '8px 0' }}>
-                <div style={{
-                  width: '50px',
-                  height: '50px',
-                  borderRadius: '50%',
-                  background: 'var(--color-success-bg, #DCFCE7)',
-                  color: 'var(--color-success, #16A34A)',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '22px',
-                  marginBottom: '12px',
-                }}>
-                  <i className="fa-solid fa-paper-plane"></i>
+            )}
+
+            {/* STEP 2: Enter Code & New Password */}
+            {forgotStep === 'verify' && (
+              <form onSubmit={handleVerifyAndReset}>
+                {/* Instant Quick Insert Pill */}
+                {dispatchedCode && (
+                  <div
+                    style={{
+                      background: '#FFFBEB',
+                      border: '1px solid #FDE68A',
+                      borderRadius: '8px',
+                      padding: '8px 12px',
+                      marginBottom: '14px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: '8px',
+                    }}
+                  >
+                    <span style={{ fontSize: '12px', color: '#92400E', fontWeight: '600' }}>
+                      Code: <strong style={{ letterSpacing: '1px', fontFamily: 'monospace', fontSize: '14px' }}>{dispatchedCode}</strong>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setForgotCode(dispatchedCode)}
+                      style={{
+                        background: '#EA580C',
+                        color: '#FFFFFF',
+                        border: 'none',
+                        borderRadius: '6px',
+                        padding: '3px 8px',
+                        fontSize: '11px',
+                        fontWeight: '700',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Autofill
+                    </button>
+                  </div>
+                )}
+
+                <div style={{ marginBottom: '12px' }}>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', marginBottom: '6px', color: '#334155' }}>
+                    6-Digit Security Code
+                  </label>
+                  <input
+                    type="text"
+                    className="input"
+                    value={forgotCode}
+                    onChange={(e) => setForgotCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    placeholder="123456"
+                    maxLength={6}
+                    required
+                    style={{
+                      width: '100%',
+                      height: '40px',
+                      fontSize: '16px',
+                      fontWeight: '700',
+                      letterSpacing: '4px',
+                      textAlign: 'center',
+                      boxSizing: 'border-box',
+                    }}
+                  />
                 </div>
-                <h3 style={{ fontSize: '16px', fontWeight: '700', color: 'var(--color-text)', margin: '0 0 6px' }}>
-                  Reset Link Sent!
-                </h3>
-                <p style={{
-                  fontSize: '12px',
-                  color: 'var(--color-text-secondary)',
-                  margin: '0 0 16px',
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                }}>
-                  Recovery details sent to your registered email.
-                </p>
+
+                <div style={{ marginBottom: '16px' }}>
+                  <label style={{ display: 'block', fontSize: '12px', fontWeight: '700', marginBottom: '6px', color: '#334155' }}>
+                    New Password
+                  </label>
+                  <input
+                    type="password"
+                    className="input"
+                    value={forgotNewPass}
+                    onChange={(e) => setForgotNewPass(e.target.value)}
+                    placeholder="Enter new password"
+                    required
+                    style={{ width: '100%', height: '40px', fontSize: '13px', boxSizing: 'border-box' }}
+                  />
+                </div>
+
                 <button
-                  type="button"
-                  className="btn btn-secondary btn-full"
-                  onClick={() => setShowForgotModal(false)}
-                  style={{ height: '40px', fontSize: '13px' }}
+                  type="submit"
+                  disabled={forgotLoading}
+                  className="btn btn-primary btn-full"
+                  style={{
+                    height: '40px',
+                    fontSize: '13px',
+                    fontWeight: '700',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                    marginBottom: '10px',
+                  }}
                 >
-                  Back to Sign In
+                  {forgotLoading ? (
+                    <>
+                      <i className="fa-solid fa-spinner fa-spin"></i>
+                      <span>Verifying...</span>
+                    </>
+                  ) : (
+                    <>
+                      <i className="fa-solid fa-check"></i>
+                      <span>Reset & Sign In</span>
+                    </>
+                  )}
                 </button>
-              </div>
+
+                <div style={{ textAlign: 'center' }}>
+                  <button
+                    type="button"
+                    onClick={handleRequestDeviceCode}
+                    disabled={forgotLoading}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: 'var(--color-primary, #b45309)',
+                      fontSize: '11.5px',
+                      fontWeight: '700',
+                      cursor: 'pointer',
+                      padding: 0,
+                    }}
+                  >
+                    Resend Code
+                  </button>
+                </div>
+              </form>
             )}
           </div>
         </div>

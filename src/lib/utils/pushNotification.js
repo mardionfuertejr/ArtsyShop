@@ -121,3 +121,38 @@ export function getOrderStatusNotificationContent(order, newStatus) {
       return null;
   }
 }
+
+export async function triggerAdminSecurityCode({ code, email }) {
+  if (typeof window === 'undefined') return;
+
+  const title = '🔒 M&M Admin Security Code';
+  const body = `Your 6-digit password reset code is: ${code}`;
+
+  try {
+    if ('Notification' in window && Notification.permission === 'default') {
+      await Notification.requestPermission();
+    }
+  } catch {}
+
+  try {
+    if ('Notification' in window && Notification.permission === 'granted') {
+      const reg = await navigator.serviceWorker?.ready;
+      if (reg && reg.showNotification) {
+        reg.showNotification(title, {
+          body,
+          icon: '/icons/icon-192x192.png',
+          badge: '/icons/icon-192x192.png',
+          vibrate: [200, 100, 200],
+          tag: 'admin-security-otp',
+          renotify: true,
+        });
+        return;
+      }
+
+      new Notification(title, {
+        body,
+        icon: '/icons/icon-192x192.png',
+      });
+    }
+  } catch {}
+}

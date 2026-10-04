@@ -5,8 +5,9 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { getAllMockOrders } from '@/lib/mockData';
 import { formatCurrency } from '@/lib/utils/formatCurrency';
-import { formatDate, formatRelative, formatTime12Hour } from '@/lib/utils/formatDate';
+import { formatDate, formatDateShort, formatRelative, formatTime12Hour, isRushDate } from '@/lib/utils/formatDate';
 import { formatOrderSummary } from '@/lib/utils/formatOrderSummary';
+import { deductStockForOrder } from '@/lib/engine/inventory';
 
 function isValidProofImage(url) {
   if (!url || typeof url !== 'string') return false;
@@ -30,13 +31,14 @@ function isValidProofImage(url) {
   );
 }
 
-export default function OrderDetailClient({ order: initialOrder }) {
-  const [order, setOrder] = useState(initialOrder);
+export default function OrderDetailClient({ order: initialOrder = {} }) {
+  const safeInitialOrder = initialOrder || {};
+  const [order, setOrder] = useState(safeInitialOrder);
 
   // Normalize status if it was legacy pending/for_confirmation
-  const initialStatus = (initialOrder.status === 'pending' || initialOrder.status === 'for_confirmation') 
+  const initialStatus = (safeInitialOrder.status === 'pending' || safeInitialOrder.status === 'for_confirmation') 
     ? 'confirmed' 
-    : initialOrder.status;
+    : (safeInitialOrder.status || 'confirmed');
 
   const [status, setStatus] = useState(initialStatus);
   const [updating, setUpdating] = useState(false);
@@ -208,7 +210,9 @@ export default function OrderDetailClient({ order: initialOrder }) {
       if (typeof window === 'undefined' || !mapRef.current) return;
       try {
         const L = (await import('leaflet')).default;
-        await import('leaflet/dist/leaflet.css');
+        try {
+          await import('leaflet/dist/leaflet.css');
+        } catch {}
 
         if (cancelled || !mapRef.current) return;
 
@@ -217,9 +221,9 @@ export default function OrderDetailClient({ order: initialOrder }) {
           mapInstanceRef.current = null;
         }
 
-        const isDelivery = order.order_type === 'delivery';
-        const rawLat = parseFloat(order.delivery_location?.latitude);
-        const rawLng = parseFloat(order.delivery_location?.longitude);
+        const isDelivery = order?.order_type === 'delivery';
+        const rawLat = parseFloat(order?.delivery_location?.latitude);
+        const rawLng = parseFloat(order?.delivery_location?.longitude);
         const hasValidCoords = !isNaN(rawLat) && !isNaN(rawLng) && rawLat !== 0;
 
         const coords = isDelivery && hasValidCoords
@@ -254,7 +258,7 @@ export default function OrderDetailClient({ order: initialOrder }) {
 
         const marker = L.marker(coords, { icon: customIcon }).addTo(map);
         const popupText = isDelivery
-          ? (order.delivery_location?.address || `${order.customer_name}'s Delivery Location`)
+          ? (order?.delivery_location?.address || `${order?.customer_name || 'Customer'}'s Delivery Location`)
           : 'M&M Artsy (Pickup Location)';
         marker.bindPopup(`<div style="font-size: 12px; font-weight: 700; color: #0f172a; padding: 2px;">${popupText}</div>`);
 
@@ -283,11 +287,11 @@ export default function OrderDetailClient({ order: initialOrder }) {
           };
         }
       } catch (err) {
-        console.error('Error initializing order map:', err);
+        console.warn('Error initializing order map:', err);
       }
     };
 
-    const cleanupPromise = initMap();
+    initMap();
 
     return () => {
       cancelled = true;
@@ -296,7 +300,7 @@ export default function OrderDetailClient({ order: initialOrder }) {
         mapInstanceRef.current = null;
       }
     };
-  }, [order.order_type, order.delivery_location, order.customer_name]);
+  }, [order?.order_type, order?.delivery_location, order?.customer_name]);
 
   // Sync with localStorage & Supabase on mount
   useEffect(() => {
@@ -304,19 +308,24 @@ export default function OrderDetailClient({ order: initialOrder }) {
       try {
         let found = null;
 
+        const targetId = initialOrder?.id || '';
+        const targetRef = initialOrder?.reference_code || '';
+
         // 1. Check likha_admin_orders in localStorage
         try {
           const localPlaced = JSON.parse(localStorage.getItem('likha_admin_orders') || '[]');
           found = localPlaced.find(
-            (o) => o.id === initialOrder.id || o.reference_code === initialOrder.id || o.reference_code === initialOrder.reference_code || o.id === initialOrder.reference_code
+            (o) => (targetId && (o.id === targetId || o.reference_code === targetId)) ||
+                   (targetRef && (o.reference_code === targetRef || o.id === targetRef))
           );
         } catch {}
 
         // 2. Check getAllMockOrders
         if (!found || !found.order_items || found.order_items.length === 0) {
-          const mockAll = getAllMockOrders();
+          const mockAll = getAllMockOrders() || [];
           const mockFound = mockAll.find(
-            (o) => o.id === initialOrder.id || o.reference_code === initialOrder.id || o.reference_code === initialOrder.reference_code || o.id === initialOrder.reference_code
+            (o) => (targetId && (o.id === targetId || o.reference_code === targetId)) ||
+                   (targetRef && (o.reference_code === targetRef || o.id === targetRef))
           );
           if (mockFound && mockFound.order_items && mockFound.order_items.length > 0) {
             found = mockFound;
@@ -327,8 +336,8 @@ export default function OrderDetailClient({ order: initialOrder }) {
         if (!found || !found.order_items || found.order_items.length === 0) {
           try {
             const supabase = createClient();
-            if (supabase) {
-              const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(initialOrder.id);
+            if (supabase && targetId) {
+              const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(targetId);
               const query = supabase
                 .from('orders')
                 .select(`
@@ -357,8 +366,8 @@ export default function OrderDetailClient({ order: initialOrder }) {
                 `);
 
               const { data: dbOrder } = isUUID
-                ? await query.eq('id', initialOrder.id).maybeSingle()
-                : await query.or(`id.eq.${initialOrder.id},reference_code.eq.${initialOrder.id},reference_code.eq.${initialOrder.reference_code}`).maybeSingle();
+                ? await query.eq('id', targetId).maybeSingle()
+                : await query.or(`id.eq.${targetId},reference_code.eq.${targetId}${targetRef ? `,reference_code.eq.${targetRef}` : ''}`).maybeSingle();
 
               if (dbOrder) {
                 let payment_method = dbOrder.payment_method || dbOrder.paymentMethod || 'pickup';
@@ -529,6 +538,15 @@ export default function OrderDetailClient({ order: initialOrder }) {
       }).catch(() => {});
     } catch {}
 
+    // 4. Auto-deduct material inventory on confirmation / crafting / completion
+    if (newStatus === 'confirmed' || newStatus === 'preparing' || newStatus === 'crafting' || newStatus === 'completed') {
+      try {
+        await deductStockForOrder({ ...order, status: newStatus });
+      } catch (deductErr) {
+        console.warn('Material auto-deduction note:', deductErr);
+      }
+    }
+
     setUpdating(false);
   };
 
@@ -562,7 +580,9 @@ export default function OrderDetailClient({ order: initialOrder }) {
 
   return (
     <div style={{ width: '100%' }}>
-      <style jsx>{`
+      <style
+        dangerouslySetInnerHTML={{
+          __html: `
         .order-detail-container {
           width: 100%;
           max-width: 1200px;
@@ -589,7 +609,9 @@ export default function OrderDetailClient({ order: initialOrder }) {
             grid-template-columns: 1fr !important;
           }
         }
-      `}</style>
+      `,
+        }}
+      />
 
       <div className="order-detail-container">
         {/* Header Section */}
@@ -1224,8 +1246,8 @@ export default function OrderDetailClient({ order: initialOrder }) {
                 <span>Customer & Delivery</span>
               </h2>
               <span style={{
-                background: order.order_type === 'delivery' ? 'rgba(234, 88, 12, 0.08)' : 'rgba(22, 163, 74, 0.08)',
-                color: order.order_type === 'delivery' ? '#C2410C' : '#166534',
+                background: order?.order_type === 'delivery' ? 'rgba(234, 88, 12, 0.08)' : 'rgba(22, 163, 74, 0.08)',
+                color: order?.order_type === 'delivery' ? '#C2410C' : '#166534',
                 fontSize: '11px',
                 fontWeight: '700',
                 padding: '2px 8px',
@@ -1235,14 +1257,14 @@ export default function OrderDetailClient({ order: initialOrder }) {
                 gap: '4px',
                 whiteSpace: 'nowrap',
               }}>
-                <i className={order.order_type === 'delivery' ? 'fa-solid fa-motorcycle' : 'fa-solid fa-store'} style={{ fontSize: '10px' }}></i>
-                <span>{order.order_type === 'delivery' ? 'Delivery' : 'Pickup'}</span>
+                <i className={order?.order_type === 'delivery' ? 'fa-solid fa-motorcycle' : 'fa-solid fa-store'} style={{ fontSize: '10px' }}></i>
+                <span>{order?.order_type === 'delivery' ? 'Delivery' : 'Pickup'}</span>
               </span>
             </div>
             {/* Customer & Date Needed Info Pills - Equal Height & Balanced */}
             <div className="pills-grid" style={{
               display: 'grid',
-              gridTemplateColumns: order.preferred_date ? '1fr 1fr' : '1fr',
+              gridTemplateColumns: order?.preferred_date ? '1fr 1fr' : '1fr',
               gap: '10px',
               alignItems: 'stretch',
             }}>
@@ -1264,9 +1286,9 @@ export default function OrderDetailClient({ order: initialOrder }) {
                     <span>Customer</span>
                   </span>
                   <p style={{ fontWeight: '800', fontSize: '13px', color: '#0F172A', margin: 0, wordBreak: 'break-word', lineHeight: 1.3 }}>
-                    {order.customer_name}
+                    {order?.customer_name || 'Customer'}
                   </p>
-                  {order.customer_phone && (
+                  {order?.customer_phone && (
                     <span style={{ fontSize: '11px', color: '#64748B', fontWeight: '600', display: 'block', marginTop: '2px', wordBreak: 'break-all' }}>
                       {order.customer_phone}
                     </span>
@@ -1287,26 +1309,26 @@ export default function OrderDetailClient({ order: initialOrder }) {
                     borderRadius: '5px',
                     fontSize: '10px',
                     fontWeight: '700',
-                    background: (order.messenger_opened_at || order.sent_to_messenger) ? '#ECFDF5' : '#FFFBEB',
-                    color: (order.messenger_opened_at || order.sent_to_messenger) ? '#065F46' : '#92400E',
-                    border: (order.messenger_opened_at || order.sent_to_messenger) ? '1px solid #A7F3D0' : '1px solid #FDE68A',
+                    background: (order?.messenger_opened_at || order?.sent_to_messenger) ? '#ECFDF5' : '#FFFBEB',
+                    color: (order?.messenger_opened_at || order?.sent_to_messenger) ? '#065F46' : '#92400E',
+                    border: (order?.messenger_opened_at || order?.sent_to_messenger) ? '1px solid #A7F3D0' : '1px solid #FDE68A',
                   }}>
                     <i
-                      className={(order.messenger_opened_at || order.sent_to_messenger) ? 'fa-brands fa-facebook-messenger' : 'fa-regular fa-clock'}
+                      className={(order?.messenger_opened_at || order?.sent_to_messenger) ? 'fa-brands fa-facebook-messenger' : 'fa-regular fa-clock'}
                       style={{
-                        color: (order.messenger_opened_at || order.sent_to_messenger) ? '#0084FF' : '#D97706',
+                        color: (order?.messenger_opened_at || order?.sent_to_messenger) ? '#0084FF' : '#D97706',
                         fontSize: '10px',
                       }}
                     />
                     <span>
-                      {(order.messenger_opened_at || order.sent_to_messenger) ? 'Chat Opened' : 'Awaiting Chat'}
+                      {(order?.messenger_opened_at || order?.sent_to_messenger) ? 'Chat Opened' : 'Awaiting Chat'}
                     </span>
                   </div>
                 </div>
               </div>
 
               {/* Date Needed Box */}
-              {order.preferred_date && (
+              {order?.preferred_date && (
                 <div style={{
                   background: '#F8FAFC',
                   padding: '10px 12px',
@@ -1341,7 +1363,7 @@ export default function OrderDetailClient({ order: initialOrder }) {
                       wordBreak: 'break-word',
                       lineHeight: 1.3,
                     }}>
-                      {formatDate(order.preferred_date)}{order.preferred_time ? ` · ${formatTime12Hour(order.preferred_time)}` : ''}
+                      {formatDate(order.preferred_date)}{order?.preferred_time ? ` · ${formatTime12Hour(order.preferred_time)}` : ''}
                     </p>
                   </div>
 
@@ -1356,8 +1378,8 @@ export default function OrderDetailClient({ order: initialOrder }) {
                     alignItems: 'center',
                     gap: '4px',
                   }}>
-                    <i className={order.delivery_locations ? "fa-solid fa-truck-fast" : "fa-solid fa-store"} style={{ fontSize: '10px', color: 'var(--color-primary)' }}></i>
-                    <span>{order.delivery_locations ? "Delivery Schedule" : "Pickup Schedule"}</span>
+                    <i className={order?.delivery_locations ? "fa-solid fa-truck-fast" : "fa-solid fa-store"} style={{ fontSize: '10px', color: 'var(--color-primary)' }}></i>
+                    <span>{order?.delivery_locations ? "Delivery Schedule" : "Pickup Schedule"}</span>
                   </div>
                 </div>
               )}
@@ -1365,10 +1387,10 @@ export default function OrderDetailClient({ order: initialOrder }) {
 
             {/* Payment Method & Proof of Payment Card */}
             {(() => {
-              const isGcash = order.payment_method === 'gcash' || order.paymentMethod === 'gcash';
-              const rawProofUrl = order.payment_proof_url || order.paymentProofUrl;
+              const isGcash = order?.payment_method === 'gcash' || order?.paymentMethod === 'gcash';
+              const rawProofUrl = order?.payment_proof_url || order?.paymentProofUrl;
               const hasPhoto = isValidProofImage(rawProofUrl);
-              const refNo = (order.gcash_reference_no || order.gcashRefNo || '').trim();
+              const refNo = (order?.gcash_reference_no || order?.gcashRefNo || '').trim();
               const hasRef = Boolean(refNo);
 
               return (

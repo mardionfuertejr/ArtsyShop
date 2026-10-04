@@ -5,7 +5,7 @@ import Link from 'next/link';
 import PremiumDatePicker, { isRushDate } from '@/components/common/PremiumDatePicker';
 import PremiumTimePicker from '@/components/common/PremiumTimePicker';
 import { useRouter } from 'next/navigation';
-import { useCart } from '@/lib/hooks/useCart';
+import { useCart, consolidateCartItems } from '@/lib/hooks/useCart';
 import { createClient } from '@/lib/supabase/client';
 import { generateOrderReference } from '@/lib/engine/reference';
 import { formatCurrency } from '@/lib/utils/formatCurrency';
@@ -20,6 +20,12 @@ import {
   markVoucherAsUsed,
   isVoucherExpired,
 } from '@/lib/engine/voucherEngine';
+import {
+  getDeviceDailyOrderInfo,
+  checkDeviceOrderAllowed,
+  recordDeviceOrderPlaced,
+  MAX_ORDERS_PER_DEVICE_DAY,
+} from '@/lib/engine/deviceOrderLimit';
 
 const DEFAULT_DELIVERY_FEE = 45;
 const BARUGO_STUDIO_COORDS = { lat: 11.3256, lng: 124.7349 };
@@ -88,6 +94,8 @@ export default function CheckoutPage() {
   const [copiedGcash, setCopiedGcash] = useState(false);
   const [showQrModal, setShowQrModal] = useState(false);
   const [showNotes, setShowNotes] = useState(false);
+  const [deviceOrderInfo, setDeviceOrderInfo] = useState(null);
+  const [autofilledProfile, setAutofilledProfile] = useState(null);
 
   const [settings, setSettings] = useState({
     pickup_address: '',
@@ -130,6 +138,30 @@ export default function CheckoutPage() {
           setSelectedIds(parsed);
         }
       }
+
+      // Check device daily order limit stats
+      setDeviceOrderInfo(getDeviceDailyOrderInfo());
+
+      // Auto-prefill customer details for returning buyers
+      const savedProfileRaw = localStorage.getItem('likha_customer_profile');
+      if (savedProfileRaw) {
+        const profile = JSON.parse(savedProfileRaw);
+        if (profile && (profile.name || profile.phone)) {
+          setFormData((prev) => ({
+            ...prev,
+            name: prev.name || profile.name || '',
+            phone: prev.phone || profile.phone || '',
+            facebookName: prev.facebookName || profile.facebookName || '',
+          }));
+          if (profile.deliveryAddress) {
+            setDeliveryAddress((prev) => prev || profile.deliveryAddress);
+          }
+          if (profile.deliveryLocation && profile.deliveryLocation.lat && profile.deliveryLocation.lng) {
+            setDeliveryLocation((prev) => prev || profile.deliveryLocation);
+          }
+          setAutofilledProfile(profile);
+        }
+      }
     } catch {}
   }, []);
 
@@ -149,11 +181,12 @@ export default function CheckoutPage() {
   }, [submitting]);
 
   // Filter items to checkout
-  const checkoutCart = isDirectCheckout && directItem
+  const rawCheckoutCart = isDirectCheckout && directItem
     ? [directItem]
     : (selectedIds && selectedIds.length > 0
         ? cart.filter((item) => selectedIds.includes(item.cartItemId))
         : cart);
+  const checkoutCart = consolidateCartItems(rawCheckoutCart);
 
   const subtotal = checkoutCart.reduce((sum, c) => {
     return sum + (parseFloat(c.unitPrice) || 0) * (c.quantity || 1);
@@ -846,6 +879,14 @@ export default function CheckoutPage() {
       return;
     }
 
+    // Check device rate limit (Max 5 orders per day per device)
+    const deviceCheck = checkDeviceOrderAllowed();
+    if (!deviceCheck.allowed) {
+      setError(deviceCheck.message || `Daily limit reached (${MAX_ORDERS_PER_DEVICE_DAY} orders/day). Message us on Messenger for more.`);
+      setDeviceOrderInfo(getDeviceDailyOrderInfo());
+      return;
+    }
+
     setSubmitting(true);
     setError('');
     setFieldErrors({});
@@ -990,6 +1031,19 @@ export default function CheckoutPage() {
         markVoucherAsUsed(appliedVoucher.code);
       }
 
+      // Save customer profile for fast 1-click checkout on future orders
+      localStorage.setItem(
+        'likha_customer_profile',
+        JSON.stringify({
+          name: formData.name,
+          phone: formData.phone || '',
+          facebookName: formData.facebookName || '',
+          deliveryAddress: deliveryAddress || '',
+          deliveryLocation: deliveryLocation || null,
+          updatedAt: new Date().toISOString(),
+        })
+      );
+
       const existingOrders = JSON.parse(localStorage.getItem('likha_my_orders') || '[]');
       const updatedOrders = [
         {
@@ -1012,6 +1066,10 @@ export default function CheckoutPage() {
         ...existingAdminOrders.filter(o => o.reference_code !== referenceCode),
       ];
       localStorage.setItem('likha_admin_orders', JSON.stringify(updatedAdminOrders));
+
+      // Record order placed on this device for anti-spam rate limiting (5 orders/day)
+      recordDeviceOrderPlaced(referenceCode);
+      setDeviceOrderInfo(getDeviceDailyOrderInfo());
 
       if (typeof window !== 'undefined') {
         window.dispatchEvent(new CustomEvent('likha_order_placed', { detail: fullAdminOrder }));
@@ -1184,6 +1242,49 @@ export default function CheckoutPage() {
                 Customer Details
               </h2>
             </div>
+
+            {/* Auto-filled Badge for Returning Buyers */}
+            {autofilledProfile && (
+              <div style={{
+                margin: '0 0 var(--space-3)',
+                padding: '8px 12px',
+                background: 'rgba(59, 130, 246, 0.08)',
+                border: '1px solid rgba(59, 130, 246, 0.22)',
+                borderRadius: 'var(--radius-md)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '8px',
+                fontSize: '11.5px',
+                color: '#1d4ed8',
+                lineHeight: 1.3,
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <i className="fa-solid fa-bolt" style={{ color: '#2563eb', fontSize: '12px' }}></i>
+                  <span>Details auto-filled from your previous order</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFormData((prev) => ({ ...prev, name: '', phone: '', facebookName: '' }));
+                    setDeliveryAddress('');
+                    setAutofilledProfile(null);
+                  }}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: '#6b7280',
+                    fontSize: '11px',
+                    textDecoration: 'underline',
+                    cursor: 'pointer',
+                    padding: '0 4px',
+                    flexShrink: 0,
+                  }}
+                >
+                  Clear
+                </button>
+              </div>
+            )}
 
             <div className="input-group">
               <label className="input-label" htmlFor="name">
@@ -1542,32 +1643,109 @@ export default function CheckoutPage() {
                 Payment Method
               </h2>
 
-              {/* 2 Radio Cards */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: '10px' }}>
-                <button type="button" onClick={() => setPaymentMethod('gcash')} style={{
-                  display: 'flex', alignItems: 'center', gap: '8px', padding: '9px 12px', borderRadius: '9px',
-                  border: paymentMethod === 'gcash' ? '2px solid #007DFE' : '1.5px solid #E2E8F0',
-                  background: paymentMethod === 'gcash' ? '#F0F7FF' : '#FFF', cursor: 'pointer', textAlign: 'left',
-                  transition: 'all 0.15s ease',
-                }}>
-                  <span style={{ width: '15px', height: '15px', borderRadius: '50%', flexShrink: 0, boxSizing: 'border-box', border: paymentMethod === 'gcash' ? '5px solid #007DFE' : '2px solid #CBD5E1', background: '#FFF' }}></span>
-                  <span style={{ fontSize: '13px', fontWeight: '700', color: paymentMethod === 'gcash' ? '#007DFE' : '#1E293B' }}>
-                    GCash
-                  </span>
+              {/* 2 Radio Payment Option Cards */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px', marginBottom: paymentMethod === 'cod' ? '8px' : '10px' }}>
+                <button
+                  type="button"
+                  onClick={() => setPaymentMethod('gcash')}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '9px',
+                    padding: '8px 12px',
+                    borderRadius: '10px',
+                    border: paymentMethod === 'gcash' ? '2px solid #007DFE' : '1.5px solid #E2E8F0',
+                    background: paymentMethod === 'gcash' ? '#F0F7FF' : '#FFF',
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    transition: 'all 0.18s ease',
+                    boxSizing: 'border-box',
+                  }}
+                >
+                  <span
+                    style={{
+                      width: '16px',
+                      height: '16px',
+                      borderRadius: '50%',
+                      flexShrink: 0,
+                      boxSizing: 'border-box',
+                      border: paymentMethod === 'gcash' ? '5px solid #007DFE' : '2px solid #CBD5E1',
+                      background: '#FFF',
+                    }}
+                  />
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: '13px', fontWeight: '700', color: paymentMethod === 'gcash' ? '#007DFE' : '#1E293B', lineHeight: 1.2 }}>
+                      GCash
+                    </div>
+                    <div style={{ fontSize: '10.5px', color: '#64748B', marginTop: '2px', whiteSpace: 'nowrap' }}>
+                      Scan QR / Online
+                    </div>
+                  </div>
                 </button>
 
-                <button type="button" onClick={() => setPaymentMethod('cod')} style={{
-                  display: 'flex', alignItems: 'center', gap: '8px', padding: '9px 12px', borderRadius: '9px',
-                  border: paymentMethod === 'cod' ? '2px solid #16A34A' : '1.5px solid #E2E8F0',
-                  background: paymentMethod === 'cod' ? '#F0FDF4' : '#FFF', cursor: 'pointer', textAlign: 'left',
-                  transition: 'all 0.15s ease',
-                }}>
-                  <span style={{ width: '15px', height: '15px', borderRadius: '50%', flexShrink: 0, boxSizing: 'border-box', border: paymentMethod === 'cod' ? '5px solid #16A34A' : '2px solid #CBD5E1', background: '#FFF' }}></span>
-                  <span style={{ fontSize: '12.5px', fontWeight: '700', color: paymentMethod === 'cod' ? '#15803D' : '#1E293B', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {orderType === 'delivery' ? 'Cash on Delivery' : 'Cash on Pickup'}
-                  </span>
+                <button
+                  type="button"
+                  onClick={() => setPaymentMethod('cod')}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '9px',
+                    padding: '8px 12px',
+                    borderRadius: '10px',
+                    border: paymentMethod === 'cod' ? '2px solid #16A34A' : '1.5px solid #E2E8F0',
+                    background: paymentMethod === 'cod' ? '#F0FDF4' : '#FFF',
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    transition: 'all 0.18s ease',
+                    boxSizing: 'border-box',
+                  }}
+                >
+                  <span
+                    style={{
+                      width: '16px',
+                      height: '16px',
+                      borderRadius: '50%',
+                      flexShrink: 0,
+                      boxSizing: 'border-box',
+                      border: paymentMethod === 'cod' ? '5px solid #16A34A' : '2px solid #CBD5E1',
+                      background: '#FFF',
+                    }}
+                  />
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: '13px', fontWeight: '700', color: paymentMethod === 'cod' ? '#15803D' : '#1E293B', lineHeight: 1.2 }}>
+                      Cash
+                    </div>
+                    <div style={{ fontSize: '10.5px', color: '#64748B', marginTop: '2px', whiteSpace: 'nowrap' }}>
+                      Pay upon claim
+                    </div>
+                  </div>
                 </button>
               </div>
+
+              {/* Single clean 1-line Cash Note */}
+              {paymentMethod === 'cod' && (
+                <div
+                  className="checkout-slide-in"
+                  style={{
+                    background: '#F0FDF4',
+                    border: '1px solid #BBF7D0',
+                    borderRadius: '8px',
+                    padding: '7px 10px',
+                    fontSize: '11.5px',
+                    color: '#166534',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                  }}
+                >
+                  <i className="fa-solid fa-circle-check" style={{ color: '#16A34A', flexShrink: 0, fontSize: '12px' }}></i>
+                  <span style={{ fontWeight: '500', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    Pay in cash upon claim. No advance payment needed.
+                  </span>
+                </div>
+              )}
 
               {/* GCash Details */}
               {paymentMethod === 'gcash' && (
@@ -1789,27 +1967,7 @@ export default function CheckoutPage() {
                 </div>
               )}
 
-              {/* COD Notice */}
-              {paymentMethod === 'cod' && (
-                <div className="checkout-slide-in" style={{
-                  background: '#F0FDF4',
-                  border: '1px solid #BBF7D0',
-                  borderRadius: '8px',
-                  padding: '6px 10px',
-                  fontSize: '11px',
-                  color: '#166534',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                }}>
-                  <i className="fa-solid fa-circle-check" style={{ color: '#16A34A', flexShrink: 0, fontSize: '11px' }}></i>
-                  <span style={{ fontWeight: '600', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {orderType === 'delivery' ? 'Pay exact cash upon delivery.' : 'Pay cash upon pickup.'}
-                  </span>
-                </div>
-              )}
+
             </div>
           </div>
           <hr className="divider" style={{ margin: 0 }} />
@@ -2178,6 +2336,29 @@ export default function CheckoutPage() {
             </div>
           </div>
 
+          {/* Device Daily Order Limit Warning Banner */}
+          {deviceOrderInfo?.isLimitReached && (
+            <div style={{
+              margin: '0 var(--space-4) var(--space-3)',
+              padding: '10px 14px',
+              background: 'rgba(239, 68, 68, 0.08)',
+              border: '1px solid rgba(239, 68, 68, 0.25)',
+              borderRadius: 'var(--radius-lg)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              fontSize: '12.5px',
+              color: '#991b1b',
+              fontWeight: '500',
+              lineHeight: 1.35,
+            }}>
+              <i className="fa-solid fa-shield-halved" style={{ color: '#ef4444', fontSize: '15px', flexShrink: 0 }}></i>
+              <span>
+                <strong>Daily Limit Reached ({MAX_ORDERS_PER_DEVICE_DAY}/{MAX_ORDERS_PER_DEVICE_DAY}):</strong> Message us on Facebook Messenger for additional orders.
+              </span>
+            </div>
+          )}
+
           {error && (
             <div style={{
               margin: '0 var(--space-4) var(--space-3)',
@@ -2201,7 +2382,7 @@ export default function CheckoutPage() {
             <button
               type="submit"
               className="btn btn-primary btn-full ripple"
-              disabled={submitting || checkoutCart.length === 0}
+              disabled={submitting || checkoutCart.length === 0 || deviceOrderInfo?.isLimitReached}
               id="submit-order-btn"
               style={{
                 height: '46px',
@@ -2211,10 +2392,16 @@ export default function CheckoutPage() {
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: '8px',
+                opacity: deviceOrderInfo?.isLimitReached ? 0.6 : 1,
+                cursor: deviceOrderInfo?.isLimitReached ? 'not-allowed' : 'pointer',
               }}
             >
-              <i className={submitting ? 'fa-solid fa-spinner fa-spin' : 'fa-solid fa-paper-plane'}></i>
-              <span>{submitting ? 'Submitting Order...' : 'Submit Order Request'}</span>
+              <i className={submitting ? 'fa-solid fa-spinner fa-spin' : (deviceOrderInfo?.isLimitReached ? 'fa-solid fa-ban' : 'fa-solid fa-paper-plane')}></i>
+              <span>
+                {submitting
+                  ? 'Submitting Order...'
+                  : (deviceOrderInfo?.isLimitReached ? 'Daily Limit Reached (5/5 Orders)' : 'Submit Order Request')}
+              </span>
             </button>
             <p style={{
               fontSize: '11.5px',

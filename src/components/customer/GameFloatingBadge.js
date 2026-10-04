@@ -4,9 +4,35 @@ import React, { useState, useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import ArtsyFunZoneModal from './ArtsyFunZoneModal';
 
+import { getActiveVoucherTiers } from '@/lib/engine/voucherEngine';
+
 export default function GameFloatingBadge() {
   const pathname = usePathname() || '';
   const [isOpen, setIsOpen] = useState(false);
+  const [enabled, setEnabled] = useState(true);
+  const [maxDiscount, setMaxDiscount] = useState(50);
+
+  useEffect(() => {
+    const checkSettings = () => {
+      try {
+        const tiers = getActiveVoucherTiers();
+        if (tiers?.DIAMOND?.discount) {
+          setMaxDiscount(tiers.DIAMOND.discount);
+        }
+        const raw = localStorage.getItem('mm_studio_settings');
+        if (raw) {
+          const s = JSON.parse(raw);
+          if (s.gameDiscountsEnabled !== undefined) {
+            setEnabled(Boolean(s.gameDiscountsEnabled));
+          }
+        }
+      } catch {}
+    };
+
+    checkSettings();
+    window.addEventListener('likha_settings_updated', checkSettings);
+    return () => window.removeEventListener('likha_settings_updated', checkSettings);
+  }, []);
 
   // Listen for global custom trigger events to launch games from anywhere
   useEffect(() => {
@@ -19,9 +45,8 @@ export default function GameFloatingBadge() {
     };
   }, []);
 
-  // Only display the floating arcade launcher on Home ('/') and Shop ('/shop') pages
-  // This keeps tracking (/track), cart, checkout, confirmation, custom requests, and admin completely clean and distraction-free
-  const isAllowedPage = pathname === '/' || pathname.startsWith('/shop');
+  // Only display the floating arcade launcher on Home ('/') and Shop ('/shop') pages when enabled
+  const isAllowedPage = enabled && (pathname === '/' || pathname.startsWith('/shop'));
 
   return (
     <>
@@ -33,7 +58,7 @@ export default function GameFloatingBadge() {
             aria-label="Play Games & Win Vouchers"
             className="arcade-launcher-btn"
           >
-            <span className="arcade-mini-tag">₱30 OFF</span>
+            <span className="arcade-mini-tag">₱{maxDiscount} OFF</span>
             <span className="arcade-icon-box">
               <i className="fa-solid fa-gamepad"></i>
             </span>
@@ -42,7 +67,7 @@ export default function GameFloatingBadge() {
                 Artsy Arcade
               </span>
               <span className="arcade-subtitle">
-                Win up to ₱30 OFF ✨
+                Win up to ₱{maxDiscount} OFF ✨
               </span>
             </div>
           </button>

@@ -70,7 +70,6 @@ export default function FloatingFeedbackMenu() {
   // Form State
   const [rating, setRating] = useState(5);
   const [message, setMessage] = useState('');
-  const [customerName, setCustomerName] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
   const [activePakilig, setActivePakilig] = useState(PAKILIG_MESSAGES[0]);
@@ -99,43 +98,19 @@ export default function FloatingFeedbackMenu() {
     return null;
   }
 
-  // Pre-fill customer name from guest checkout info or previous orders if available
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        const guestInfo = localStorage.getItem('likha_guest_info');
-        if (guestInfo) {
-          const parsed = JSON.parse(guestInfo);
-          if (parsed.fullName) setCustomerName(parsed.fullName);
-        } else {
-          const orders = localStorage.getItem('likha_my_orders');
-          if (orders) {
-            const parsedOrders = JSON.parse(orders);
-            if (Array.isArray(parsedOrders) && parsedOrders.length > 0 && parsedOrders[0].customer_name) {
-              setCustomerName(parsedOrders[0].customer_name);
-            }
-          }
-        }
-      } catch {}
-    }
-  }, []);
-
   const handleFeedbackSubmit = async (e) => {
     e.preventDefault();
     if (!message.trim()) return;
 
     setSubmitting(true);
-    const randomId = Math.floor(1000 + Math.random() * 9000);
     const randomPakilig = PAKILIG_MESSAGES[Math.floor(Math.random() * PAKILIG_MESSAGES.length)];
     setActivePakilig(randomPakilig);
-
-    const finalCustomerName = customerName.trim() || `Customer #${randomId}`;
 
     const feedbackPayload = {
       rating,
       topic: 'Customer Feedback',
       message: message.trim(),
-      customer_name: finalCustomerName,
+      customer_name: 'Anonymous Customer',
     };
 
     try {
@@ -273,31 +248,6 @@ export default function FloatingFeedbackMenu() {
                     </div>
                   </div>
 
-                  {/* Name Input (Optional / Pre-filled) */}
-                  <div className="form-group" style={{ margin: 0 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
-                      <label className="form-label" style={{ fontSize: '12.5px', fontWeight: '700', color: 'var(--color-text)', margin: 0 }}>
-                        Your Name / Facebook Name
-                      </label>
-                      <span style={{ fontSize: '11px', color: 'var(--color-text-muted)', fontWeight: '600' }}>Optional</span>
-                    </div>
-                    <input
-                      type="text"
-                      className="form-input"
-                      placeholder="e.g. Maria Santos (or leave blank to stay anonymous)"
-                      value={customerName}
-                      onChange={(e) => setCustomerName(e.target.value)}
-                      style={{
-                        width: '100%',
-                        borderRadius: 'var(--radius-lg)',
-                        border: '1.5px solid var(--color-border)',
-                        padding: '10px 14px',
-                        fontSize: '13px',
-                        fontFamily: 'var(--font-body)',
-                        boxSizing: 'border-box',
-                      }}
-                    />
-                  </div>
 
                   {/* Message Input */}
                   <div className="form-group" style={{ margin: 0 }}>

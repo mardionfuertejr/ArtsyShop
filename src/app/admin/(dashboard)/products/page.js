@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
-import { getMockProducts, getMockCategories } from '@/lib/mockData';
+import { getMockProducts, getMockCategories, MOCK_PRODUCTS, MOCK_CATEGORIES } from '@/lib/mockData';
 import AdminProductsClient from './AdminProductsClient';
 
 export const metadata = { title: "Products Management | M&M's Artsy Admin" };

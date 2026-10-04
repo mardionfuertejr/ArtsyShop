@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import BrandLogo from '@/components/common/BrandLogo';
 import NotificationBell from '@/components/admin/NotificationBell';
+import AdminAiCopilotModal from '@/components/admin/AdminAiCopilotModal';
 
 const NAV_ITEMS = [
   { href: '/admin', icon: 'fa-solid fa-chart-pie', label: 'Dashboard' },
@@ -235,7 +236,36 @@ export default function AdminShellClient({ user, children }) {
             <span className="admin-topbar-tag">Admin Workspace</span>
           </div>
 
-          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '10px' }}>
+            {/* Ayrion Topbar Button */}
+            <button
+              type="button"
+              id="topbar-ayrion-btn"
+              onClick={() => window.dispatchEvent(new CustomEvent('likha_open_ayrion'))}
+              className="ayrion-btn-pulse"
+              style={{
+                background: 'linear-gradient(135deg, #BE123C 0%, #EA580C 100%)',
+                color: '#FFFFFF',
+                border: 'none',
+                borderRadius: '999px',
+                padding: '6px 14px',
+                fontSize: '12px',
+                fontWeight: '800',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                boxShadow: '0 3px 10px rgba(190, 18, 60, 0.28)',
+                transition: 'transform 0.15s ease',
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.transform = 'scale(1.05)')}
+              onMouseLeave={(e) => (e.currentTarget.style.transform = 'scale(1)')}
+              title="Open Ayrion (Your Baby AI Helper)"
+            >
+              <i className="fa-solid fa-baby" style={{ fontSize: '13px' }}></i>
+              <span>Ayrion</span>
+            </button>
+
             <Link
               href="/"
               target="_blank"
@@ -299,6 +329,9 @@ export default function AdminShellClient({ user, children }) {
             <span>More</span>
           </button>
         </nav>
+
+        {/* Global Voice & Action AI Copilot */}
+        <AdminAiCopilotModal />
       </div>
     </div>
   );

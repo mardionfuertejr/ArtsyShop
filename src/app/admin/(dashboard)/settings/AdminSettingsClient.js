@@ -25,6 +25,13 @@ export default function AdminSettingsClient() {
     rushFeeAmount: 50,
     announcementEnabled: true,
     announcementText: 'I-send ang resibo sa Messenger para masimulan agad ang pag-craft.',
+    gameDiscountsEnabled: true,
+    gameSilverDiscount: 10,
+    gameSilverMinSpend: 350,
+    gameGoldDiscount: 20,
+    gameGoldMinSpend: 600,
+    gameDiamondDiscount: 50,
+    gameDiamondMinSpend: 1200,
   });
 
   useEffect(() => {
@@ -746,6 +753,220 @@ export default function AdminSettingsClient() {
             )}
           </div>
 
+        </div>
+
+        {/* Card 3: Mini-Game & Voucher Discounts (Full Width, Clean & Aligned) */}
+        <div
+          style={{
+            background: '#FFFFFF',
+            borderRadius: '12px',
+            padding: '20px 22px',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.02)',
+            border: '1px solid #E2E8F0',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '14px',
+          }}
+        >
+          {/* Header */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: '12px', borderBottom: '1px solid #F1F5F9', flexWrap: 'wrap', gap: '10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div
+                style={{
+                  width: '36px',
+                  height: '36px',
+                  borderRadius: '9px',
+                  background: '#FAF5FF',
+                  color: '#9333EA',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '15px',
+                }}
+              >
+                <i className="fa-solid fa-gamepad"></i>
+              </div>
+              <h2 style={{ fontSize: '15px', fontWeight: '800', color: '#0F172A', margin: 0 }}>
+                Mini-Game Voucher Discounts
+              </h2>
+            </div>
+
+            <label style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '11.5px', fontWeight: '700', color: '#475569' }}>
+              <input
+                type="checkbox"
+                checked={settings.gameDiscountsEnabled !== false}
+                onChange={(e) => handleChange('gameDiscountsEnabled', e.target.checked)}
+                style={{ width: '15px', height: '15px', accentColor: 'var(--color-primary, #EA580C)' }}
+              />
+              <span>Enable Game Discounts</span>
+            </label>
+          </div>
+
+          {/* 3 Tier Configuration Grid */}
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+              gap: '12px',
+              opacity: settings.gameDiscountsEnabled !== false ? 1 : 0.45,
+              pointerEvents: settings.gameDiscountsEnabled !== false ? 'auto' : 'none',
+              transition: 'opacity 0.15s ease',
+            }}
+          >
+            {/* Tier 1: Silver */}
+            <div
+              style={{
+                background: '#F8FAFC',
+                border: '1px solid #E2E8F0',
+                borderRadius: '11px',
+                padding: '14px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '10px',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ fontSize: '16px' }}>🥈</span>
+                  <span style={{ fontSize: '13px', fontWeight: '800', color: '#0F172A' }}>Silver Tier</span>
+                </div>
+                <span style={{ fontSize: '11px', color: '#64748B', fontWeight: '600' }}>100–199 pts</span>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                <div>
+                  <label style={{ ...labelStyle, fontSize: '10.5px', marginBottom: '4px' }}>Discount</label>
+                  <div style={{ position: 'relative' }}>
+                    <span style={{ position: 'absolute', left: '8px', top: '50%', transform: 'translateY(-50%)', fontSize: '12px', color: '#94A3B8', fontWeight: '700' }}>₱</span>
+                    <input
+                      type="number"
+                      style={{ ...inputStyle, height: '34px', paddingLeft: '20px', fontSize: '12.5px' }}
+                      value={settings.gameSilverDiscount !== undefined ? settings.gameSilverDiscount : 10}
+                      onChange={(e) => handleChange('gameSilverDiscount', parseFloat(e.target.value) || 0)}
+                      min="0"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label style={{ ...labelStyle, fontSize: '10.5px', marginBottom: '4px' }}>Min. Spend</label>
+                  <div style={{ position: 'relative' }}>
+                    <span style={{ position: 'absolute', left: '8px', top: '50%', transform: 'translateY(-50%)', fontSize: '12px', color: '#94A3B8', fontWeight: '700' }}>₱</span>
+                    <input
+                      type="number"
+                      style={{ ...inputStyle, height: '34px', paddingLeft: '20px', fontSize: '12.5px' }}
+                      value={settings.gameSilverMinSpend !== undefined ? settings.gameSilverMinSpend : 350}
+                      onChange={(e) => handleChange('gameSilverMinSpend', parseFloat(e.target.value) || 0)}
+                      min="0"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Tier 2: Gold */}
+            <div
+              style={{
+                background: '#F8FAFC',
+                border: '1px solid #E2E8F0',
+                borderRadius: '11px',
+                padding: '14px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '10px',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ fontSize: '16px' }}>🥇</span>
+                  <span style={{ fontSize: '13px', fontWeight: '800', color: '#0F172A' }}>Gold Tier</span>
+                </div>
+                <span style={{ fontSize: '11px', color: '#64748B', fontWeight: '600' }}>200–299 pts</span>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                <div>
+                  <label style={{ ...labelStyle, fontSize: '10.5px', marginBottom: '4px' }}>Discount</label>
+                  <div style={{ position: 'relative' }}>
+                    <span style={{ position: 'absolute', left: '8px', top: '50%', transform: 'translateY(-50%)', fontSize: '12px', color: '#94A3B8', fontWeight: '700' }}>₱</span>
+                    <input
+                      type="number"
+                      style={{ ...inputStyle, height: '34px', paddingLeft: '20px', fontSize: '12.5px' }}
+                      value={settings.gameGoldDiscount !== undefined ? settings.gameGoldDiscount : 20}
+                      onChange={(e) => handleChange('gameGoldDiscount', parseFloat(e.target.value) || 0)}
+                      min="0"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label style={{ ...labelStyle, fontSize: '10.5px', marginBottom: '4px' }}>Min. Spend</label>
+                  <div style={{ position: 'relative' }}>
+                    <span style={{ position: 'absolute', left: '8px', top: '50%', transform: 'translateY(-50%)', fontSize: '12px', color: '#94A3B8', fontWeight: '700' }}>₱</span>
+                    <input
+                      type="number"
+                      style={{ ...inputStyle, height: '34px', paddingLeft: '20px', fontSize: '12.5px' }}
+                      value={settings.gameGoldMinSpend !== undefined ? settings.gameGoldMinSpend : 600}
+                      onChange={(e) => handleChange('gameGoldMinSpend', parseFloat(e.target.value) || 0)}
+                      min="0"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Tier 3: Diamond */}
+            <div
+              style={{
+                background: '#F8FAFC',
+                border: '1px solid #E2E8F0',
+                borderRadius: '11px',
+                padding: '14px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '10px',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ fontSize: '16px' }}>💎</span>
+                  <span style={{ fontSize: '13px', fontWeight: '800', color: '#0F172A' }}>Diamond Tier</span>
+                </div>
+                <span style={{ fontSize: '11px', color: '#64748B', fontWeight: '600' }}>300+ pts</span>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                <div>
+                  <label style={{ ...labelStyle, fontSize: '10.5px', marginBottom: '4px' }}>Discount</label>
+                  <div style={{ position: 'relative' }}>
+                    <span style={{ position: 'absolute', left: '8px', top: '50%', transform: 'translateY(-50%)', fontSize: '12px', color: '#94A3B8', fontWeight: '700' }}>₱</span>
+                    <input
+                      type="number"
+                      style={{ ...inputStyle, height: '34px', paddingLeft: '20px', fontSize: '12.5px' }}
+                      value={settings.gameDiamondDiscount !== undefined ? settings.gameDiamondDiscount : 50}
+                      onChange={(e) => handleChange('gameDiamondDiscount', parseFloat(e.target.value) || 0)}
+                      min="0"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label style={{ ...labelStyle, fontSize: '10.5px', marginBottom: '4px' }}>Min. Spend</label>
+                  <div style={{ position: 'relative' }}>
+                    <span style={{ position: 'absolute', left: '8px', top: '50%', transform: 'translateY(-50%)', fontSize: '12px', color: '#94A3B8', fontWeight: '700' }}>₱</span>
+                    <input
+                      type="number"
+                      style={{ ...inputStyle, height: '34px', paddingLeft: '20px', fontSize: '12.5px' }}
+                      value={settings.gameDiamondMinSpend !== undefined ? settings.gameDiamondMinSpend : 1200}
+                      onChange={(e) => handleChange('gameDiamondMinSpend', parseFloat(e.target.value) || 0)}
+                      min="0"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
         </div>
       </form>
     </div>

@@ -64,31 +64,10 @@ export default function AdminProductsClient({ initialProducts, categories = [] }
           }
         }
 
-        const savedProds = localStorage.getItem('likha_custom_products');
-        if (savedProds) {
-          const parsed = JSON.parse(savedProds);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            // Keep only user-created custom products, ignore old seeded mock products
-            const cleanCustom = parsed.filter((p) => p && p.id && !p.id.startsWith('prod-0') && !p.id.startsWith('prod-1') && !p.id.startsWith('prod-2') && !p.id.startsWith('prod-3'));
-            if (cleanCustom.length !== parsed.length) {
-              localStorage.setItem('likha_custom_products', JSON.stringify(cleanCustom));
-            }
-            if (cleanCustom.length > 0) {
-              setProducts((prev) => {
-                const map = new Map();
-                (prev || []).forEach((p) => {
-                  const key = String(p.id || p.slug || '').trim();
-                  if (key) map.set(key, p);
-                });
-                cleanCustom.forEach((p) => {
-                  const key = String(p.id || p.slug || '').trim();
-                  if (key) map.set(key, p);
-                });
-                return Array.from(map.values());
-              });
-            }
-          }
-        }
+        // Clean up any stale custom products in localStorage
+        try {
+          localStorage.removeItem('likha_custom_products');
+        } catch {}
       }
     } catch {}
   }, []);

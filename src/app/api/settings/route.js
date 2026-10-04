@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic';
 let serverSettings = {
   studioName: 'M&M Artsy',
   tagline: 'Handcrafted Everlasting Fuzzy Bouquets & Resin Keepsakes',
-  messengerLink: 'https://www.facebook.com/messages/t/61587268312750',
+  messengerLink: 'https://m.me/61587268312750',
   contactNumber: '09949909686',
   gcashName: 'M.... J.. F...',
   gcashNumber: '09949909686',
@@ -25,6 +25,13 @@ let serverSettings = {
   announcementLink: '/shop',
   rushFeeEnabled: true,
   rushFeeAmount: 50,
+  gameDiscountsEnabled: true,
+  gameSilverDiscount: 10,
+  gameSilverMinSpend: 350,
+  gameGoldDiscount: 20,
+  gameGoldMinSpend: 600,
+  gameDiamondDiscount: 50,
+  gameDiamondMinSpend: 1200,
 };
 
 export async function GET() {

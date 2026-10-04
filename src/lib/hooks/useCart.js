@@ -9,6 +9,71 @@ let globalCart = [];
 let isStoreInitialized = false;
 const listeners = new Set();
 
+/**
+ * Check if two cart items are the same product (by id, slug, or name)
+ */
+export function isSameProduct(a, b) {
+  if (!a || !b) return false;
+  const aId = String(a.productId || a.id || '').trim();
+  const bId = String(b.productId || b.id || '').trim();
+  const aSlug = String(a.productSlug || a.slug || '').trim();
+  const bSlug = String(b.productSlug || b.slug || '').trim();
+  const aName = String(a.productName || a.name || '').trim().toLowerCase();
+  const bName = String(b.productName || b.name || '').trim().toLowerCase();
+
+  if (aId && bId && aId !== 'undefined' && aId !== 'null' && aId === bId) return true;
+  if (aSlug && bSlug && aSlug !== 'undefined' && aSlug !== 'null' && aSlug === bSlug) return true;
+  if (aName && bName && aName === bName) return true;
+  return false;
+}
+
+/**
+ * Normalize options array for robust comparison
+ */
+export function normalizeOptions(opts = []) {
+  if (!Array.isArray(opts)) return [];
+  return opts
+    .map((o) => {
+      const name = String(o?.optionName || o?.name || o?.option_name || o?.label || '').trim().toLowerCase();
+      const value = String(o?.optionValue || o?.value || o?.option_value || '').trim().toLowerCase();
+      return { name, value };
+    })
+    .filter((o) => o.value && o.value !== '---' && o.value !== '— select —');
+}
+
+/**
+ * Compare two options lists for exact equivalence
+ */
+export function isOptionEqual(optsA = [], optsB = []) {
+  const normA = normalizeOptions(optsA).map((o) => `${o.name}:${o.value}`).sort().join('|');
+  const normB = normalizeOptions(optsB).map((o) => `${o.name}:${o.value}`).sort().join('|');
+  return normA === normB;
+}
+
+/**
+ * Consolidate / merge duplicate items in a cart list
+ */
+export function consolidateCartItems(rawCart = []) {
+  if (!Array.isArray(rawCart) || rawCart.length <= 1) return rawCart || [];
+  const result = [];
+
+  for (const item of rawCart) {
+    if (!item) continue;
+    const existingIdx = result.findIndex((r) => isSameProduct(r, item) && isOptionEqual(r.options, item.options));
+
+    if (existingIdx !== -1) {
+      result[existingIdx] = {
+        ...result[existingIdx],
+        quantity: (parseInt(result[existingIdx].quantity, 10) || 1) + (parseInt(item.quantity, 10) || 1),
+      };
+    } else {
+      result.push({ ...item });
+    }
+  }
+
+  return result;
+}
+
 function getStoredCart() {
   if (typeof window === 'undefined') return [];
   try {
@@ -16,7 +81,11 @@ function getStoredCart() {
     if (stored) {
       const parsed = JSON.parse(stored);
       if (Array.isArray(parsed)) {
-        return parsed;
+        const consolidated = consolidateCartItems(parsed);
+        if (consolidated.length !== parsed.length) {
+          localStorage.setItem(CART_KEY, JSON.stringify(consolidated));
+        }
+        return consolidated;
       }
     }
   } catch {}
@@ -24,10 +93,11 @@ function getStoredCart() {
 }
 
 function saveCart(newCart) {
-  globalCart = newCart;
+  const consolidated = consolidateCartItems(newCart);
+  globalCart = consolidated;
   if (typeof window !== 'undefined') {
     try {
-      localStorage.setItem(CART_KEY, JSON.stringify(newCart));
+      localStorage.setItem(CART_KEY, JSON.stringify(consolidated));
     } catch {}
     try {
       window.dispatchEvent(new CustomEvent('likha_cart_updated'));
@@ -70,23 +140,6 @@ function initStoreIfNeeded() {
   });
 }
 
-const isOptionEqual = (optsA = [], optsB = []) => {
-  const cleanA = (optsA || []).filter((o) => o?.optionValue && o.optionValue !== '---');
-  const cleanB = (optsB || []).filter((o) => o?.optionValue && o.optionValue !== '---');
-  if (cleanA.length !== cleanB.length) return false;
-  if (cleanA.length === 0 && cleanB.length === 0) return true;
-
-  const normA = cleanA
-    .map((o) => `${(o.optionName || '').trim().toLowerCase()}:${(o.optionValue || '').trim().toLowerCase()}`)
-    .sort()
-    .join('|');
-  const normB = cleanB
-    .map((o) => `${(o.optionName || '').trim().toLowerCase()}:${(o.optionValue || '').trim().toLowerCase()}`)
-    .sort()
-    .join('|');
-  return normA === normB;
-};
-
 export function useCart() {
   const [cart, setCart] = useState([]);
   const [isLoaded, setIsLoaded] = useState(false);
@@ -114,20 +167,7 @@ export function useCart() {
     const currentCart = [...getStoredCart()];
     const qtyToAdd = Math.max(1, parseInt(item.quantity, 10) || 1);
 
-    const existIdx = currentCart.findIndex((c) => {
-      const cId = c.productId ? String(c.productId).trim() : '';
-      const itemId = item.productId ? String(item.productId).trim() : '';
-      const cSlug = c.productSlug ? String(c.productSlug).trim() : '';
-      const itemSlug = item.productSlug ? String(item.productSlug).trim() : '';
-
-      const validIdMatch = cId && itemId && cId !== 'undefined' && cId !== 'null' && cId === itemId;
-      const validSlugMatch = cSlug && itemSlug && cSlug !== 'undefined' && cSlug !== 'null' && cSlug === itemSlug;
-      const validNameMatch = !cId && !itemId && !cSlug && !itemSlug && c.productName && item.productName && c.productName.trim().toLowerCase() === item.productName.trim().toLowerCase();
-
-      if (!validIdMatch && !validSlugMatch && !validNameMatch) return false;
-
-      return isOptionEqual(c.options, item.options);
-    });
+    const existIdx = currentCart.findIndex((c) => isSameProduct(c, item) && isOptionEqual(c.options, item.options));
 
     let next;
     if (existIdx !== -1) {
@@ -178,19 +218,7 @@ export function useCart() {
 
     items.forEach((item) => {
       const qtyToAdd = Math.max(1, parseInt(item.quantity, 10) || 1);
-      const existIdx = currentCart.findIndex((c) => {
-        const cId = c.productId ? String(c.productId).trim() : '';
-        const itemId = item.productId ? String(item.productId).trim() : '';
-        const cSlug = c.productSlug ? String(c.productSlug).trim() : '';
-        const itemSlug = item.productSlug ? String(item.productSlug).trim() : '';
-
-        const validIdMatch = cId && itemId && cId !== 'undefined' && cId !== 'null' && cId === itemId;
-        const validSlugMatch = cSlug && itemSlug && cSlug !== 'undefined' && cSlug !== 'null' && cSlug === itemSlug;
-        const validNameMatch = !cId && !itemId && !cSlug && !itemSlug && c.productName && item.productName && c.productName.trim().toLowerCase() === item.productName.trim().toLowerCase();
-
-        if (!validIdMatch && !validSlugMatch && !validNameMatch) return false;
-        return isOptionEqual(c.options, item.options);
-      });
+      const existIdx = currentCart.findIndex((c) => isSameProduct(c, item) && isOptionEqual(c.options, item.options));
 
       if (existIdx !== -1) {
         const existing = currentCart[existIdx];
@@ -246,7 +274,7 @@ export function useCart() {
     saveCart(next);
   }, []);
 
-  /** Update quantity of an item */
+  /** Update quantity of item */
   const updateQty = useCallback((cartItemId, quantity) => {
     initStoreIfNeeded();
     const currentCart = getStoredCart();
@@ -260,7 +288,7 @@ export function useCart() {
     saveCart(next);
   }, []);
 
-  /** Update item properties */
+  /** Update whole item options or metadata */
   const updateItem = useCallback((cartItemId, updates) => {
     initStoreIfNeeded();
     const currentCart = getStoredCart();
@@ -273,19 +301,8 @@ export function useCart() {
     saveCart([]);
   }, []);
 
-  const totalQuantity = cart.reduce((sum, c) => sum + (parseInt(c.quantity, 10) || 1), 0);
-  const distinctCount = cart.length;
-  const itemCount = totalQuantity; // Count total item units for badges
-  const subtotal = cart.reduce((sum, c) => {
-    return sum + (parseFloat(c.unitPrice) || 0) * (parseInt(c.quantity, 10) || 1);
-  }, 0);
-
   return {
     cart,
-    itemCount,
-    distinctCount,
-    totalQuantity,
-    subtotal,
     isLoaded,
     addItem,
     addItems,
@@ -296,4 +313,3 @@ export function useCart() {
     clearCart,
   };
 }
-

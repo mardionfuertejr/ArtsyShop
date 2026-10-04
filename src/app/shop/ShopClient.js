@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import BrandLogo from '@/components/common/BrandLogo';
 import HeaderSearchBar from '@/components/customer/HeaderSearchBar';
@@ -19,6 +19,46 @@ export default function ShopClient({
   const [products, setProducts] = useState(initialProducts);
   const [categories, setCategories] = useState(initialCategories);
   const [selectedCategory, setSelectedCategory] = useState(initialCategorySlug);
+
+  const tabsContainerRef = useRef(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+
+  const checkScroll = () => {
+    const el = tabsContainerRef.current;
+    if (!el) return;
+    setCanScrollLeft(el.scrollLeft > 6);
+    setCanScrollRight(el.scrollLeft < el.scrollWidth - el.clientWidth - 6);
+  };
+
+  useEffect(() => {
+    // Initial check after render
+    const t = setTimeout(checkScroll, 100);
+    window.addEventListener('resize', checkScroll);
+    return () => {
+      clearTimeout(t);
+      window.removeEventListener('resize', checkScroll);
+    };
+  }, [categories, products]);
+
+  const handleTabClick = (slug, e) => {
+    setSelectedCategory(slug);
+    const btn = e?.currentTarget;
+    const container = tabsContainerRef.current;
+    if (btn && container) {
+      const containerRect = container.getBoundingClientRect();
+      const btnRect = btn.getBoundingClientRect();
+      const targetLeft = container.scrollLeft + (btnRect.left - containerRect.left) - (containerRect.width / 2) + (btnRect.width / 2);
+      container.scrollTo({
+        left: Math.max(0, targetLeft),
+        behavior: 'smooth',
+      });
+    }
+    // Prevent document window horizontal shift
+    if (typeof window !== 'undefined' && window.scrollX !== 0) {
+      window.scrollTo({ left: 0 });
+    }
+  };
 
   // Sync custom categories & products from localStorage & admin changes
   useEffect(() => {
@@ -48,36 +88,39 @@ export default function ShopClient({
         const deletedIds = JSON.parse(localStorage.getItem('likha_deleted_products') || '[]');
         const localProds = localStorage.getItem('likha_custom_products');
         
-        setProducts((prev) => {
-          const map = new Map();
-          (initialProducts || []).concat(prev || []).forEach((p) => {
-            if (p && !deletedIds.includes(p.id)) {
-              const key = String(p.id || p.slug || '').trim();
-              if (key) map.set(key, p);
-            }
-          });
+        let baseList = (initialProducts || []).filter((p) => p && !deletedIds.includes(p.id) && p.is_available !== false);
 
-          if (localProds) {
-            try {
-              const parsed = JSON.parse(localProds);
-              if (Array.isArray(parsed) && parsed.length > 0) {
-                const cleanCustom = parsed.filter((p) => p && p.id && !deletedIds.includes(p.id) && !p.id.startsWith('prod-0') && !p.id.startsWith('prod-1') && !p.id.startsWith('prod-2') && !p.id.startsWith('prod-3'));
-                cleanCustom.forEach((p) => {
+        if (localProds) {
+          try {
+            const parsed = JSON.parse(localProds);
+            if (Array.isArray(parsed)) {
+              const map = new Map();
+              baseList.forEach((p) => {
+                const key = String(p.id || p.slug || '').trim();
+                if (key) map.set(key, p);
+              });
+
+              parsed.forEach((p) => {
+                if (p && !deletedIds.includes(p.id)) {
                   const key = String(p.id || p.slug || '').trim();
                   if (key) {
-                    if (map.has(key)) {
+                    if (p.is_available === false) {
+                      map.delete(key);
+                    } else if (map.has(key)) {
                       map.set(key, { ...map.get(key), ...p });
                     } else {
                       map.set(key, p);
                     }
                   }
-                });
-              }
-            } catch {}
-          }
+                }
+              });
 
-          return Array.from(map.values()).filter((p) => !deletedIds.includes(p.id));
-        });
+              baseList = Array.from(map.values()).filter((p) => !deletedIds.includes(p.id) && p.is_available !== false);
+            }
+          } catch {}
+        }
+
+        setProducts(baseList);
       } catch {}
     };
 
@@ -220,26 +263,38 @@ export default function ShopClient({
       <StoreAnnouncementBar />
 
       <main className="page-content page-enter">
-        {/* Category Filter Tabs */}
-        <nav aria-label="Filter by category">
-          <div className="category-tabs">
-            <button
-              type="button"
-              onClick={() => setSelectedCategory('all')}
-              className={`category-tab${selectedCategory === 'all' ? ' active' : ''}`}
+        {/* Category Filter Tabs with Space-Saving Edge Fades & Auto-Center */}
+        <nav aria-label="Filter by category" style={{ margin: '0 0 var(--space-2)' }}>
+          <div
+            className={`category-tabs-container${canScrollLeft ? ' can-scroll-left' : ''}${canScrollRight ? ' can-scroll-right' : ''}`}
+          >
+            <div
+              className="category-tabs"
+              ref={tabsContainerRef}
+              onScroll={checkScroll}
             >
-              All Pieces
-            </button>
-            {allCategories.map((cat) => (
               <button
-                key={cat.id || cat.slug}
                 type="button"
-                onClick={() => setSelectedCategory(cat.slug || cat.id)}
-                className={`category-tab${selectedCategory === (cat.slug || cat.id) ? ' active' : ''}`}
+                onClick={(e) => handleTabClick('all', e)}
+                className={`category-tab${selectedCategory === 'all' ? ' active' : ''}`}
               >
-                {cat.name}
+                All Pieces
               </button>
-            ))}
+              {allCategories.map((cat) => {
+                const slug = cat.slug || cat.id;
+                const isActive = selectedCategory === slug;
+                return (
+                  <button
+                    key={slug}
+                    type="button"
+                    onClick={(e) => handleTabClick(slug, e)}
+                    className={`category-tab${isActive ? ' active' : ''}`}
+                  >
+                    {cat.name}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </nav>
 

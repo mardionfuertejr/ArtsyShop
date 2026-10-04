@@ -5,7 +5,7 @@
  * up to ₱30 for ₱499+ carts). Single voucher use per checkout transaction.
  */
 
-export const VOUCHER_TIERS = {
+export const DEFAULT_VOUCHER_TIERS = {
   SILVER: {
     name: 'Silver Blossom',
     discount: 10,
@@ -31,6 +31,33 @@ export const VOUCHER_TIERS = {
     scoreRange: '300+ pts',
   }
 };
+
+export function getActiveVoucherTiers() {
+  const tiers = {
+    SILVER: { ...DEFAULT_VOUCHER_TIERS.SILVER },
+    GOLD: { ...DEFAULT_VOUCHER_TIERS.GOLD },
+    DIAMOND: { ...DEFAULT_VOUCHER_TIERS.DIAMOND },
+  };
+
+  if (typeof window === 'undefined') return tiers;
+
+  try {
+    const raw = localStorage.getItem('mm_studio_settings');
+    if (raw) {
+      const s = JSON.parse(raw);
+      if (s.gameSilverDiscount !== undefined && s.gameSilverDiscount !== '') tiers.SILVER.discount = Number(s.gameSilverDiscount);
+      if (s.gameSilverMinSpend !== undefined && s.gameSilverMinSpend !== '') tiers.SILVER.minSpend = Number(s.gameSilverMinSpend);
+      if (s.gameGoldDiscount !== undefined && s.gameGoldDiscount !== '') tiers.GOLD.discount = Number(s.gameGoldDiscount);
+      if (s.gameGoldMinSpend !== undefined && s.gameGoldMinSpend !== '') tiers.GOLD.minSpend = Number(s.gameGoldMinSpend);
+      if (s.gameDiamondDiscount !== undefined && s.gameDiamondDiscount !== '') tiers.DIAMOND.discount = Number(s.gameDiamondDiscount);
+      if (s.gameDiamondMinSpend !== undefined && s.gameDiamondMinSpend !== '') tiers.DIAMOND.minSpend = Number(s.gameDiamondMinSpend);
+    }
+  } catch {}
+
+  return tiers;
+}
+
+export const VOUCHER_TIERS = DEFAULT_VOUCHER_TIERS;
 
 export const SWEET_ARTISAN_QUOTES = [
   "Every flower blooms in its own sweet time.",
@@ -87,7 +114,8 @@ function saveVoucherWallet(wallet) {
 
 // Issue a voucher to customer's wallet (Unlocks tier + all lower tiers so players are never blocked by high cart requirements)
 export function issueVoucherForTier(tierKey) {
-  const tier = VOUCHER_TIERS[tierKey];
+  const activeTiers = getActiveVoucherTiers();
+  const tier = activeTiers[tierKey] || DEFAULT_VOUCHER_TIERS[tierKey];
   if (!tier) return null;
 
   try {
@@ -102,7 +130,7 @@ export function issueVoucherForTier(tierKey) {
 
     // Create main won voucher
     const createVoucherObj = (tKey) => {
-      const t = VOUCHER_TIERS[tKey];
+      const t = activeTiers[tKey] || DEFAULT_VOUCHER_TIERS[tKey];
       return {
         code: generateRandomVoucherCode(t.discount),
         tierKey: tKey,

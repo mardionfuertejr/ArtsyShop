@@ -5,121 +5,135 @@ import OrderDetailClient from './OrderDetailClient';
 export const metadata = { title: "Order Details | M&M's Artsy Admin" };
 
 export default async function AdminOrderDetailPage({ params }) {
-  const resolvedParams = await params;
-  const orderId = resolvedParams.id;
+  const resolvedParams = await Promise.resolve(params);
+  const orderId = resolvedParams?.id || '';
 
   let order = null;
 
-  try {
-    const supabase = await createClient();
-    if (supabase) {
-      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(orderId);
-      const query = supabase
-        .from('orders')
-        .select(`
-          *,
-          order_items (
-            id,
-            product_name,
-            quantity,
-            unit_price,
-            total_price,
-            unit_cost,
-            total_cost,
-            order_item_options (
+  if (orderId) {
+    try {
+      const supabase = await createClient();
+      if (supabase) {
+        const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(orderId);
+        const query = supabase
+          .from('orders')
+          .select(`
+            *,
+            order_items (
               id,
-              option_name,
-              option_value,
-              additional_cost
+              product_name,
+              quantity,
+              unit_price,
+              total_price,
+              unit_cost,
+              total_cost,
+              order_item_options (
+                id,
+                option_name,
+                option_value,
+                additional_cost
+              )
+            ),
+            delivery_locations (
+              latitude,
+              longitude,
+              address,
+              landmark_notes
             )
-          ),
-          delivery_locations (
-            latitude,
-            longitude,
-            address,
-            landmark_notes
-          )
-        `);
+          `);
 
-      const { data: dbOrder } = isUUID
-        ? await query.eq('id', orderId).maybeSingle()
-        : await query.or(`id.eq.${orderId},reference_code.eq.${orderId}`).maybeSingle();
+        const { data: dbOrder, error } = isUUID
+          ? await query.eq('id', orderId).maybeSingle()
+          : await query.or(`id.eq.${orderId},reference_code.eq.${orderId}`).maybeSingle();
 
-      if (dbOrder) {
-        let payment_method = dbOrder.payment_method || dbOrder.paymentMethod || 'pickup';
-        let payment_proof_url = dbOrder.payment_proof_url || dbOrder.paymentProofUrl || null;
-        let gcash_reference_no = dbOrder.gcash_reference_no || dbOrder.gcashRefNo || null;
-        let cleanNotes = dbOrder.notes || '';
+        if (!error && dbOrder) {
+          let payment_method = dbOrder.payment_method || dbOrder.paymentMethod || 'pickup';
+          let payment_proof_url = dbOrder.payment_proof_url || dbOrder.paymentProofUrl || null;
+          let gcash_reference_no = dbOrder.gcash_reference_no || dbOrder.gcashRefNo || null;
+          let cleanNotes = dbOrder.notes || '';
 
-        if (cleanNotes.includes('[PAYMENT_META:')) {
-          try {
-            const match = cleanNotes.match(/\[PAYMENT_META:(.*?)\]/);
-            if (match) {
-              const parsed = JSON.parse(match[1]);
-              if (parsed.payment_method) payment_method = parsed.payment_method;
-              if (parsed.payment_proof_url) payment_proof_url = parsed.payment_proof_url;
-              if (parsed.gcash_reference_no) gcash_reference_no = parsed.gcash_reference_no;
-              cleanNotes = cleanNotes.replace(/\[PAYMENT_META:.*?\]\s*/, '');
-            }
-          } catch {}
-        }
+          if (cleanNotes.includes('[PAYMENT_META:')) {
+            try {
+              const match = cleanNotes.match(/\[PAYMENT_META:(.*?)\]/);
+              if (match) {
+                const parsed = JSON.parse(match[1]);
+                if (parsed.payment_method) payment_method = parsed.payment_method;
+                if (parsed.payment_proof_url) payment_proof_url = parsed.payment_proof_url;
+                if (parsed.gcash_reference_no) gcash_reference_no = parsed.gcash_reference_no;
+                cleanNotes = cleanNotes.replace(/\[PAYMENT_META:.*?\]\s*/, '');
+              }
+            } catch {}
+          }
 
-        order = {
-          id: dbOrder.id,
-          reference_code: dbOrder.reference_code,
-          customer_name: dbOrder.customer_name,
-          customer_phone: dbOrder.customer_phone || '',
-          facebook_name: dbOrder.facebook_name || '',
-          order_type: dbOrder.order_type,
-          status: dbOrder.status,
-          payment_method,
-          payment_proof_url,
-          gcash_reference_no,
-          subtotal: parseFloat(dbOrder.subtotal) || 0,
-          delivery_fee: parseFloat(dbOrder.delivery_fee) || 0,
-          rush_fee: parseFloat(dbOrder.rush_fee) || 0,
-          is_rush: Boolean(dbOrder.is_rush),
-          total_amount: parseFloat(dbOrder.total_amount) || 0,
-          total_cost: parseFloat(dbOrder.total_cost) || 0,
-          preferred_date: dbOrder.preferred_date || null,
-          preferred_time: dbOrder.preferred_time || null,
-          notes: cleanNotes,
-          created_at: dbOrder.created_at,
-          order_items: (dbOrder.order_items || []).map((it) => ({
-            id: it.id,
-            product_name: it.product_name,
-            quantity: it.quantity,
-            unit_price: parseFloat(it.unit_price) || 0,
-            total_price: parseFloat(it.total_price) || 0,
-            unit_cost: parseFloat(it.unit_cost) || 0,
-            total_cost: parseFloat(it.total_cost) || 0,
-            options: (it.order_item_options || []).map((opt) => ({
-              option_name: opt.option_name,
-              option_value: opt.option_value,
-              additional_cost: parseFloat(opt.additional_cost) || 0,
+          order = {
+            id: dbOrder.id,
+            reference_code: dbOrder.reference_code,
+            customer_name: dbOrder.customer_name || 'Customer',
+            customer_phone: dbOrder.customer_phone || '',
+            facebook_name: dbOrder.facebook_name || '',
+            order_type: dbOrder.order_type || 'pickup',
+            status: dbOrder.status || 'confirmed',
+            payment_method,
+            payment_proof_url,
+            gcash_reference_no,
+            subtotal: parseFloat(dbOrder.subtotal) || 0,
+            delivery_fee: parseFloat(dbOrder.delivery_fee) || 0,
+            rush_fee: parseFloat(dbOrder.rush_fee) || 0,
+            is_rush: Boolean(dbOrder.is_rush),
+            total_amount: parseFloat(dbOrder.total_amount) || 0,
+            total_cost: parseFloat(dbOrder.total_cost) || 0,
+            preferred_date: dbOrder.preferred_date || null,
+            preferred_time: dbOrder.preferred_time || null,
+            notes: cleanNotes,
+            created_at: dbOrder.created_at || new Date().toISOString(),
+            order_items: (dbOrder.order_items || []).map((it) => ({
+              id: it.id,
+              product_name: it.product_name,
+              quantity: it.quantity,
+              unit_price: parseFloat(it.unit_price) || 0,
+              total_price: parseFloat(it.total_price) || 0,
+              unit_cost: parseFloat(it.unit_cost) || 0,
+              total_cost: parseFloat(it.total_cost) || 0,
+              options: (it.order_item_options || []).map((opt) => ({
+                option_name: opt.option_name,
+                option_value: opt.option_value,
+                additional_cost: parseFloat(opt.additional_cost) || 0,
+              })),
             })),
-          })),
-          delivery_location: dbOrder.delivery_locations?.[0] || null,
-        };
+            delivery_location: dbOrder.delivery_locations?.[0] || null,
+          };
+        }
       }
+    } catch (e) {
+      console.warn('Error fetching order from db:', e);
     }
-  } catch {}
+  }
 
   if (!order) {
-    const allMocks = getAllMockOrders();
+    const allMocks = getAllMockOrders() || MOCK_ORDERS || [];
     order = allMocks.find(o => o.id === orderId || o.reference_code === orderId) || {
-      id: orderId,
-      reference_code: orderId,
+      id: orderId || 'ord-fallback',
+      reference_code: orderId || 'M&M-ORDER',
       customer_name: 'Customer Order',
       customer_phone: '',
+      facebook_name: '',
       order_type: 'pickup',
       status: 'confirmed',
+      payment_method: 'pickup',
+      payment_proof_url: null,
+      gcash_reference_no: null,
       subtotal: 0,
       delivery_fee: 0,
+      rush_fee: 0,
+      is_rush: false,
       total_amount: 0,
       total_cost: 0,
+      preferred_date: null,
+      preferred_time: null,
+      notes: '',
       created_at: new Date().toISOString(),
       order_items: [],
+      delivery_location: null,
     };
   }
 

@@ -19,6 +19,11 @@ export function getMessengerChatUrl(text = '') {
 export function openMessengerDirect(text = '') {
   if (typeof window === 'undefined') return;
 
+  // Auto-copy prefilled message to clipboard as guaranteed fallback
+  if (text && typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+    navigator.clipboard.writeText(text).catch(() => {});
+  }
+
   const encodedText = encodeURIComponent(text || '');
   const mMeUrl = text
     ? `https://m.me/${MESSENGER_PAGE_ID}?text=${encodedText}`
@@ -29,16 +34,13 @@ export function openMessengerDirect(text = '') {
   const isMobile = /iPhone|iPad|iPod|Android/i.test(ua);
 
   if (isFbOrIg || isMobile) {
-    // Universal m.me link directly opens native Messenger app on mobile without extra confirmation screens
+    // Universal m.me link directly opens native Messenger app on mobile
     window.location.href = mMeUrl;
   } else {
-    // On desktop browsers: open clean web chat tab
-    const webUrl = text
-      ? `https://www.facebook.com/messages/t/${MESSENGER_PAGE_ID}?text=${encodedText}`
-      : `https://www.facebook.com/messages/t/${MESSENGER_PAGE_ID}`;
-    const win = window.open(webUrl, '_blank', 'noopener,noreferrer');
+    // On desktop browsers: use m.me universal link (avoids ERR_BLOCKED_BY_RESPONSE on facebook.com)
+    const win = window.open(mMeUrl, '_blank', 'noopener,noreferrer');
     if (!win) {
-      window.location.href = webUrl;
+      window.location.href = mMeUrl;
     }
   }
 }

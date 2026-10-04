@@ -564,20 +564,23 @@ export default function ConfirmationClient({ order: serverOrder, referenceCode }
 
             {/* Key Info Grid: Reference Code & Schedule */}
             <div style={{
-              display: 'grid',
-              gridTemplateColumns: '1fr 1fr',
-              gap: '8px',
+              display: 'flex',
+              alignItems: 'center',
               background: '#FAF5EF',
               border: '1px solid #EFE4D6',
               borderRadius: '14px',
-              padding: '10px 12px',
+              padding: '12px 14px',
               marginBottom: '14px',
-              textAlign: 'center',
             }}>
-              <div style={{ minWidth: 0, paddingRight: '4px' }}>
-                <span style={{ fontSize: '0.62rem', fontWeight: '800', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: '2px' }}>Reference No</span>
-                <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '4px', maxWidth: '100%' }}>
-                  <span style={{ fontSize: '0.84rem', fontWeight: '900', fontFamily: 'monospace', color: '#C2410C', whiteSpace: 'nowrap' }}>#{order.reference_code}</span>
+              {/* Left: Reference No */}
+              <div style={{ flex: 1, textAlign: 'center', minWidth: 0, paddingRight: '8px' }}>
+                <div style={{ fontSize: '0.64rem', fontWeight: '800', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '4px', lineHeight: 1 }}>
+                  Reference No
+                </div>
+                <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '5px', maxWidth: '100%', height: '20px' }}>
+                  <span style={{ fontSize: '0.86rem', fontWeight: '800', fontFamily: 'var(--font-mono, monospace)', color: '#C2410C', letterSpacing: '0.02em', whiteSpace: 'nowrap', lineHeight: 1 }}>
+                    #{order.reference_code}
+                  </span>
                   <button
                     type="button"
                     onClick={() => {
@@ -595,16 +598,41 @@ export default function ConfirmationClient({ order: serverOrder, referenceCode }
                         );
                       }
                     }}
-                    style={{ background: 'none', border: 'none', color: '#C2410C', fontSize: '11px', cursor: 'pointer', padding: '2px', opacity: 0.85, flexShrink: 0 }}
+                    style={{
+                      background: 'rgba(194, 65, 12, 0.08)',
+                      border: 'none',
+                      borderRadius: '4px',
+                      color: '#C2410C',
+                      fontSize: '11px',
+                      cursor: 'pointer',
+                      padding: '2px 4px',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      lineHeight: 1,
+                      flexShrink: 0,
+                    }}
                     title="Copy Reference"
+                    aria-label="Copy reference code"
                   >
                     <i className="fa-regular fa-copy"></i>
                   </button>
                 </div>
               </div>
-              <div style={{ borderLeft: '1px solid #E5DFD5', minWidth: 0, paddingLeft: '4px' }}>
-                <span style={{ fontSize: '0.62rem', fontWeight: '800', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: '2px' }}>Target Schedule</span>
-                <span style={{ fontSize: '0.82rem', fontWeight: '800', color: '#0F172A', whiteSpace: 'nowrap', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis' }}>{formattedSchedule || 'As crafted'}</span>
+
+              {/* Symmetrical Vertical Divider */}
+              <div style={{ width: '1px', height: '32px', background: '#E5DFD5', flexShrink: 0 }} />
+
+              {/* Right: Target Schedule */}
+              <div style={{ flex: 1, textAlign: 'center', minWidth: 0, paddingLeft: '8px' }}>
+                <div style={{ fontSize: '0.64rem', fontWeight: '800', color: '#94A3B8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '4px', lineHeight: 1 }}>
+                  Target Schedule
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '20px' }}>
+                  <span style={{ fontSize: '0.86rem', fontWeight: '800', color: '#0F172A', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', lineHeight: 1 }}>
+                    {formattedSchedule || 'As crafted'}
+                  </span>
+                </div>
               </div>
             </div>
 

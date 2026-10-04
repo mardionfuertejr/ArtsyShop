@@ -734,14 +734,14 @@ export default function AdminFeedbacksClient() {
                               <span style={{
                                 fontSize: '10.5px',
                                 fontWeight: '700',
-                                color: fb.customer_name?.startsWith('Customer #') ? '#64748B' : '#16A34A',
+                                color: (!fb.customer_name || fb.customer_name === 'Anonymous Customer' || fb.customer_name?.startsWith('Customer #')) ? '#64748B' : '#16A34A',
                                 display: 'inline-flex',
                                 alignItems: 'center',
                                 gap: '3px',
                                 marginTop: '2px',
                               }}>
-                                <i className={fb.customer_name?.startsWith('Customer #') ? 'fa-solid fa-user-tag' : 'fa-solid fa-circle-check'} style={{ fontSize: '9px' }}></i>
-                                {fb.customer_name?.startsWith('Customer #') ? 'Guest' : 'Verified Buyer'}
+                                <i className={(!fb.customer_name || fb.customer_name === 'Anonymous Customer' || fb.customer_name?.startsWith('Customer #')) ? 'fa-solid fa-user-shield' : 'fa-solid fa-circle-check'} style={{ fontSize: '9px' }}></i>
+                                {(!fb.customer_name || fb.customer_name === 'Anonymous Customer') ? 'Anonymous' : fb.customer_name?.startsWith('Customer #') ? 'Guest' : 'Customer'}
                               </span>
                             </div>
                           </div>

@@ -120,6 +120,7 @@ function TrackContent() {
   const [error, setError] = useState('');
   const [copiedRef, setCopiedRef] = useState(false);
   const [reordering, setReordering] = useState(false);
+  const [isLiveConnected, setIsLiveConnected] = useState(false);
   const [showSearchDrawer, setShowSearchDrawer] = useState(false);
   const [drawerInput, setDrawerInput] = useState('');
   const drawerInputRef = useRef(null);
@@ -743,10 +744,15 @@ function TrackContent() {
                     messenger_opened_at: payload.new.messenger_opened_at || prev.messenger_opened_at,
                   };
                 });
+                silentRefreshOrder(code);
               }
             }
           )
-          .subscribe();
+          .subscribe((subStatus) => {
+            if (subStatus === 'SUBSCRIBED') {
+              setIsLiveConnected(true);
+            }
+          });
       }
     } catch {}
 
@@ -1348,9 +1354,11 @@ function TrackContent() {
                 {/* Header: Title on Left, Reference Code on Right */}
                 <div style={{ marginBottom: isCompleted ? '12px' : '14px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
-                    <h2 style={{ fontSize: '18px', fontWeight: '800', margin: 0, color: 'var(--color-text)' }}>
-                      {heroInfo?.title}
-                    </h2>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <h2 style={{ fontSize: '18px', fontWeight: '800', margin: 0, color: 'var(--color-text)' }}>
+                        {heroInfo?.title}
+                      </h2>
+                    </div>
                     <span style={{
                       fontFamily: 'monospace',
                       fontWeight: '800',

@@ -55,6 +55,8 @@ export default function AdminOrdersClient({ initialOrders }) {
   const [orderToCancel, setOrderToCancel] = useState(null);
   const [previewReceipt, setPreviewReceipt] = useState(null);
   const [copiedRefModal, setCopiedRefModal] = useState(false);
+  const [showClearAllModal, setShowClearAllModal] = useState(false);
+  const [isClearingAll, setIsClearingAll] = useState(false);
   const filterRef = useRef(null);
   const verificationRef = useRef(null);
   const actionMenuRef = useRef(null);
@@ -366,6 +368,44 @@ export default function AdminOrdersClient({ initialOrders }) {
 
     setToastMsg(`Order ${ord.reference_code} permanently deleted`);
     setTimeout(() => setToastMsg(''), 3000);
+  };
+
+  const handleClearAllTestOrders = async () => {
+    setIsClearingAll(true);
+    try {
+      // 1. Call server API to delete from Supabase
+      await fetch('/api/admin/clean-test-data', { method: 'POST' });
+
+      // 2. Clear LocalStorage test orders
+      try {
+        localStorage.removeItem('likha_admin_orders');
+        localStorage.removeItem('likha_mock_orders');
+        localStorage.removeItem('likha_customer_orders');
+        localStorage.removeItem('likha_customer_notifications');
+        localStorage.removeItem('likha_cart');
+        localStorage.removeItem('likha_checkout_draft');
+      } catch {}
+
+      // 3. Reset state
+      setOrders([]);
+
+      // 4. Notify all components & real-time dashboard listeners
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('storage'));
+        window.dispatchEvent(new CustomEvent('likha_order_placed', { detail: { allCleared: true } }));
+        window.dispatchEvent(new CustomEvent('likha_order_updated', { detail: { allCleared: true } }));
+      }
+
+      setToastMsg('✨ All test orders cleared! Products & materials preserved.');
+      setTimeout(() => setToastMsg(''), 3500);
+    } catch (err) {
+      console.error('Error clearing test orders:', err);
+      setToastMsg('Failed to clear test orders');
+      setTimeout(() => setToastMsg(''), 3000);
+    } finally {
+      setIsClearingAll(false);
+      setShowClearAllModal(false);
+    }
   };
 
   const isOrderUnsent = (o) => !o.sent_to_messenger && !o.messenger_opened_at && (o.status === 'pending' || o.status === 'submitted');
@@ -1068,6 +1108,36 @@ export default function AdminOrdersClient({ initialOrders }) {
                 </div>
               )}
             </div>
+
+            {orders.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setShowClearAllModal(true)}
+                style={{
+                  height: '38px',
+                  padding: '0 12px',
+                  borderRadius: '10px',
+                  border: '1px solid #FECACA',
+                  background: '#FFF5F5',
+                  color: '#DC2626',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  cursor: 'pointer',
+                  fontSize: '12px',
+                  fontWeight: '700',
+                  transition: 'all 0.15s ease',
+                  whiteSpace: 'nowrap',
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.02)',
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = '#FEE2E2')}
+                onMouseLeave={(e) => (e.currentTarget.style.background = '#FFF5F5')}
+                title="Clear all test orders"
+              >
+                <i className="fa-solid fa-trash-can" style={{ fontSize: '11px' }}></i>
+                <span>Clear Test Orders</span>
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -2039,6 +2109,115 @@ export default function AdminOrdersClient({ initialOrders }) {
                 onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}
               >
                 Yes, Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Clear All Test Orders Confirmation Modal */}
+      {showClearAllModal && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(15, 23, 42, 0.65)',
+            backdropFilter: 'blur(3px)',
+            zIndex: 99999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '20px',
+            animation: 'fadeIn 0.15s ease',
+          }}
+          onClick={() => !isClearingAll && setShowClearAllModal(false)}
+        >
+          <div
+            style={{
+              background: '#FFFFFF',
+              borderRadius: '16px',
+              padding: '24px',
+              maxWidth: '420px',
+              width: '100%',
+              boxShadow: '0 20px 40px rgba(0, 0, 0, 0.2)',
+              position: 'relative',
+              animation: 'scaleUp 0.15s ease',
+              textAlign: 'center',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div
+              style={{
+                width: '52px',
+                height: '52px',
+                borderRadius: '50%',
+                background: '#FEE2E2',
+                color: '#DC2626',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '22px',
+                margin: '0 auto 16px',
+              }}
+            >
+              <i className="fa-solid fa-trash-can"></i>
+            </div>
+
+            <h3 style={{ fontSize: '17px', fontWeight: '800', color: '#0F172A', margin: '0 0 8px' }}>
+              Clear All Test Orders?
+            </h3>
+            <p style={{ fontSize: '13px', color: '#64748B', lineHeight: '1.5', margin: '0 0 20px' }}>
+              This will remove all test orders and reset your dashboard sales analytics graph to a clean fresh state. <strong style={{ color: '#0F172A' }}>Products and materials will NOT be affected.</strong>
+            </p>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              <button
+                type="button"
+                onClick={() => setShowClearAllModal(false)}
+                disabled={isClearingAll}
+                style={{
+                  height: '38px',
+                  background: '#F1F5F9',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontSize: '13px',
+                  fontWeight: '700',
+                  color: '#475569',
+                  cursor: isClearingAll ? 'not-allowed' : 'pointer',
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleClearAllTestOrders}
+                disabled={isClearingAll}
+                style={{
+                  height: '38px',
+                  background: '#DC2626',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontSize: '13px',
+                  fontWeight: '700',
+                  color: '#FFFFFF',
+                  cursor: isClearingAll ? 'not-allowed' : 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                }}
+              >
+                {isClearingAll ? (
+                  <>
+                    <i className="fa-solid fa-spinner fa-spin"></i>
+                    <span>Clearing...</span>
+                  </>
+                ) : (
+                  <>
+                    <i className="fa-solid fa-trash-can"></i>
+                    <span>Yes, Clear All</span>
+                  </>
+                )}
               </button>
             </div>
           </div>

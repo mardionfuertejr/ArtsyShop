@@ -706,7 +706,7 @@ export default function AdminCustomRequestsClient() {
                             </button>
 
                             <a
-                              href={`https://www.facebook.com/messages/t/61587268312750?text=${encodeURIComponent(`Hi ${req.customer_name}! Regarding your custom request ${req.reference_code} (${req.description}):`)}`}
+                              href={`https://m.me/61587268312750?text=${encodeURIComponent(`Hi ${req.customer_name}! Regarding your custom request ${req.reference_code} (${req.description}):`)}`}
                               target="_blank"
                               rel="noopener noreferrer"
                               onClick={() => setActiveMenuId(null)}
